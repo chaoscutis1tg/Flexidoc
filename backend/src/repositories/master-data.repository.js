@@ -17,6 +17,8 @@ export class MasterDataRepository extends BaseRepository {
         { code: { $regex: searchKeyword, $options: 'i' } },
         { searchText: { $regex: searchKeyword, $options: 'i' } },
         { 'data.fullName': { $regex: searchKeyword, $options: 'i' } },
+        { 'data.representative': { $regex: searchKeyword, $options: 'i' } },
+        { 'data.email': { $regex: searchKeyword, $options: 'i' } },
         { 'data.idNumber': { $regex: searchKeyword, $options: 'i' } },
         { 'data.companyName': { $regex: searchKeyword, $options: 'i' } },
         { 'data.position': { $regex: searchKeyword, $options: 'i' } },

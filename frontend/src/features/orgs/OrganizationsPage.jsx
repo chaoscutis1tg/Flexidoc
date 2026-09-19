@@ -2,19 +2,19 @@ import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import api from '../../services/api';
 import { fetchDynamicPlans, DEFAULT_PLANS_DATA } from '../../utils/planData';
-import { 
-  Building2, 
-  Plus, 
-  ChevronRight, 
-  ChevronDown, 
-  Edit, 
-  Trash2, 
-  GitBranch, 
-  Search, 
-  ShieldCheck, 
-  LayoutGrid, 
-  ListTree, 
-  ChevronsDown, 
+import {
+  Building2,
+  Plus,
+  ChevronRight,
+  ChevronDown,
+  Edit,
+  Trash2,
+  GitBranch,
+  Search,
+  ShieldCheck,
+  LayoutGrid,
+  ListTree,
+  ChevronsDown,
   ChevronsUp,
   Building,
   Layers,
@@ -47,6 +47,15 @@ export const OrganizationsPage = () => {
     managerEmail: '',
   });
 
+  // Manager Autocomplete Search State with 300ms Debounce
+  const [managerQuery, setManagerQuery] = useState('');
+  const [debouncedManagerQuery, setDebouncedManagerQuery] = useState('');
+  const [allCandidatesList, setAllCandidatesList] = useState([]);
+  const [managerSuggestions, setManagerSuggestions] = useState([]);
+  const [isSearchingManager, setIsSearchingManager] = useState(false);
+  const [showManagerDropdown, setShowManagerDropdown] = useState(false);
+  const [selectedManagerObj, setSelectedManagerObj] = useState(null);
+
   // Edit Modal
   const [showEditModal, setShowEditModal] = useState(false);
   const [editForm, setEditForm] = useState({
@@ -63,6 +72,133 @@ export const OrganizationsPage = () => {
   const [childPlan, setChildPlan] = useState('PRO');
 
   const [error, setError] = useState('');
+
+  // Helper for unaccent Vietnamese search matching
+  const removeVietnameseTones = (str) => {
+    if (!str) return '';
+    return str
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/đ/g, 'd')
+      .replace(/Đ/g, 'D')
+      .toLowerCase();
+  };
+
+  // Debounce manager search input (300ms)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedManagerQuery(managerQuery);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [managerQuery]);
+
+  // Load all candidates from Master Data & System Users
+  const loadAllCandidates = async (searchKeyword = '') => {
+    setIsSearchingManager(true);
+    try {
+      const q = searchKeyword ? `?search=${encodeURIComponent(searchKeyword.trim())}` : '';
+      const [masterRes, usersRes] = await Promise.allSettled([
+        api.get(`/master-data${q}`),
+        api.get('/users')
+      ]);
+
+      let candidates = [];
+
+      // 1. Master Data Candidates
+      if (masterRes.status === 'fulfilled' && masterRes.value?.data) {
+        const mdList = (masterRes.value.data || []).map(item => {
+          const d = item.data || {};
+          const name = item.type === 'EMPLOYEE' 
+            ? (d.fullName || d.companyName || 'N/A') 
+            : (d.companyName || d.fullName || d.representative || 'N/A');
+          const email = d.email || (item.code ? `${item.code.toLowerCase()}@organization.com` : '');
+          return {
+            id: `md_${item._id}`,
+            name,
+            email,
+            position: d.position || d.repPosition || (item.type === 'EMPLOYEE' ? 'Nhân viên' : 'Đại diện'),
+            department: d.department || 'Ban Quản Lý',
+            phone: d.phone || '',
+            type: item.type,
+            code: item.code || ''
+          };
+        });
+        candidates.push(...mdList);
+      }
+
+      // 2. System Users Candidates
+      if (usersRes.status === 'fulfilled' && usersRes.value?.data) {
+        const userList = (usersRes.value.data || []).map(u => ({
+          id: `usr_${u._id}`,
+          name: u.fullName || u.username || u.email,
+          email: u.email || '',
+          position: u.role || 'Tài khoản hệ thống',
+          department: u.department || 'Tổ chức',
+          phone: u.phone || '',
+          type: 'EMPLOYEE',
+          code: u.username || ''
+        }));
+
+        userList.forEach(u => {
+          if (u.email && !candidates.some(c => c.email && c.email.toLowerCase() === u.email.toLowerCase())) {
+            candidates.push(u);
+          }
+        });
+      }
+
+      // If initial load without keyword or empty master list, update master list
+      if (!searchKeyword || allCandidatesList.length === 0) {
+        setAllCandidatesList(candidates);
+      }
+
+      // Filter with Vietnamese unaccent
+      if (searchKeyword) {
+        const cleanQuery = removeVietnameseTones(searchKeyword.trim());
+        const filtered = candidates.filter(item => {
+          const n = removeVietnameseTones(item.name);
+          const e = removeVietnameseTones(item.email);
+          const c = removeVietnameseTones(item.code);
+          const d = removeVietnameseTones(item.department);
+          return n.includes(cleanQuery) || e.includes(cleanQuery) || c.includes(cleanQuery) || d.includes(cleanQuery);
+        });
+        setManagerSuggestions(filtered);
+      } else {
+        setManagerSuggestions(candidates);
+      }
+    } catch (err) {
+      console.error('Error searching manager candidates:', err);
+    } finally {
+      setIsSearchingManager(false);
+    }
+  };
+
+  // Search manager from Master Data / Users when debounced query changes
+  useEffect(() => {
+    if (!showCreateModal) return;
+
+    if (!debouncedManagerQuery || debouncedManagerQuery.trim().length === 0) {
+      setManagerSuggestions(allCandidatesList);
+      return;
+    }
+
+    const rawQuery = debouncedManagerQuery.trim();
+    const cleanQuery = removeVietnameseTones(rawQuery);
+
+    const filtered = allCandidatesList.filter(item => {
+      const n = removeVietnameseTones(item.name);
+      const e = removeVietnameseTones(item.email);
+      const c = removeVietnameseTones(item.code);
+      const d = removeVietnameseTones(item.department);
+      return n.includes(cleanQuery) || e.includes(cleanQuery) || c.includes(cleanQuery) || d.includes(cleanQuery);
+    });
+
+    if (filtered.length > 0) {
+      setManagerSuggestions(filtered);
+    } else {
+      // If local unaccent filter finds nothing, perform API search
+      loadAllCandidates(rawQuery);
+    }
+  }, [debouncedManagerQuery, showCreateModal, allCandidatesList]);
 
   useEffect(() => {
     fetchDynamicPlans().then(data => {
@@ -135,8 +271,23 @@ export const OrganizationsPage = () => {
       managerName: '',
       managerEmail: '',
     });
+    setManagerQuery('');
+    setSelectedManagerObj(null);
+    setShowManagerDropdown(false);
     setError('');
     setShowCreateModal(true);
+    loadAllCandidates('');
+  };
+
+  const handleSelectManagerCandidate = (candidate) => {
+    setCreateForm(prev => ({
+      ...prev,
+      managerName: candidate.name,
+      managerEmail: candidate.email
+    }));
+    setManagerQuery(candidate.name);
+    setSelectedManagerObj(candidate);
+    setShowManagerDropdown(false);
   };
 
   const handleCreateOrg = async (e) => {
@@ -247,11 +398,11 @@ export const OrganizationsPage = () => {
     const isExpanded = !!expandedNodes[node._id];
 
     // Search filter logic
-    const matchesSearch = !search || 
-      node.name.toLowerCase().includes(search.toLowerCase()) || 
+    const matchesSearch = !search ||
+      node.name.toLowerCase().includes(search.toLowerCase()) ||
       node.code.toLowerCase().includes(search.toLowerCase());
 
-    const hasMatchingChild = node.children && node.children.some(c => 
+    const hasMatchingChild = node.children && node.children.some(c =>
       c.name.toLowerCase().includes(search.toLowerCase()) || c.code.toLowerCase().includes(search.toLowerCase())
     );
 
@@ -271,9 +422,9 @@ export const OrganizationsPage = () => {
 
     return (
       <div style={{ position: 'relative', marginTop: '12px' }}>
-        
+
         {/* Main Node Card */}
-        <div 
+        <div
           style={{
             padding: '16px 20px',
             display: 'flex',
@@ -290,19 +441,19 @@ export const OrganizationsPage = () => {
         >
           {/* Left Info Section */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flex: 1, minWidth: 0 }}>
-            
+
             {/* Expand / Collapse Button */}
             {hasChildren ? (
-              <button 
+              <button
                 onClick={() => toggleExpand(node._id)}
-                style={{ 
-                  background: '#ffffff', 
-                  border: '1px solid #cbd5e1', 
-                  borderRadius: '8px', 
-                  color: '#334155', 
-                  cursor: 'pointer', 
-                  display: 'flex', 
-                  alignItems: 'center', 
+                style={{
+                  background: '#ffffff',
+                  border: '1px solid #cbd5e1',
+                  borderRadius: '8px',
+                  color: '#334155',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
                   justifyContent: 'center',
                   width: '28px',
                   height: '28px',
@@ -320,14 +471,14 @@ export const OrganizationsPage = () => {
             )}
 
             {/* Icon Avatar */}
-            <div style={{ 
-              width: '44px', 
-              height: '44px', 
-              borderRadius: '12px', 
-              background: iconBg, 
-              display: 'flex', 
-              alignItems: 'center', 
-              justifyContent: 'center', 
+            <div style={{
+              width: '44px',
+              height: '44px',
+              borderRadius: '12px',
+              background: iconBg,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
               color: iconColor,
               flexShrink: 0,
               boxShadow: isRoot ? '0 4px 12px rgba(2, 132, 199, 0.25)' : 'none'
@@ -339,7 +490,7 @@ export const OrganizationsPage = () => {
             <div style={{ flex: 1, overflow: 'hidden' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
                 <span style={{ fontWeight: '800', fontSize: '15px', color: '#0f172a' }}>{node.name}</span>
-                
+
                 {/* Code Pill */}
                 <span className="badge" style={{ fontSize: '11px', background: '#f1f5f9', color: '#475569', border: '1px solid #e2e8f0' }}>
                   Mã: <strong>{node.code}</strong>
@@ -381,12 +532,12 @@ export const OrganizationsPage = () => {
 
           {/* Right Section: Status Badge & Action Pill Buttons */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexShrink: 0 }}>
-            
+
             {/* Status Indicator */}
-            <span style={{ 
-              fontSize: '11px', 
-              fontWeight: '700', 
-              padding: '5px 12px', 
+            <span style={{
+              fontSize: '11px',
+              fontWeight: '700',
+              padding: '5px 12px',
               borderRadius: '20px',
               background: node.status === 'ACTIVE' ? '#dcfce7' : node.status === 'PENDING_APPROVAL' ? '#fef3c7' : '#fee2e2',
               color: node.status === 'ACTIVE' ? '#15803d' : node.status === 'PENDING_APPROVAL' ? '#b45309' : '#b91c1c',
@@ -412,21 +563,21 @@ export const OrganizationsPage = () => {
 
             {/* Color-Coded Pill Action Group */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              
+
               {node.status === 'PENDING_APPROVAL' && (
-                <button 
+                <button
                   onClick={() => handleApproveOrg(node)}
-                  style={{ 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    gap: '4px', 
-                    padding: '6px 12px', 
-                    borderRadius: '8px', 
-                    border: '1px solid #7dd3fc', 
-                    background: '#e0f2fe', 
-                    color: '#0369a1', 
-                    fontSize: '12px', 
-                    fontWeight: '800', 
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    padding: '6px 12px',
+                    borderRadius: '8px',
+                    border: '1px solid #7dd3fc',
+                    background: '#e0f2fe',
+                    color: '#0369a1',
+                    fontSize: '12px',
+                    fontWeight: '800',
                     cursor: 'pointer',
                     transition: 'all 0.15s ease',
                     boxShadow: '0 1px 2px rgba(0,0,0,0.04)'
@@ -437,19 +588,19 @@ export const OrganizationsPage = () => {
                 </button>
               )}
 
-              <button 
+              <button
                 onClick={() => handleOpenChildRenewal(node)}
-                style={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  gap: '4px', 
-                  padding: '6px 12px', 
-                  borderRadius: '8px', 
-                  border: '1px solid #e9d5ff', 
-                  background: '#faf5ff', 
-                  color: '#9333ea', 
-                  fontSize: '12px', 
-                  fontWeight: '700', 
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  padding: '6px 12px',
+                  borderRadius: '8px',
+                  border: '1px solid #e9d5ff',
+                  background: '#faf5ff',
+                  color: '#9333ea',
+                  fontSize: '12px',
+                  fontWeight: '700',
                   cursor: 'pointer',
                   transition: 'all 0.15s ease',
                   boxShadow: '0 1px 2px rgba(0,0,0,0.04)'
@@ -459,19 +610,19 @@ export const OrganizationsPage = () => {
                 <Crown size={14} /> Gói Dịch Vụ
               </button>
 
-              <button 
+              <button
                 onClick={() => handleOpenAddChild(node._id)}
-                style={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  gap: '4px', 
-                  padding: '6px 12px', 
-                  borderRadius: '8px', 
-                  border: '1px solid #bbf7d0', 
-                  background: '#dcfce7', 
-                  color: '#15803d', 
-                  fontSize: '12px', 
-                  fontWeight: '700', 
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  padding: '6px 12px',
+                  borderRadius: '8px',
+                  border: '1px solid #bbf7d0',
+                  background: '#dcfce7',
+                  color: '#15803d',
+                  fontSize: '12px',
+                  fontWeight: '700',
                   cursor: 'pointer',
                   transition: 'all 0.15s ease',
                   boxShadow: '0 1px 2px rgba(0,0,0,0.04)'
@@ -481,19 +632,19 @@ export const OrganizationsPage = () => {
                 <Plus size={14} /> Thêm Con
               </button>
 
-              <button 
+              <button
                 onClick={() => handleOpenEdit(node)}
-                style={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  gap: '4px', 
-                  padding: '6px 12px', 
-                  borderRadius: '8px', 
-                  border: '1px solid #fde68a', 
-                  background: '#fef3c7', 
-                  color: '#b45309', 
-                  fontSize: '12px', 
-                  fontWeight: '700', 
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  padding: '6px 12px',
+                  borderRadius: '8px',
+                  border: '1px solid #fde68a',
+                  background: '#fef3c7',
+                  color: '#b45309',
+                  fontSize: '12px',
+                  fontWeight: '700',
                   cursor: 'pointer',
                   transition: 'all 0.15s ease',
                   boxShadow: '0 1px 2px rgba(0,0,0,0.04)'
@@ -503,19 +654,19 @@ export const OrganizationsPage = () => {
                 <Edit size={14} /> Sửa
               </button>
 
-              <button 
+              <button
                 onClick={() => handleDeleteOrg(node)}
-                style={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  gap: '4px', 
-                  padding: '6px 12px', 
-                  borderRadius: '8px', 
-                  border: '1px solid #fca5a5', 
-                  background: '#fee2e2', 
-                  color: '#b91c1c', 
-                  fontSize: '12px', 
-                  fontWeight: '700', 
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  padding: '6px 12px',
+                  borderRadius: '8px',
+                  border: '1px solid #fca5a5',
+                  background: '#fee2e2',
+                  color: '#b91c1c',
+                  fontSize: '12px',
+                  fontWeight: '700',
                   cursor: 'pointer',
                   transition: 'all 0.15s ease',
                   boxShadow: '0 1px 2px rgba(0,0,0,0.04)'
@@ -533,9 +684,9 @@ export const OrganizationsPage = () => {
 
         {/* Render Children Recursively with Tree Connector Line */}
         {hasChildren && isExpanded && (
-          <div style={{ 
-            borderLeft: '2px dashed #94a3b8', 
-            marginLeft: '26px', 
+          <div style={{
+            borderLeft: '2px dashed #94a3b8',
+            marginLeft: '26px',
             paddingLeft: '16px',
             marginTop: '4px'
           }}>
@@ -551,7 +702,7 @@ export const OrganizationsPage = () => {
 
   return (
     <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '22px' }}>
-      
+
       {/* Page Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
         <div>
@@ -568,9 +719,65 @@ export const OrganizationsPage = () => {
         </button>
       </div>
 
+      {/* Header Acceptance Notification Card for Pending Approvals */}
+      {allOrgsList.filter(o => o.status === 'PENDING_APPROVAL').length > 0 && (
+        <div style={{
+          background: 'linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)',
+          border: '1px solid #fde68a',
+          borderRadius: '16px',
+          padding: '16px 20px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: '14px',
+          boxShadow: '0 4px 12px rgba(217, 119, 6, 0.08)'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+            <div style={{ width: '42px', height: '42px', borderRadius: '12px', background: '#d97706', color: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <Clock size={22} />
+            </div>
+            <div>
+              <h4 style={{ fontSize: '14px', fontWeight: '800', color: '#92400e', margin: 0 }}>
+                Có {allOrgsList.filter(o => o.status === 'PENDING_APPROVAL').length} chi nhánh con đang chờ Quản Lý Chấp Nhận (Pending Accept)
+              </h4>
+              <p style={{ fontSize: '12px', color: '#b45309', margin: '2px 0 0 0' }}>
+                Chi nhánh sẽ chính thức kích hoạt sau khi người được phân quyền bấm xác nhận chấp nhận quyền quản lý.
+              </p>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+            {allOrgsList.filter(o => o.status === 'PENDING_APPROVAL').map(org => (
+              <button
+                key={org._id}
+                onClick={() => handleApproveOrg(org)}
+                style={{
+                  background: '#d97706',
+                  color: '#ffffff',
+                  border: 'none',
+                  padding: '8px 16px',
+                  borderRadius: '10px',
+                  fontSize: '12px',
+                  fontWeight: '800',
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  boxShadow: '0 2px 6px rgba(217, 119, 6, 0.25)',
+                  transition: 'all 0.15s ease'
+                }}
+              >
+                <CheckCircle2 size={15} /> Chấp Nhận Quản Lý: {org.name}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Modern KPI Summary Widget Bar */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '16px' }}>
-        
+
         <div className="glass-panel" style={{ padding: '18px 22px', background: '#ffffff', display: 'flex', alignItems: 'center', gap: '16px', borderLeft: '4px solid #0284c7' }}>
           <div style={{ width: '46px', height: '46px', borderRadius: '12px', background: '#e0f2fe', color: '#0284c7', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <Building2 size={24} />
@@ -615,13 +822,13 @@ export const OrganizationsPage = () => {
 
       {/* Control Bar: Search & Tree Controls & View Switcher */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '14px', background: '#ffffff', padding: '14px 20px', borderRadius: '14px', border: '1px solid #e2e8f0', boxShadow: '0 2px 6px rgba(0,0,0,0.02)' }}>
-        
+
         {/* Search input */}
         <div style={{ position: 'relative', flex: 1, minWidth: '260px', maxWidth: '400px' }}>
           <Search size={17} style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
-          <input 
-            type="text" 
-            className="glass-input" 
+          <input
+            type="text"
+            className="glass-input"
             style={{ paddingLeft: '40px', height: '42px', fontSize: '13px', background: '#f8fafc' }}
             placeholder="Tìm kiếm tổ chức theo tên hoặc mã..."
             value={search}
@@ -630,11 +837,11 @@ export const OrganizationsPage = () => {
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-          
+
           {/* Tree expand / collapse quick buttons */}
           {viewMode === 'tree' && (
             <div style={{ display: 'flex', gap: '6px' }}>
-              <button 
+              <button
                 onClick={handleExpandAll}
                 className="btn-action btn-secondary"
                 style={{ padding: '7px 12px', fontSize: '12px', height: '38px' }}
@@ -642,7 +849,7 @@ export const OrganizationsPage = () => {
               >
                 <ChevronsDown size={15} /> Mở Tất Cả
               </button>
-              <button 
+              <button
                 onClick={handleCollapseAll}
                 className="btn-action btn-secondary"
                 style={{ padding: '7px 12px', fontSize: '12px', height: '38px' }}
@@ -655,7 +862,7 @@ export const OrganizationsPage = () => {
 
           {/* View Mode Toggle Switcher */}
           <div style={{ display: 'flex', background: '#f1f5f9', padding: '3px', borderRadius: '10px', border: '1px solid #cbd5e1' }}>
-            <button 
+            <button
               onClick={() => setViewMode('tree')}
               style={{
                 display: 'flex',
@@ -675,7 +882,7 @@ export const OrganizationsPage = () => {
             >
               <ListTree size={16} /> Sơ Đồ Cây
             </button>
-            <button 
+            <button
               onClick={() => setViewMode('table')}
               style={{
                 display: 'flex',
@@ -709,11 +916,11 @@ export const OrganizationsPage = () => {
               Đang tải sơ đồ cây tổ chức...
             </div>
           ) : tree.length === 0 ? (
-            <div style={{ 
-              textAlign: 'center', 
-              padding: '50px 24px', 
-              background: 'linear-gradient(135deg, #f8fafc 0%, #f0f9ff 100%)', 
-              borderRadius: '16px', 
+            <div style={{
+              textAlign: 'center',
+              padding: '50px 24px',
+              background: 'linear-gradient(135deg, #f8fafc 0%, #f0f9ff 100%)',
+              borderRadius: '16px',
               border: '1px dashed #7dd3fc',
               margin: '10px 0',
               display: 'flex',
@@ -722,20 +929,20 @@ export const OrganizationsPage = () => {
               justifyContent: 'center',
               gap: '16px'
             }}>
-              <div style={{ 
-                width: '68px', 
-                height: '68px', 
-                borderRadius: '18px', 
-                background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)', 
-                color: '#ffffff', 
-                display: 'flex', 
-                alignItems: 'center', 
-                justifyContent: 'center', 
-                boxShadow: '0 8px 24px rgba(2, 132, 199, 0.25)' 
+              <div style={{
+                width: '68px',
+                height: '68px',
+                borderRadius: '18px',
+                background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)',
+                color: '#ffffff',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                boxShadow: '0 8px 24px rgba(2, 132, 199, 0.25)'
               }}>
                 <FolderTree size={36} />
               </div>
-              
+
               <div>
                 <h3 style={{ fontSize: '19px', fontWeight: '800', color: '#0f172a' }}>
                   Khởi Tạo Sơ Đồ Tổ Chức Phân Cấp Multi-Tenant
@@ -758,9 +965,9 @@ export const OrganizationsPage = () => {
                 </span>
               </div>
 
-              <button 
-                className="btn-action btn-create" 
-                onClick={() => handleOpenAddChild('')} 
+              <button
+                className="btn-action btn-create"
+                onClick={() => handleOpenAddChild('')}
                 style={{ padding: '12px 26px', fontSize: '14px', borderRadius: '12px', marginTop: '6px', boxShadow: '0 4px 16px rgba(16, 185, 129, 0.3)', display: 'inline-flex', alignItems: 'center', gap: '8px' }}
               >
                 <Plus size={18} /> Khởi Tạo Tổ Chức Gốc Mới Ngay
@@ -797,15 +1004,15 @@ export const OrganizationsPage = () => {
                   <tr key={item._id}>
                     <td>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '12px', paddingLeft: `${item.depth * 24}px` }}>
-                        <div style={{ 
-                          width: '34px', 
-                          height: '34px', 
-                          borderRadius: '8px', 
-                          background: item.depth === 0 ? '#0284c7' : '#e0f2fe', 
-                          color: item.depth === 0 ? '#ffffff' : '#0284c7', 
-                          display: 'flex', 
-                          alignItems: 'center', 
-                          justifyContent: 'center' 
+                        <div style={{
+                          width: '34px',
+                          height: '34px',
+                          borderRadius: '8px',
+                          background: item.depth === 0 ? '#0284c7' : '#e0f2fe',
+                          color: item.depth === 0 ? '#ffffff' : '#0284c7',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center'
                         }}>
                           <Building2 size={18} />
                         </div>
@@ -840,19 +1047,19 @@ export const OrganizationsPage = () => {
 
                     <td style={{ textAlign: 'right' }}>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '6px' }}>
-                        <button 
+                        <button
                           onClick={() => handleOpenAddChild(item._id)}
                           style={{ padding: '5px 10px', borderRadius: '6px', border: '1px solid #bbf7d0', background: '#dcfce7', color: '#15803d', fontSize: '11px', fontWeight: '700', cursor: 'pointer' }}
                         >
                           + Thêm Con
                         </button>
-                        <button 
+                        <button
                           onClick={() => handleOpenEdit(item)}
                           style={{ padding: '5px 10px', borderRadius: '6px', border: '1px solid #fde68a', background: '#fef3c7', color: '#b45309', fontSize: '11px', fontWeight: '700', cursor: 'pointer' }}
                         >
                           Sửa
                         </button>
-                        <button 
+                        <button
                           onClick={() => handleDeleteOrg(item)}
                           style={{ padding: '5px 10px', borderRadius: '6px', border: '1px solid #fca5a5', background: '#fee2e2', color: '#b91c1c', fontSize: '11px', fontWeight: '700', cursor: 'pointer' }}
                         >
@@ -868,63 +1075,79 @@ export const OrganizationsPage = () => {
         </div>
       )}
 
-      {/* Modal 1: Create Organization */}
+      {/* Modal 1: Create Organization (Redesigned Enterprise Modal) */}
       {showCreateModal && createPortal(
-        <div className="modal-overlay">
-          <div className="modal-content animate-fade-in" style={{ maxWidth: '520px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', borderBottom: '1px solid #e2e8f0', paddingBottom: '14px' }}>
-              <h2 style={{ fontSize: '20px', fontWeight: '800', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Plus size={22} color="#059669" /> Tạo Tổ Chức / Chi Nhánh Mới
-              </h2>
+        <div className="modal-overlay animate-fade-in" style={{ zIndex: 10000 }}>
+          <div 
+            className="bg-white rounded-3xl border border-slate-200 shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6 sm:p-7 space-y-6"
+            style={{ width: '92vw', maxWidth: '640px' }}
+          >
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center shadow-xs">
+                  <Plus size={22} />
+                </div>
+                <div>
+                  <h2 className="text-lg font-black text-slate-900 tracking-tight">Tạo Tổ Chức / Chi Nhánh Mới</h2>
+                  <p className="text-xs font-semibold text-slate-500">Khởi tạo công ty gốc hoặc chi nhánh con thuộc tập đoàn</p>
+                </div>
+              </div>
               <button 
                 onClick={() => setShowCreateModal(false)}
-                style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: '22px', cursor: 'pointer' }}
+                className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-full transition-colors cursor-pointer"
+                title="Đóng"
               >
                 ✕
               </button>
             </div>
 
             {error && (
-              <div style={{ background: '#fee2e2', border: '1px solid #fca5a5', color: '#991b1b', padding: '12px', borderRadius: 'var(--radius-md)', marginBottom: '16px', fontSize: '13px' }}>
-                {error}
+              <div className="p-3 rounded-2xl bg-red-50 border border-red-200 text-red-700 text-xs font-bold flex items-center gap-2">
+                <XCircle size={16} className="shrink-0" />
+                <span>{error}</span>
               </div>
             )}
 
-            <form onSubmit={handleCreateOrg} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              <div>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', color: '#334155', marginBottom: '6px' }}>
-                  Tên tổ chức / Chi nhánh <span style={{ color: '#ef4444' }}>*</span>
-                </label>
-                <input 
-                  type="text" 
-                  required 
-                  className="glass-input" 
-                  placeholder="Ví dụ: Chi Nhánh Đà Nẵng"
-                  value={createForm.name}
-                  onChange={(e) => setCreateForm({ ...createForm, name: e.target.value })}
-                />
+            <form onSubmit={handleCreateOrg} className="space-y-4">
+              {/* 2-Column Grid: Name & Code */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="sm:col-span-2">
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Tên Tổ Chức / Chi Nhánh <span className="text-red-500">*</span>
+                  </label>
+                  <input 
+                    type="text" 
+                    required 
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-900 focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all" 
+                    placeholder="Ví dụ: Chi Nhánh Đà Nẵng"
+                    value={createForm.name}
+                    onChange={(e) => setCreateForm({ ...createForm, name: e.target.value })}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Mã Viết Tắt (Code) <span className="text-red-500">*</span>
+                  </label>
+                  <input 
+                    type="text" 
+                    required 
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-emerald-800 uppercase focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all" 
+                    placeholder="ABC-DN"
+                    value={createForm.code}
+                    onChange={(e) => setCreateForm({ ...createForm, code: e.target.value.toUpperCase() })}
+                  />
+                </div>
               </div>
 
+              {/* Parent Org Selector */}
               <div>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', color: '#334155', marginBottom: '6px' }}>
-                  Mã viết tắt (Unique Code) <span style={{ color: '#ef4444' }}>*</span>
-                </label>
-                <input 
-                  type="text" 
-                  required 
-                  className="glass-input" 
-                  placeholder="Ví dụ: ABC-DN"
-                  value={createForm.code}
-                  onChange={(e) => setCreateForm({ ...createForm, code: e.target.value })}
-                />
-              </div>
-
-              <div>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', color: '#334155', marginBottom: '6px' }}>
-                  Tổ chức cấp trên (Parent Org)
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Tổ Chức Cấp Trên (Parent Organization)
                 </label>
                 <select 
-                  className="glass-input"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-800 bg-white focus:outline-none focus:border-emerald-500 cursor-pointer"
                   value={createForm.parentOrganizationId}
                   onChange={(e) => setCreateForm({ ...createForm, parentOrganizationId: e.target.value })}
                 >
@@ -937,57 +1160,196 @@ export const OrganizationsPage = () => {
                 </select>
               </div>
 
-              {/* Manager Assignment Section - Required for Child Orgs */}
-              <div style={{ 
-                background: '#f8fafc', 
-                border: '1px solid #cbd5e1', 
-                borderRadius: '12px', 
-                padding: '14px', 
-                display: 'flex', 
-                flexDirection: 'column', 
-                gap: '12px' 
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#0369a1', fontWeight: '700', fontSize: '13.5px' }}>
-                  <ShieldCheck size={18} /> Người Giữ & Quản Lý Chi Nhánh {createForm.parentOrganizationId && <span style={{ color: '#ef4444' }}>(Bắt buộc)</span>}
+              {/* Manager Assignment Section - Structured Container */}
+              <div className="p-4 rounded-2xl bg-slate-50/80 border border-slate-200/90 space-y-3.5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-sky-800 font-extrabold text-xs">
+                    <ShieldCheck size={18} className="text-sky-600" />
+                    <span>Người Giữ & Quản Lý Chi Nhánh</span>
+                  </div>
+                  {createForm.parentOrganizationId ? (
+                    <span className="text-[10px] font-extrabold bg-red-100 text-red-700 px-2.5 py-0.5 rounded-full border border-red-200">
+                      Bắt buộc cho chi nhánh con
+                    </span>
+                  ) : (
+                    <span className="text-[10px] font-bold bg-slate-200 text-slate-600 px-2 py-0.5 rounded-full">
+                      Tùy chọn cho tổ chức gốc
+                    </span>
+                  )}
                 </div>
-                <p style={{ fontSize: '12px', color: '#64748b', margin: 0 }}>
-                  Theo quy định, tổ chức con phải có 1 người giữ & quản lý. Khi khởi tạo, hệ thống sẽ gửi thông tin xin chấp nhận quản lý tới email này.
+
+                <p className="text-[11.5px] text-slate-500 leading-relaxed">
+                  Chọn người giữ quyền từ danh sách Master Data. Hệ thống sẽ gửi yêu cầu xin <strong>Chấp nhận Quản lý (Accept)</strong> trước khi chi nhánh chính thức hoạt động.
                 </p>
 
-                <div>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#475569', marginBottom: '4px' }}>
-                    Họ và Tên Người Quản Lý {createForm.parentOrganizationId && <span style={{ color: '#ef4444' }}>*</span>}
+                {/* Autocomplete Input */}
+                <div className="relative">
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Tìm kiếm & Chọn Người Quản Lý {createForm.parentOrganizationId && <span className="text-red-500">*</span>}
                   </label>
-                  <input 
-                    type="text" 
-                    required={!!createForm.parentOrganizationId}
-                    className="glass-input" 
-                    placeholder="Ví dụ: Nguyễn Văn A"
-                    value={createForm.managerName}
-                    onChange={(e) => setCreateForm({ ...createForm, managerName: e.target.value })}
-                  />
+                  
+                  <div className="relative">
+                    <input 
+                      type="text" 
+                      required={!!createForm.parentOrganizationId}
+                      className="w-full pl-3.5 pr-10 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-900 bg-white focus:outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 transition-all" 
+                      placeholder="Gõ tên hoặc bấm mũi tên để xem toàn bộ danh sách..."
+                      value={createForm.managerName}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setCreateForm({ ...createForm, managerName: val });
+                        setManagerQuery(val);
+                        setShowManagerDropdown(true);
+                      }}
+                      onFocus={() => {
+                        setShowManagerDropdown(true);
+                        if (allCandidatesList.length === 0) loadAllCandidates();
+                      }}
+                    />
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowManagerDropdown(!showManagerDropdown);
+                        if (!showManagerDropdown && allCandidatesList.length === 0) loadAllCandidates();
+                      }}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-sky-600 p-1 rounded-md cursor-pointer transition-colors"
+                      title="Mở/đóng danh sách nhân sự"
+                    >
+                      {isSearchingManager ? (
+                        <div className="w-4 h-4 border-2 border-sky-600 border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                        <ChevronDown size={18} />
+                      )}
+                    </button>
+                  </div>
+
+                  {/* Floating Dropdown Suggestion List */}
+                  {showManagerDropdown && (
+                    <div className="absolute top-full left-0 right-0 mt-1 bg-white rounded-2xl border border-slate-200 shadow-xl max-h-56 overflow-y-auto z-[9999]">
+                      <div className="px-3 py-2 bg-slate-50 border-b border-slate-100 flex items-center justify-between text-[11px] font-extrabold text-slate-500 uppercase tracking-wider">
+                        <span>Gợi ý nhân sự trong tổ chức ({managerSuggestions.length})</span>
+                        <button 
+                          type="button" 
+                          onClick={() => setShowManagerDropdown(false)}
+                          className="text-sky-600 hover:text-sky-800 text-xs font-bold cursor-pointer"
+                        >
+                          Đóng ✕
+                        </button>
+                      </div>
+
+                      {managerSuggestions.length > 0 ? (
+                        managerSuggestions.map((candidate) => (
+                          <div
+                            key={candidate.id}
+                            onClick={() => handleSelectManagerCandidate(candidate)}
+                            className="p-3 border-b border-slate-50 hover:bg-sky-50/70 cursor-pointer flex items-center justify-between transition-colors group"
+                          >
+                            <div className="min-w-0 pr-2">
+                              <div className="font-extrabold text-xs text-slate-900 group-hover:text-sky-700 transition-colors truncate">
+                                {candidate.name}
+                              </div>
+                              <div className="text-[11px] text-slate-500 mt-0.5 truncate">
+                                {candidate.position} • {candidate.department} • <strong className="text-sky-700">{candidate.email}</strong>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-2 shrink-0">
+                              <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-md border ${
+                                candidate.type === 'EMPLOYEE'
+                                  ? 'bg-sky-50 text-sky-700 border-sky-200'
+                                  : candidate.type === 'CUSTOMER'
+                                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                  : 'bg-purple-50 text-purple-700 border-purple-200'
+                              }`}>
+                                {candidate.type === 'EMPLOYEE' ? 'NHÂN VIÊN' : candidate.type === 'CUSTOMER' ? 'KHÁCH HÀNG' : 'ĐỐI TÁC'}
+                              </span>
+
+                              <button
+                                type="button"
+                                className="px-2.5 py-1 rounded-lg bg-sky-600 group-hover:bg-sky-700 text-white text-[11px] font-bold shadow-2xs transition-all cursor-pointer"
+                              >
+                                Chọn
+                              </button>
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="p-4 text-center space-y-2">
+                          <p className="text-xs text-slate-500 font-medium">
+                            {createForm.managerName ? (
+                              <>Không có kết quả khớp với <strong>"{createForm.managerName}"</strong></>
+                            ) : (
+                              'Chưa có dữ liệu Master Data.'
+                            )}
+                          </p>
+                          {createForm.managerName && (
+                            <button
+                              type="button"
+                              onClick={() => setShowManagerDropdown(false)}
+                              className="px-3 py-1.5 bg-sky-600 hover:bg-sky-700 text-white rounded-xl text-xs font-bold shadow-xs cursor-pointer"
+                            >
+                              Sử dụng tên "{createForm.managerName}" & Tự nhập Email
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
 
+                {/* Email Input */}
                 <div>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#475569', marginBottom: '4px' }}>
-                    Email Nhận Quyền Quản Lý {createForm.parentOrganizationId && <span style={{ color: '#ef4444' }}>*</span>}
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Email Nhận Quyền Quản Lý {createForm.parentOrganizationId && <span className="text-red-500">*</span>}
                   </label>
                   <input 
                     type="email" 
                     required={!!createForm.parentOrganizationId}
-                    className="glass-input" 
-                    placeholder="Ví dụ: manager@chinhanh.com"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-900 bg-white focus:outline-none focus:border-sky-500 transition-all" 
+                    placeholder="manager@chinhanh.com"
                     value={createForm.managerEmail}
                     onChange={(e) => setCreateForm({ ...createForm, managerEmail: e.target.value })}
                   />
                 </div>
+
+                {/* Acceptance Preview Card */}
+                {createForm.managerName && createForm.managerEmail && (
+                  <div className="p-3 bg-gradient-to-r from-sky-50 to-indigo-50 border border-sky-200 rounded-2xl flex items-center justify-between gap-3 shadow-2xs animate-fade-in">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="w-7 h-7 rounded-xl bg-sky-600 text-white flex items-center justify-center font-black text-xs shrink-0 shadow-xs">
+                        ✓
+                      </div>
+                      <div className="min-w-0">
+                        <div className="text-xs font-extrabold text-sky-900 truncate">
+                          Đã chọn Người Quản Lý: {createForm.managerName}
+                        </div>
+                        <div className="text-[11px] text-slate-600 truncate">
+                          Yêu cầu xác nhận sẽ được gửi tới: <strong>{createForm.managerEmail}</strong>
+                        </div>
+                      </div>
+                    </div>
+
+                    <span className="text-[10px] font-extrabold bg-sky-600 text-white px-2.5 py-1 rounded-full uppercase tracking-wider shrink-0 shadow-2xs">
+                      YÊU CẦU ACCEPT
+                    </span>
+                  </div>
+                )}
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '14px', borderTop: '1px solid #e2e8f0', paddingTop: '16px' }}>
-                <button type="button" className="btn-action btn-secondary" onClick={() => setShowCreateModal(false)}>
-                  Hủy
+              {/* Form Action Footer */}
+              <div className="flex justify-end items-center gap-3 pt-4 border-t border-slate-100">
+                <button 
+                  type="button" 
+                  onClick={() => setShowCreateModal(false)}
+                  className="px-5 py-2.5 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-extrabold transition-all cursor-pointer"
+                >
+                  Hủy Bỏ
                 </button>
-                <button type="submit" className="btn-action btn-create">
+                <button 
+                  type="submit"
+                  className="px-5 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black shadow-md shadow-emerald-200 hover:-translate-y-0.5 active:scale-[0.98] transition-all cursor-pointer"
+                >
                   Gửi Thông Tin & Tạo Chi Nhánh
                 </button>
               </div>
@@ -999,59 +1361,74 @@ export const OrganizationsPage = () => {
 
       {/* Modal 2: Edit Organization */}
       {showEditModal && createPortal(
-        <div className="modal-overlay">
-          <div className="modal-content animate-fade-in" style={{ maxWidth: '520px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', borderBottom: '1px solid #e2e8f0', paddingBottom: '14px' }}>
-              <h2 style={{ fontSize: '20px', fontWeight: '800', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Edit size={22} color="#f59e0b" /> Chỉnh Sửa Tổ Chức
-              </h2>
+        <div className="modal-overlay animate-fade-in" style={{ zIndex: 10000 }}>
+          <div 
+            className="bg-white rounded-3xl border border-slate-200 shadow-2xl w-full max-w-xl max-h-[90vh] overflow-y-auto p-6 sm:p-7 space-y-6"
+            style={{ width: '92vw', maxWidth: '560px' }}
+          >
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center shadow-xs">
+                  <Edit size={22} />
+                </div>
+                <div>
+                  <h2 className="text-lg font-black text-slate-900 tracking-tight">Chỉnh Sửa Tổ Chức</h2>
+                  <p className="text-xs font-semibold text-slate-500">Cập nhật thông tin chi tiết và trạng thái hoạt động</p>
+                </div>
+              </div>
               <button 
                 onClick={() => setShowEditModal(false)}
-                style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: '22px', cursor: 'pointer' }}
+                className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-full transition-colors cursor-pointer"
+                title="Đóng"
               >
                 ✕
               </button>
             </div>
 
             {error && (
-              <div style={{ background: '#fee2e2', border: '1px solid #fca5a5', color: '#991b1b', padding: '12px', borderRadius: 'var(--radius-md)', marginBottom: '16px', fontSize: '13px' }}>
-                {error}
+              <div className="p-3 rounded-2xl bg-red-50 border border-red-200 text-red-700 text-xs font-bold flex items-center gap-2">
+                <XCircle size={16} className="shrink-0" />
+                <span>{error}</span>
               </div>
             )}
 
-            <form onSubmit={handleUpdateOrg} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              <div>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', color: '#334155', marginBottom: '6px' }}>
-                  Tên tổ chức / Chi nhánh
-                </label>
-                <input 
-                  type="text" 
-                  required 
-                  className="glass-input" 
-                  value={editForm.name}
-                  onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-                />
+            <form onSubmit={handleUpdateOrg} className="space-y-4">
+              {/* 2-Column Grid: Name & Code */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="sm:col-span-2">
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Tên Tổ Chức / Chi Nhánh <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-900 focus:outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 transition-all"
+                    value={editForm.name}
+                    onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Mã Viết Tắt (Code) <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-amber-800 uppercase focus:outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 transition-all"
+                    value={editForm.code}
+                    onChange={(e) => setEditForm({ ...editForm, code: e.target.value.toUpperCase() })}
+                  />
+                </div>
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', color: '#334155', marginBottom: '6px' }}>
-                  Mã viết tắt (Unique Code)
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Tổ Chức Cấp Trên (Parent Organization)
                 </label>
-                <input 
-                  type="text" 
-                  required 
-                  className="glass-input" 
-                  value={editForm.code}
-                  onChange={(e) => setEditForm({ ...editForm, code: e.target.value })}
-                />
-              </div>
-
-              <div>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', color: '#334155', marginBottom: '6px' }}>
-                  Tổ chức cấp trên (Parent Org)
-                </label>
-                <select 
-                  className="glass-input"
+                <select
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-800 bg-white focus:outline-none focus:border-amber-500 cursor-pointer"
                   value={editForm.parentOrganizationId}
                   onChange={(e) => setEditForm({ ...editForm, parentOrganizationId: e.target.value })}
                 >
@@ -1065,11 +1442,11 @@ export const OrganizationsPage = () => {
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', color: '#334155', marginBottom: '6px' }}>
-                  Trạng thái hoạt động
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Trạng Thái Hoạt Động
                 </label>
-                <select 
-                  className="glass-input"
+                <select
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-800 bg-white focus:outline-none focus:border-amber-500 cursor-pointer"
                   value={editForm.status}
                   onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}
                 >
@@ -1078,11 +1455,18 @@ export const OrganizationsPage = () => {
                 </select>
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '14px', borderTop: '1px solid #e2e8f0', paddingTop: '16px' }}>
-                <button type="button" className="btn-action btn-secondary" onClick={() => setShowEditModal(false)}>
-                  Hủy
+              <div className="flex justify-end items-center gap-3 pt-4 border-t border-slate-100">
+                <button 
+                  type="button" 
+                  onClick={() => setShowEditModal(false)}
+                  className="px-5 py-2.5 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-extrabold transition-all cursor-pointer"
+                >
+                  Hủy Bỏ
                 </button>
-                <button type="submit" className="btn-action btn-warning">
+                <button 
+                  type="submit"
+                  className="px-5 py-2.5 rounded-2xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-black shadow-md shadow-amber-200 hover:-translate-y-0.5 active:scale-[0.98] transition-all cursor-pointer"
+                >
                   Lưu Thay Đổi
                 </button>
               </div>
@@ -1095,12 +1479,12 @@ export const OrganizationsPage = () => {
       {/* Modal 3: Child Organization Subscription Purchase / Renewal Modal (Clean Enterprise Style) */}
       {showChildRenewalModal && selectedChildForRenewal && createPortal(
         <div className="modal-overlay animate-backdrop" style={{ zIndex: 10000 }}>
-          <div 
-            className="modal-content animate-modal-pop" 
-            style={{ 
-              maxWidth: '820px', 
-              width: '94vw', 
-              padding: '28px 32px', 
+          <div
+            className="modal-content animate-modal-pop"
+            style={{
+              maxWidth: '820px',
+              width: '94vw',
+              padding: '28px 32px',
               borderRadius: '20px',
               background: '#ffffff',
               border: '1px solid #e2e8f0',
@@ -1122,17 +1506,17 @@ export const OrganizationsPage = () => {
                 </div>
               </div>
 
-              <button 
+              <button
                 onClick={() => setShowChildRenewalModal(false)}
-                style={{ 
-                  background: '#f8fafc', 
-                  border: '1px solid #cbd5e1', 
-                  color: '#64748b', 
-                  width: '32px', 
-                  height: '32px', 
-                  borderRadius: '8px', 
-                  display: 'flex', 
-                  alignItems: 'center', 
+                style={{
+                  background: '#f8fafc',
+                  border: '1px solid #cbd5e1',
+                  color: '#64748b',
+                  width: '32px',
+                  height: '32px',
+                  borderRadius: '8px',
+                  display: 'flex',
+                  alignItems: 'center',
                   justifyContent: 'center',
                   cursor: 'pointer',
                   transition: 'all 0.15s ease'
@@ -1151,19 +1535,19 @@ export const OrganizationsPage = () => {
                 const isVip = p.code === 'VIP';
 
                 return (
-                  <div 
+                  <div
                     key={p.code}
                     onClick={() => setChildPlan(p.code)}
-                    style={{ 
-                      borderRadius: '16px', 
-                      padding: '22px 18px', 
+                    style={{
+                      borderRadius: '16px',
+                      padding: '22px 18px',
                       cursor: 'pointer',
                       position: 'relative',
-                      background: isSelected 
-                        ? (isVip ? '#faf5ff' : isPro ? '#f0f9ff' : '#f8fafc') 
+                      background: isSelected
+                        ? (isVip ? '#faf5ff' : isPro ? '#f0f9ff' : '#f8fafc')
                         : '#ffffff',
-                      border: isSelected 
-                        ? `2px solid ${isVip ? '#9333ea' : isPro ? '#0284c7' : '#0284c7'}` 
+                      border: isSelected
+                        ? `2px solid ${isVip ? '#9333ea' : isPro ? '#0284c7' : '#0284c7'}`
                         : '1px solid #e2e8f0',
                       boxShadow: isSelected ? '0 8px 20px rgba(2, 132, 199, 0.12)' : '0 2px 6px rgba(0,0,0,0.02)',
                       transition: 'all 0.2s ease',
@@ -1221,22 +1605,22 @@ export const OrganizationsPage = () => {
               </div>
 
               <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexShrink: 0 }}>
-                <button 
-                  type="button" 
-                  className="btn-action btn-secondary" 
+                <button
+                  type="button"
+                  className="btn-action btn-secondary"
                   onClick={() => setShowChildRenewalModal(false)}
                   style={{ padding: '10px 20px', borderRadius: '10px', whiteSpace: 'nowrap', flexShrink: 0, fontWeight: '600' }}
                 >
                   Hủy Bỏ
                 </button>
-                <button 
-                  type="button" 
+                <button
+                  type="button"
                   className="btn-action"
                   onClick={handleConfirmChildRenew}
-                  style={{ 
-                    background: childPlan === 'VIP' ? '#9333ea' : '#0284c7', 
+                  style={{
+                    background: childPlan === 'VIP' ? '#9333ea' : '#0284c7',
                     color: '#ffffff',
-                    padding: '10px 22px', 
+                    padding: '10px 22px',
                     borderRadius: '10px',
                     fontWeight: '800',
                     fontSize: '13.5px',
