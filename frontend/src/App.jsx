@@ -13,6 +13,7 @@ import { ContractsPage } from './features/contracts/ContractsPage';
 import { MasterDataPage } from './features/masterdata/MasterDataPage';
 import { AuditLogsPage } from './features/audit/AuditLogsPage';
 import { AdminOrdersRevenuePage } from './features/admin/AdminOrdersRevenuePage';
+import { AdminSettingsPage } from './features/admin/AdminSettingsPage';
 
 const ProtectedRoute = ({ children, allowedRoles }) => {
   const { user, token, loading } = useAuth();
@@ -52,6 +53,7 @@ export const App = () => {
               <Route path="/contracts" element={<ProtectedRoute allowedRoles={['SUPER_ADMIN', 'ORGANIZATION_ADMIN', 'STAFF']}><ContractsPage /></ProtectedRoute>} />
               <Route path="/audit-logs" element={<ProtectedRoute allowedRoles={['SUPER_ADMIN', 'ORGANIZATION_ADMIN']}><AuditLogsPage /></ProtectedRoute>} />
               <Route path="/admin/orders" element={<ProtectedRoute allowedRoles={['SUPER_ADMIN']}><AdminOrdersRevenuePage /></ProtectedRoute>} />
+              <Route path="/admin/settings" element={<ProtectedRoute allowedRoles={['SUPER_ADMIN']}><AdminSettingsPage /></ProtectedRoute>} />
             </Route>
 
             <Route path="*" element={<Navigate to="/" replace />} />

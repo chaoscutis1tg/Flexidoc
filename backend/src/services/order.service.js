@@ -137,8 +137,22 @@ export class OrderService {
     }
 
     // 2. Parse SePay Webhook Payload fields
-    const { transferAmount = 0, referenceCode = '', id: sepayId = '' } = reqBody || {};
-    const textToScan = (JSON.stringify(reqBody || {}) + ' ' + (reqBody?.content || '')).toUpperCase();
+    const {
+      id: sepayId = '',
+      gateway = '',
+      transactionDate = '',
+      accountNumber = '',
+      subAccount = '',
+      transferType = '',
+      transferAmount = 0,
+      accumulated = 0,
+      code = '',
+      content = '',
+      referenceCode = '',
+      description = ''
+    } = reqBody || {};
+
+    const textToScan = (JSON.stringify(reqBody || {}) + ' ' + (content || '')).toUpperCase();
     const orderCodeMatch = textToScan.match(/DH\d{4,10}/i);
     if (!orderCodeMatch) {
       return {
@@ -165,13 +179,28 @@ export class OrderService {
       };
     }
 
-    // 3. Mark Order SUCCESS
+    // 3. Mark Order SUCCESS with full SePay payment details stored
     const updatedOrder = await orderRepository.updateById(order._id, {
       status: 'SUCCESS',
       paymentMethod: 'SEPAY_WEBHOOK',
       paymentRef: String(sepayId || referenceCode || 'SEPAY_WEBHOOK'),
       approvedAt: new Date(),
-      notes: `Tự động duyệt qua SePay Webhook (Số tiền: ${transferAmount} VNĐ)`,
+      notes: `Tự động duyệt qua SePay Webhook (Số tiền: ${Number(transferAmount).toLocaleString('vi-VN')} VNĐ)`,
+      paymentDetails: {
+        sepayId: String(sepayId),
+        gateway: String(gateway),
+        transactionDate: String(transactionDate),
+        accountNumber: String(accountNumber),
+        subAccount: String(subAccount),
+        transferType: String(transferType),
+        transferAmount: Number(transferAmount) || 0,
+        accumulated: Number(accumulated) || 0,
+        code: String(code),
+        content: String(content),
+        referenceCode: String(referenceCode),
+        description: String(description),
+        rawWebhookData: reqBody
+      }
     });
 
     // 4. Activate Organization Package

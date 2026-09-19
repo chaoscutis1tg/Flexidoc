@@ -83,78 +83,81 @@ export const ConfirmProvider = ({ children }) => {
       {children}
 
       {/* Global Confirmation Modal Backdrop */}
-      {confirmState && (() => {
-        const styles = getVariantStyles(confirmState.variant);
-        const { Icon } = styles;
+      {confirmState && createPortal(
+        (() => {
+          const styles = getVariantStyles(confirmState.variant);
+          const { Icon } = styles;
 
-        return (
-          <div 
-            className="fixed inset-0 flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-md animate-fade-in"
-            style={{ zIndex: 11000 }}
-            onClick={() => handleClose(false)}
-          >
+          return (
             <div 
-              className="bg-white rounded-3xl overflow-hidden shadow-2xl border border-slate-200 w-full max-w-md animate-scale-in"
-              onClick={(e) => e.stopPropagation()}
+              className="fixed inset-0 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-sm animate-fade-in select-none"
+              style={{ zIndex: 2147483647, isolation: 'isolate' }}
+              onClick={() => handleClose(false)}
             >
-              {/* Header */}
-              <div className={`p-6 border-b border-slate-100 ${styles.headerBg} flex items-start justify-between gap-4`}>
-                <div className="flex items-center gap-3.5">
-                  <div className={`w-12 h-12 rounded-2xl border flex items-center justify-center shrink-0 shadow-xs ${styles.iconBg}`}>
-                    <Icon size={24} />
+              <div 
+                className="bg-white rounded-3xl overflow-hidden shadow-2xl border border-slate-200 w-full max-w-md animate-scale-in relative z-50 pointer-events-auto"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {/* Header */}
+                <div className={`p-6 border-b border-slate-100 ${styles.headerBg} flex items-start justify-between gap-4`}>
+                  <div className="flex items-center gap-3.5">
+                    <div className={`w-12 h-12 rounded-2xl border flex items-center justify-center shrink-0 shadow-xs ${styles.iconBg}`}>
+                      <Icon size={24} />
+                    </div>
+                    <div>
+                      <span className={`text-[10px] font-black uppercase px-2.5 py-0.5 rounded-md tracking-wider ${styles.badgeBg}`}>
+                        {styles.badgeText}
+                      </span>
+                      <h3 className="text-base font-black text-slate-900 mt-1 leading-snug">
+                        {confirmState.title}
+                      </h3>
+                    </div>
                   </div>
-                  <div>
-                    <span className={`text-[10px] font-black uppercase px-2.5 py-0.5 rounded-md tracking-wider ${styles.badgeBg}`}>
-                      {styles.badgeText}
-                    </span>
-                    <h3 className="text-base font-black text-slate-900 mt-1 leading-snug">
-                      {confirmState.title}
-                    </h3>
-                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => handleClose(false)}
+                    className="w-8 h-8 rounded-full bg-white hover:bg-slate-100 text-slate-400 hover:text-slate-700 flex items-center justify-center border border-slate-200 transition-all cursor-pointer shrink-0"
+                  >
+                    <X size={16} />
+                  </button>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={() => handleClose(false)}
-                  className="w-8 h-8 rounded-full bg-white hover:bg-slate-100 text-slate-400 hover:text-slate-700 flex items-center justify-center border border-slate-200 transition-all cursor-pointer shrink-0"
-                >
-                  <X size={16} />
-                </button>
-              </div>
-
-              {/* Message Body */}
-              <div className="p-6 space-y-2">
-                <p className="text-sm font-bold text-slate-800 leading-relaxed">
-                  {confirmState.message}
-                </p>
-                {confirmState.subMessage && (
-                  <p className="text-xs font-semibold text-slate-500 leading-relaxed bg-slate-50 p-3 rounded-xl border border-slate-100">
-                    {confirmState.subMessage}
+                {/* Message Body */}
+                <div className="p-6 space-y-2">
+                  <p className="text-sm font-bold text-slate-800 leading-relaxed">
+                    {confirmState.message}
                   </p>
-                )}
-              </div>
+                  {confirmState.subMessage && (
+                    <p className="text-xs font-semibold text-slate-500 leading-relaxed bg-slate-50 p-3 rounded-xl border border-slate-100">
+                      {confirmState.subMessage}
+                    </p>
+                  )}
+                </div>
 
-              {/* Footer Actions */}
-              <div className="px-6 py-4 bg-slate-50/80 border-t border-slate-100 flex items-center justify-end gap-3">
-                <button
-                  type="button"
-                  onClick={() => handleClose(false)}
-                  className="px-4 py-2.5 rounded-xl bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 font-extrabold text-xs transition-all cursor-pointer"
-                >
-                  {confirmState.cancelText}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleClose(true)}
-                  className={`px-5 py-2.5 rounded-xl font-black text-xs transition-all cursor-pointer ${styles.buttonBg}`}
-                >
-                  {confirmState.confirmText}
-                </button>
+                {/* Footer Actions */}
+                <div className="px-6 py-4 bg-slate-50/80 border-t border-slate-100 flex items-center justify-end gap-3">
+                  <button
+                    type="button"
+                    onClick={() => handleClose(false)}
+                    className="px-4 py-2.5 rounded-xl bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 font-extrabold text-xs transition-all cursor-pointer"
+                  >
+                    {confirmState.cancelText}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleClose(true)}
+                    className={`px-5 py-2.5 rounded-xl font-black text-xs transition-all cursor-pointer ${styles.buttonBg}`}
+                  >
+                    {confirmState.confirmText}
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
-        );
-      })()}
+          );
+        })(),
+        document.body
+      )}
     </ConfirmContext.Provider>
   );
 };

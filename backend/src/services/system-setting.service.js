@@ -8,6 +8,16 @@ export const DEFAULT_PAYMENT_CONFIG = {
   accountName: 'DO VAN KHOA',
   orderPrefix: 'MTCTMS',
   sepayApiKey: 'sepay_secret_key_mtctms_2026',
+  serverBaseUrl: process.env.SERVER_BASE_URL || 'http://localhost:5000',
+  sepayWebhookPath: process.env.SEPAY_WEBHOOK_PATH || '/api/v1/payments/sepay-webhook',
+};
+
+export const DEFAULT_SYSTEM_CONFIG = {
+  enableResponseEncryption: true,
+  enableSepayHeaderAuth: true,
+  tokenExpiryHours: 24,
+  allowPublicOrgRegistration: true,
+  defaultFreeContractLimit: 10,
 };
 
 export class SystemSettingService {
@@ -33,9 +43,11 @@ export class SystemSettingService {
       accountName: newConfig.accountName ? String(newConfig.accountName).trim().toUpperCase() : current.accountName,
       orderPrefix: newConfig.orderPrefix ? String(newConfig.orderPrefix).trim().toUpperCase() : current.orderPrefix,
       sepayApiKey: newConfig.sepayApiKey ? String(newConfig.sepayApiKey).trim() : current.sepayApiKey,
+      serverBaseUrl: newConfig.serverBaseUrl !== undefined ? String(newConfig.serverBaseUrl).trim() : current.serverBaseUrl,
+      sepayWebhookPath: newConfig.sepayWebhookPath ? String(newConfig.sepayWebhookPath).trim() : current.sepayWebhookPath,
     };
 
-    const result = await systemSettingRepository.setKey('PAYMENT_CONFIG', updatedValue, adminUser._id);
+    const result = await systemSettingRepository.setKey('PAYMENT_CONFIG', updatedValue, adminUser?._id);
 
     // Audit Log
     if (adminUser) {
@@ -50,6 +62,49 @@ export class SystemSettingService {
 
     return updatedValue;
   }
+
+  async getSystemConfig() {
+    const setting = await systemSettingRepository.getByKey('SYSTEM_CONFIG');
+    if (!setting || !setting.value) {
+      return DEFAULT_SYSTEM_CONFIG;
+    }
+    return {
+      ...DEFAULT_SYSTEM_CONFIG,
+      ...setting.value,
+    };
+  }
+
+  async updateSystemConfig(newConfig, adminUser) {
+    const current = await this.getSystemConfig();
+    const updatedValue = {
+      ...current,
+      ...newConfig,
+    };
+
+    const result = await systemSettingRepository.setKey('SYSTEM_CONFIG', updatedValue, adminUser?._id);
+
+    if (adminUser) {
+      const orgId = adminUser.organizationId ? (adminUser.organizationId._id || adminUser.organizationId) : null;
+      await auditLogService.logAction(
+        { user: adminUser, tenantContext: { organizationId: orgId } },
+        'SYSTEM_SECURITY_SETTING_UPDATED',
+        'systemSetting',
+        result._id
+      );
+    }
+
+    return updatedValue;
+  }
+
+  async getAllSettings() {
+    const payment = await this.getPaymentConfig();
+    const system = await this.getSystemConfig();
+    return {
+      payment,
+      system,
+    };
+  }
 }
 
 export const systemSettingService = new SystemSettingService();
+

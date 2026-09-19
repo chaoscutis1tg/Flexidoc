@@ -18,7 +18,8 @@ import {
   Crown,
   Copy,
   Check,
-  AlertTriangle
+  AlertTriangle,
+  Settings
 } from 'lucide-react';
 import { getRoleInfo } from '../utils/roleFormatter';
 
@@ -72,6 +73,7 @@ export const DashboardLayout = () => {
         { label: 'Cây Tổ Chức Phân Cấp', path: '/organizations', icon: Building2 },
         { label: 'Quản Lý Nhân Sự & Quyền', path: '/users', icon: Users },
         { label: 'Đơn Hàng & Doanh Thu', path: '/admin/orders', icon: History },
+        { label: 'Cài Đặt Hệ Thống', path: '/admin/settings', icon: Settings },
         { label: 'Nhật Ký & Lưu Lượng Log', path: '/audit-logs', icon: History },
       ]
     }

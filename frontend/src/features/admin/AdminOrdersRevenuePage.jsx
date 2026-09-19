@@ -31,6 +31,7 @@ import {
   FileText,
   Zap
 } from 'lucide-react';
+import { VIETNAM_BANKS } from './AdminSettingsPage';
 
 export const AdminOrdersRevenuePage = () => {
   const { confirm } = useConfirm();
@@ -73,6 +74,16 @@ export const AdminOrdersRevenuePage = () => {
   const [rejectingOrder, setRejectingOrder] = useState(null);
   const [rejectionReasonInput, setRejectionReasonInput] = useState('');
   const [copiedTransferCode, setCopiedTransferCode] = useState(false);
+
+  const handleBankCodeChange = (e) => {
+    const selectedCode = e.target.value;
+    const foundBank = VIETNAM_BANKS.find(b => b.code === selectedCode);
+    setPaymentConfig(prev => ({
+      ...prev,
+      bankCode: selectedCode,
+      bankName: foundBank ? foundBank.name : prev.bankName
+    }));
+  };
 
   const fetchOrdersAndStats = async () => {
     setLoading(true);
@@ -612,6 +623,29 @@ export const AdminOrdersRevenuePage = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="text-xs font-bold text-slate-700 block mb-1">
+                    Mã Ngân Hàng VietQR (Chọn Ngân Hàng):
+                  </label>
+                  <select
+                    value={paymentConfig.bankCode}
+                    onChange={handleBankCodeChange}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm font-bold focus:ring-2 focus:ring-sky-500 outline-none bg-white cursor-pointer"
+                  >
+                    {VIETNAM_BANKS.map((b) => (
+                      <option key={b.code} value={b.code}>
+                        {b.code} - {b.fullName}
+                      </option>
+                    ))}
+                    {!VIETNAM_BANKS.some(b => b.code === paymentConfig.bankCode) && paymentConfig.bankCode && (
+                      <option value={paymentConfig.bankCode}>
+                        {paymentConfig.bankCode} (Khác)
+                      </option>
+                    )}
+                  </select>
+                  <span className="text-[10.5px] text-slate-400 mt-1 block">Tên ngân hàng bên cạnh sẽ tự động cập nhật khi chọn.</span>
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">
                     Tên Ngân Hàng Hiển Thị:
                   </label>
                   <input
@@ -622,21 +656,7 @@ export const AdminOrdersRevenuePage = () => {
                     onChange={(e) => setPaymentConfig({ ...paymentConfig, bankName: e.target.value })}
                     className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm font-bold focus:ring-2 focus:ring-sky-500 outline-none"
                   />
-                </div>
-
-                <div>
-                  <label className="text-xs font-bold text-slate-700 block mb-1">
-                    Mã Ngân Hàng VietQR:
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="VD: MB"
-                    value={paymentConfig.bankCode}
-                    onChange={(e) => setPaymentConfig({ ...paymentConfig, bankCode: e.target.value.toUpperCase() })}
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm font-mono font-bold focus:ring-2 focus:ring-sky-500 outline-none uppercase"
-                  />
-                  <span className="text-[10.5px] text-slate-400 mt-1 block">Mã chuẩn ngân hàng để tạo ảnh QR tự động (VD: MB, VCB, ACB).</span>
+                  <span className="text-[10.5px] text-slate-400 mt-1 block">Có thể tùy chỉnh lại tên nếu muốn.</span>
                 </div>
               </div>
 
@@ -913,6 +933,39 @@ export const AdminOrdersRevenuePage = () => {
               </div>
 
             </div>
+
+            {/* SePay Webhook Saved Transfer Details Box */}
+            {selectedOrderDetails.paymentDetails && (selectedOrderDetails.paymentDetails.content || selectedOrderDetails.paymentDetails.referenceCode || selectedOrderDetails.paymentDetails.sepayId) && (
+              <div className="bg-sky-50 border border-sky-200 p-4 rounded-2xl mb-6 shadow-2xs space-y-2">
+                <span className="text-sky-900 text-xs font-black uppercase tracking-wider flex items-center gap-1.5">
+                  <Zap size={15} className="text-amber-500" /> Thông Tin Giao Dịch Lưu Tự Động Từ SePay Webhook:
+                </span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                  <div className="bg-white p-2.5 rounded-xl border border-sky-100">
+                    <span className="text-[10.5px] font-bold text-slate-400 block uppercase">Mã Giao Dịch / SePay ID:</span>
+                    <span className="font-mono font-black text-slate-800">{selectedOrderDetails.paymentDetails.sepayId || selectedOrderDetails.paymentRef || 'N/A'}</span>
+                  </div>
+                  <div className="bg-white p-2.5 rounded-xl border border-sky-100">
+                    <span className="text-[10.5px] font-bold text-slate-400 block uppercase">Cổng Ngân Hàng (Gateway):</span>
+                    <span className="font-bold text-sky-700">{selectedOrderDetails.paymentDetails.gateway || 'MBBank'}</span>
+                  </div>
+                  <div className="bg-white p-2.5 rounded-xl border border-sky-100">
+                    <span className="text-[10.5px] font-bold text-slate-400 block uppercase">Số Tiền Thực Nhận:</span>
+                    <span className="font-extrabold text-emerald-600">{selectedOrderDetails.paymentDetails.transferAmount ? selectedOrderDetails.paymentDetails.transferAmount.toLocaleString('vi-VN') + ' VNĐ' : `${selectedOrderDetails.amount?.toLocaleString('vi-VN')} VNĐ`}</span>
+                  </div>
+                  <div className="bg-white p-2.5 rounded-xl border border-sky-100">
+                    <span className="text-[10.5px] font-bold text-slate-400 block uppercase">Mã Tham Chiếu Ngân Hàng:</span>
+                    <span className="font-mono font-bold text-slate-700">{selectedOrderDetails.paymentDetails.referenceCode || 'N/A'}</span>
+                  </div>
+                </div>
+                {selectedOrderDetails.paymentDetails.content && (
+                  <div className="bg-white p-2.5 rounded-xl border border-sky-100 text-xs">
+                    <span className="text-[10.5px] font-bold text-slate-400 block uppercase mb-0.5">Nội Dung Chuyển Khoản Thực Tế Từ Ngân Hàng:</span>
+                    <code className="font-mono font-extrabold text-red-600 break-all">{selectedOrderDetails.paymentDetails.content}</code>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Modal Actions */}
             <div className="flex items-center justify-between pt-4 border-t border-slate-100">
