@@ -3,24 +3,22 @@ import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../app/AuthContext';
 import { RenewalModal } from '../features/subscription/RenewalModal';
 import { PendingInvitationsBanner } from '../components/PendingInvitationsBanner';
-import { 
-  FileText, 
-  LayoutDashboard, 
-  Building2, 
-  Users, 
-  FilePlus, 
-  History, 
-  LogOut, 
-  Briefcase, 
+import {
+  FileText,
+  LayoutDashboard,
+  Building2,
+  Users,
+  FilePlus,
+  History,
+  LogOut,
+  Briefcase,
   Database,
-  Sparkles, 
-  ShieldCheck, 
-  Crown, 
-  Copy, 
-  Check, 
-  Bell, 
-  Clock, 
-  AlertTriangle 
+  Sparkles,
+  ShieldCheck,
+  Crown,
+  Copy,
+  Check,
+  AlertTriangle
 } from 'lucide-react';
 import { getRoleInfo } from '../utils/roleFormatter';
 
@@ -101,7 +99,7 @@ export const DashboardLayout = () => {
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg-primary)' }}>
-      
+
       {/* Fixed Sidebar */}
       <aside style={{
         width: '260px',
@@ -152,7 +150,7 @@ export const DashboardLayout = () => {
               <span style={{ fontSize: '11px', color: '#0284c7', fontWeight: '700' }}>
                 Mã: <code>{orgCode}</code>
               </span>
-              <button 
+              <button
                 onClick={handleCopyCode}
                 style={{ background: 'none', border: 'none', color: '#0284c7', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '10.5px', fontWeight: '700' }}
                 title="Sao chép Mã Tổ Chức để cấp cho Nhân viên gia nhập"
@@ -233,12 +231,12 @@ export const DashboardLayout = () => {
               <div style={{ fontSize: '13px', fontWeight: '700', color: '#0f172a', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
                 {user?.fullName || 'Người dùng'}
               </div>
-              <span 
-                style={{ 
-                  display: 'inline-flex', 
-                  alignItems: 'center', 
+              <span
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
                   gap: '4px',
-                  fontSize: '10.5px', 
+                  fontSize: '10.5px',
                   fontWeight: '800',
                   padding: '2px 8px',
                   borderRadius: '10px',
@@ -252,7 +250,7 @@ export const DashboardLayout = () => {
               </span>
             </div>
           </div>
-          <button 
+          <button
             onClick={handleLogout}
             className="btn-action btn-secondary"
             style={{ width: '100%', marginTop: '10px', justifyContent: 'center', padding: '7px', fontSize: '12px' }}
@@ -264,7 +262,7 @@ export const DashboardLayout = () => {
 
       {/* Main Container */}
       <div style={{ marginLeft: '260px', flex: 1, display: 'flex', flexDirection: 'column' }}>
-        
+
         {/* Sleek High-End Top Header Bar */}
         <header style={{
           height: '64px',
@@ -290,16 +288,16 @@ export const DashboardLayout = () => {
           {/* Right: Clickable Plan Status Badge & Role Info */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
             {user?.role !== 'SUPER_ADMIN' && (
-              <button 
+              <button
                 onClick={() => setShowRenewalModal(true)}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
                   gap: '8px',
-                  background: isExpired 
-                    ? 'linear-gradient(135deg, #fee2e2 0%, #fef2f2 100%)' 
-                    : plan === 'FREE' 
-                      ? 'linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)' 
+                  background: isExpired
+                    ? 'linear-gradient(135deg, #fee2e2 0%, #fef2f2 100%)'
+                    : plan === 'FREE'
+                      ? 'linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)'
                       : 'linear-gradient(135deg, #faf5ff 0%, #f3e8ff 100%)',
                   color: isExpired ? '#991b1b' : plan === 'FREE' ? '#0369a1' : '#9333ea',
                   padding: '7px 16px',
@@ -321,12 +319,12 @@ export const DashboardLayout = () => {
                 <span>
                   Gói: <strong>{plan}</strong> {isExpired ? '(HẾT HẠN - Bấm để Gia Hạn)' : daysRemaining > 0 ? `(Còn ${daysRemaining} ngày)` : ''}
                 </span>
-                <span style={{ 
-                  fontSize: '10px', 
-                  fontWeight: '800', 
-                  background: plan === 'FREE' ? '#0284c7' : '#9333ea', 
-                  color: '#ffffff', 
-                  padding: '2px 8px', 
+                <span style={{
+                  fontSize: '10px',
+                  fontWeight: '800',
+                  background: plan === 'FREE' ? '#0284c7' : '#9333ea',
+                  color: '#ffffff',
+                  padding: '2px 8px',
                   borderRadius: '10px',
                   marginLeft: '4px',
                   display: 'inline-flex',
@@ -339,16 +337,16 @@ export const DashboardLayout = () => {
             )}
 
             {/* Friendly Vietnamese Role Badge */}
-            <div style={{ 
-              display: 'inline-flex', 
-              alignItems: 'center', 
-              gap: '6px', 
-              background: roleInfo.badgeBg, 
-              color: roleInfo.badgeColor, 
-              padding: '7px 15px', 
-              borderRadius: '20px', 
-              fontSize: '12px', 
-              fontWeight: '800', 
+            <div style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              background: roleInfo.badgeBg,
+              color: roleInfo.badgeColor,
+              padding: '7px 15px',
+              borderRadius: '20px',
+              fontSize: '12px',
+              fontWeight: '800',
               border: `1px solid ${roleInfo.border}`,
               boxShadow: '0 1px 3px rgba(0,0,0,0.02)'
             }}>

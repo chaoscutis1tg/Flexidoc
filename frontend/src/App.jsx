@@ -1,6 +1,7 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './app/AuthContext';
+import { ConfirmProvider } from './app/ConfirmContext';
 import { DashboardLayout } from './layouts/DashboardLayout';
 
 import { LandingPage } from './features/landing/LandingPage';
@@ -33,26 +34,28 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
 export const App = () => {
   return (
     <AuthProvider>
-      <BrowserRouter>
-        <Routes>
-          {/* Public Landing Page & Commercial Gateway */}
-          <Route path="/" element={<LandingPage />} />
-          <Route path="/login" element={<LandingPage />} />
+      <ConfirmProvider>
+        <BrowserRouter>
+          <Routes>
+            {/* Public Landing Page & Commercial Gateway */}
+            <Route path="/" element={<LandingPage />} />
+            <Route path="/login" element={<LandingPage />} />
 
-          {/* Protected Application Workspace Routes */}
-          <Route element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
-            <Route path="/dashboard" element={<DashboardPage />} />
-            <Route path="/organizations" element={<ProtectedRoute allowedRoles={['SUPER_ADMIN', 'ORGANIZATION_ADMIN']}><OrganizationsPage /></ProtectedRoute>} />
-            <Route path="/users" element={<ProtectedRoute allowedRoles={['SUPER_ADMIN', 'ORGANIZATION_ADMIN']}><UsersPage /></ProtectedRoute>} />
-            <Route path="/master-data" element={<ProtectedRoute allowedRoles={['SUPER_ADMIN', 'ORGANIZATION_ADMIN', 'STAFF']}><MasterDataPage /></ProtectedRoute>} />
-            <Route path="/templates" element={<ProtectedRoute allowedRoles={['SUPER_ADMIN', 'ORGANIZATION_ADMIN', 'STAFF']}><TemplatesPage /></ProtectedRoute>} />
-            <Route path="/contracts" element={<ProtectedRoute allowedRoles={['SUPER_ADMIN', 'ORGANIZATION_ADMIN', 'STAFF']}><ContractsPage /></ProtectedRoute>} />
-            <Route path="/audit-logs" element={<ProtectedRoute allowedRoles={['SUPER_ADMIN', 'ORGANIZATION_ADMIN']}><AuditLogsPage /></ProtectedRoute>} />
-          </Route>
+            {/* Protected Application Workspace Routes */}
+            <Route element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
+              <Route path="/dashboard" element={<DashboardPage />} />
+              <Route path="/organizations" element={<ProtectedRoute allowedRoles={['SUPER_ADMIN', 'ORGANIZATION_ADMIN']}><OrganizationsPage /></ProtectedRoute>} />
+              <Route path="/users" element={<ProtectedRoute allowedRoles={['SUPER_ADMIN', 'ORGANIZATION_ADMIN']}><UsersPage /></ProtectedRoute>} />
+              <Route path="/master-data" element={<ProtectedRoute allowedRoles={['SUPER_ADMIN', 'ORGANIZATION_ADMIN', 'STAFF']}><MasterDataPage /></ProtectedRoute>} />
+              <Route path="/templates" element={<ProtectedRoute allowedRoles={['SUPER_ADMIN', 'ORGANIZATION_ADMIN', 'STAFF']}><TemplatesPage /></ProtectedRoute>} />
+              <Route path="/contracts" element={<ProtectedRoute allowedRoles={['SUPER_ADMIN', 'ORGANIZATION_ADMIN', 'STAFF']}><ContractsPage /></ProtectedRoute>} />
+              <Route path="/audit-logs" element={<ProtectedRoute allowedRoles={['SUPER_ADMIN', 'ORGANIZATION_ADMIN']}><AuditLogsPage /></ProtectedRoute>} />
+            </Route>
 
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </BrowserRouter>
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </BrowserRouter>
+      </ConfirmProvider>
     </AuthProvider>
   );
 };

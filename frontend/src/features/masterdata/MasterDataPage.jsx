@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import api from '../../services/api';
+import { useConfirm } from '../../app/ConfirmContext';
 import {
   Database,
   Plus,
@@ -32,6 +33,7 @@ import {
 } from 'lucide-react';
 
 export const MasterDataPage = () => {
+  const { confirm } = useConfirm();
   const [items, setItems] = useState([]);
   const [allCounts, setAllCounts] = useState({ ALL: 0, EMPLOYEE: 0, CUSTOMER: 0, PARTNER: 0 });
   const [type, setType] = useState('EMPLOYEE');
@@ -181,8 +183,22 @@ export const MasterDataPage = () => {
     setTimeout(() => setCopiedKey(null), 1800);
   };
 
-  const handleDelete = async (id) => {
-    if (!window.confirm('Bạn có chắc chắn muốn xóa bản ghi Master Data này?')) return;
+  const handleDelete = async (idOrItem) => {
+    const targetItem = typeof idOrItem === 'object' ? idOrItem : items.find(i => i._id === idOrItem);
+    const id = targetItem?._id || idOrItem;
+    const itemName = targetItem?.data?.fullName || targetItem?.data?.companyName || targetItem?.code || 'hồ sơ này';
+
+    const isConfirmed = await confirm({
+      title: 'Xóa Hồ Sơ Master Data',
+      message: `Bạn có chắc chắn muốn xóa hồ sơ "${itemName}"?`,
+      subMessage: 'Hành động này sẽ xóa hoàn toàn hồ sơ khỏi hệ thống và không thể hoàn tác.',
+      confirmText: 'Xóa Hồ Sơ',
+      cancelText: 'Hủy Bỏ',
+      variant: 'danger'
+    });
+
+    if (!isConfirmed) return;
+
     try {
       await api.delete(`/master-data/${id}`);
       fetchMasterData();

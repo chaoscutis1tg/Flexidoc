@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../app/AuthContext';
+import { useConfirm } from '../app/ConfirmContext';
 import api from '../services/api';
 import { Building2, CheckCircle2, XCircle, AlertTriangle, Sparkles, Mail } from 'lucide-react';
 
 export const PendingInvitationsBanner = ({ onStatusChange }) => {
   const { user, refreshUser } = useAuth();
+  const { confirm } = useConfirm();
   const [invitations, setInvitations] = useState([]);
   const [loading, setLoading] = useState(false);
   const [actionLoadingId, setActionLoadingId] = useState(null);
@@ -31,6 +33,17 @@ export const PendingInvitationsBanner = ({ onStatusChange }) => {
   }, [user?.email]);
 
   const handleApprove = async (inv) => {
+    const isConfirmed = await confirm({
+      title: 'Xác Nhận Quản Lý Chi Nhánh',
+      message: `Bạn có chắc chắn muốn tiếp nhận quyền Quản lý Chi nhánh '${inv.name}' (Mã: ${inv.code})?`,
+      subMessage: 'Khi xác nhận, vai trò của bạn sẽ được nâng thành QUẢN LÝ TỔ CHỨC và tài khoản sẽ chuyển sang chi nhánh này.',
+      confirmText: 'Đồng Ý Tiếp Nhận',
+      cancelText: 'Hủy Bỏ',
+      variant: 'success',
+    });
+
+    if (!isConfirmed) return;
+
     try {
       setActionLoadingId(inv._id);
       setErrorMsg('');
@@ -49,15 +62,21 @@ export const PendingInvitationsBanner = ({ onStatusChange }) => {
   };
 
   const handleReject = async (inv) => {
-    const confirmReject = window.confirm(`Bạn có chắc chắn muốn từ chối lời mời quản lý chi nhánh '${inv.name}'?`);
-    if (!confirmReject) return;
+    const isConfirmed = await confirm({
+      title: 'Từ Chối Lời Mời Quản Lý',
+      message: `Bạn có chắc chắn muốn từ chối lời mời quản lý chi nhánh '${inv.name}' (Mã: ${inv.code})?`,
+      subMessage: 'Thông báo từ chối sẽ được phản hồi lại người tạo tổ chức con này để chọn người quản lý mới.',
+      confirmText: 'Từ Chối Quản Lý',
+      cancelText: 'Hủy Bỏ',
+      variant: 'warning',
+    });
 
-    const reason = window.prompt('Nhập lý do từ chối (không bắt buộc):', 'Không sắp xếp được thời gian quản lý chi nhánh này');
+    if (!isConfirmed) return;
 
     try {
       setActionLoadingId(inv._id);
       setErrorMsg('');
-      const res = await api.post(`/organizations/${inv._id}/reject`, { reason: reason || '' });
+      const res = await api.post(`/organizations/${inv._id}/reject`, { reason: 'Người dùng từ chối tiếp nhận quyền quản lý chi nhánh.' });
       if (res.success) {
         setSuccessMsg(`Đã từ chối quyền quản lý chi nhánh '${inv.name}'.`);
         if (onStatusChange) onStatusChange();
@@ -131,31 +150,16 @@ export const PendingInvitationsBanner = ({ onStatusChange }) => {
         >
           {/* Header */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <div style={{
-                width: '42px',
-                height: '42px',
-                borderRadius: '12px',
-                background: '#0284c7',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: '#ffffff',
-                boxShadow: '0 4px 12px rgba(2, 132, 199, 0.3)'
-              }}>
-                <Mail size={22} />
-              </div>
-              <div>
-                <h3 style={{ fontSize: '16px', fontWeight: '800', color: '#0f172a', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  📩 Lời Mời Xác Nhận Quản Lý Chi Nhánh / Tổ Chức Con
-                  <span style={{ fontSize: '11px', background: '#3b82f6', color: '#fff', padding: '2px 8px', borderRadius: '12px', fontWeight: '800' }}>
-                    Yêu Cầu Xác Nhận
-                  </span>
-                </h3>
-                <p style={{ fontSize: '13px', color: '#475569', margin: '4px 0 0 0', fontWeight: '600' }}>
-                  Bạn được chỉ định tiếp nhận vai trò Người Quản Lý Chi Nhánh cho tổ chức mới dưới đây:
-                </p>
-              </div>
+            <div>
+              <h3 style={{ fontSize: '16px', fontWeight: '800', color: '#0f172a', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                Lời Mời Xác Nhận Quản Lý Chi Nhánh / Tổ Chức Con
+                <span style={{ fontSize: '11px', background: '#3b82f6', color: '#fff', padding: '2px 8px', borderRadius: '12px', fontWeight: '800' }}>
+                  Yêu Cầu Xác Nhận
+                </span>
+              </h3>
+              <p style={{ fontSize: '13px', color: '#475569', margin: '4px 0 0 0', fontWeight: '600' }}>
+                Bạn được chỉ định tiếp nhận vai trò Người Quản Lý Chi Nhánh cho tổ chức mới dưới đây:
+              </p>
             </div>
           </div>
 

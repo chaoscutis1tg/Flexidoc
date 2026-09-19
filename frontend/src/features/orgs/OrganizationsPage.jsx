@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import api from '../../services/api';
 import { useAuth } from '../../app/AuthContext';
+import { useConfirm } from '../../app/ConfirmContext';
 import { fetchDynamicPlans, DEFAULT_PLANS_DATA } from '../../utils/planData';
 import {
   Building2,
@@ -34,6 +35,7 @@ import {
 
 export const OrganizationsPage = () => {
   const { user, refreshUser } = useAuth();
+  const { confirm } = useConfirm();
   const [tree, setTree] = useState([]);
   const [allOrgsList, setAllOrgsList] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -398,9 +400,17 @@ export const OrganizationsPage = () => {
   };
 
   const handleDeleteOrg = async (node) => {
-    if (!window.confirm(`Bạn có chắc chắn muốn xóa tổ chức '${node.name}' (${node.code})?`)) {
-      return;
-    }
+    const isConfirmed = await confirm({
+      title: 'Xóa Chi Nhánh / Tổ Chức',
+      message: `Bạn có chắc chắn muốn xóa tổ chức '${node.name}' (Mã: ${node.code})?`,
+      subMessage: 'Lưu ý: Không thể xóa tổ chức nếu đang chứa các chi nhánh con phía dưới.',
+      confirmText: 'Xóa Tổ Chức',
+      cancelText: 'Hủy Bỏ',
+      variant: 'danger',
+    });
+
+    if (!isConfirmed) return;
+
     try {
       await api.delete(`/organizations/${node._id}`);
       fetchTree();

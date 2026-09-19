@@ -27,7 +27,6 @@ import {
   Filter,
   Users,
   Building2,
-  Wand2,
   Phone,
   Mail,
   MapPin,
@@ -130,8 +129,43 @@ export const ContractsPage = () => {
     fetchData();
   }, []);
 
+  const validateStep2Form = () => {
+    setModalError('');
+    if (!formData.code || !formData.code.trim()) {
+      setModalError('Vui lòng nhập Mã Số Hợp Đồng.');
+      return false;
+    }
+    if (!formData.title || !formData.title.trim()) {
+      setModalError('Vui lòng nhập Tên / Tiêu Đề Hợp Đồng.');
+      return false;
+    }
+
+    const fields = selectedTemplate?.currentVersionData?.fields || [];
+    const missingFields = [];
+
+    fields.forEach(field => {
+      const val = formData.inputData[field.key];
+      if (field.required && (val === undefined || val === null || String(val).trim() === '')) {
+        missingFields.push(`'${field.label}'`);
+      }
+    });
+
+    if (missingFields.length > 0) {
+      setModalError(`Thiếu thông tin bắt buộc: Vui lòng nhập ${missingFields.join(', ')} trước khi tiếp tục.`);
+      return false;
+    }
+
+    return true;
+  };
+
+  const handleGoToStep3 = () => {
+    if (!validateStep2Form()) return;
+    setWizardStep(3);
+  };
+
   const handleSelectTemplate = async (templateId) => {
     if (!templateId) return;
+    setModalError('');
 
     try {
       const res = await api.get(`/templates/${templateId}`);
@@ -152,7 +186,7 @@ export const ContractsPage = () => {
         inputData: initialInputs,
       });
     } catch (err) {
-      alert(err.message);
+      setModalError(err.message || 'Lỗi tải chi tiết mẫu hợp đồng.');
     }
   };
 
@@ -165,47 +199,8 @@ export const ContractsPage = () => {
     setTimeout(() => setToastMessage(null), 2500);
   };
 
-  const handleAutoFillRecord = (item) => {
-    if (!item || !item.data) return;
-    const d = item.data;
-    const updatedInputs = { ...formData.inputData };
-
-    // Intelligent mapping for various placeholder formats
-    Object.keys(updatedInputs).forEach(fieldKey => {
-      const keyLower = fieldKey.toLowerCase();
-      if (keyLower.includes('fullname') || keyLower.includes('hoten') || keyLower.includes('tennhanvien') || keyLower.includes('khachhang')) {
-        if (d.fullName || d.companyName) updatedInputs[fieldKey] = d.fullName || d.companyName;
-      } else if (keyLower.includes('position') || keyLower.includes('chucvu')) {
-        if (d.position || d.repPosition) updatedInputs[fieldKey] = d.position || d.repPosition;
-      } else if (keyLower.includes('idnumber') || keyLower.includes('cccd') || keyLower.includes('cmnd')) {
-        if (d.idNumber || d.taxCode) updatedInputs[fieldKey] = d.idNumber || d.taxCode;
-      } else if (keyLower.includes('idissuedate') || keyLower.includes('ngaycap')) {
-        if (d.idIssueDate) updatedInputs[fieldKey] = d.idIssueDate;
-      } else if (keyLower.includes('idissueplace') || keyLower.includes('noicap')) {
-        if (d.idIssuePlace) updatedInputs[fieldKey] = d.idIssuePlace;
-      } else if (keyLower.includes('dob') || keyLower.includes('ngaysinh')) {
-        if (d.dob) updatedInputs[fieldKey] = d.dob;
-      } else if (keyLower.includes('phone') || keyLower.includes('sdt') || keyLower.includes('dienthoai')) {
-        if (d.phone) updatedInputs[fieldKey] = d.phone;
-      } else if (keyLower.includes('email')) {
-        if (d.email) updatedInputs[fieldKey] = d.email;
-      } else if (keyLower.includes('address') || keyLower.includes('diachi')) {
-        if (d.address) updatedInputs[fieldKey] = d.address;
-      } else if (keyLower.includes('company') || keyLower.includes('tencongty')) {
-        if (d.companyName) updatedInputs[fieldKey] = d.companyName;
-      } else if (keyLower.includes('tax') || keyLower.includes('masothue')) {
-        if (d.taxCode) updatedInputs[fieldKey] = d.taxCode;
-      } else if (keyLower.includes('representative') || keyLower.includes('daidien')) {
-        if (d.representative) updatedInputs[fieldKey] = d.representative;
-      }
-    });
-
-    setFormData({ ...formData, inputData: updatedInputs });
-    setToastMessage(`Đã điền tự động dữ liệu của ${d.fullName || d.companyName}`);
-    setTimeout(() => setToastMessage(null), 3000);
-  };
-
   const handleInputChange = (fieldKey, value) => {
+    setModalError('');
     setFormData({
       ...formData,
       inputData: {
@@ -262,6 +257,12 @@ export const ContractsPage = () => {
   };
 
   const handleCreateContract = async () => {
+    setModalError('');
+    if (!validateStep2Form()) {
+      setWizardStep(2);
+      return;
+    }
+
     try {
       const res = await api.post('/contracts', formData);
       setShowModal(false);
@@ -274,9 +275,11 @@ export const ContractsPage = () => {
 
       setFormData({ title: '', code: '', templateId: '', inputData: {} });
       setSelectedTemplate(null);
+      setModalError('');
       fetchData();
     } catch (err) {
-      alert(err.message);
+      setModalError(err.message || 'Khởi tạo hợp đồng thất bại. Vui lòng kiểm tra lại thông tin.');
+      setWizardStep(2);
     }
   };
 
@@ -445,6 +448,27 @@ export const ContractsPage = () => {
               <span className="text-xs truncate">Sinh File</span>
             </div>
           </div>
+
+          {/* Error Alert Box inside Modal */}
+          {modalError && (
+            <div className="mt-3 bg-red-50 border-2 border-red-200 text-red-800 px-4 py-3 rounded-2xl text-xs font-bold flex items-start justify-between gap-3 animate-fade-in shadow-xs">
+              <div className="flex items-start gap-2">
+                <AlertTriangle size={18} className="text-red-600 shrink-0 mt-0.5" />
+                <div>
+                  <strong className="block text-red-950 font-black text-xs mb-0.5">⚠️ Phát hiện thông tin chưa hợp lệ:</strong>
+                  <p className="text-red-800 text-[11.5px] leading-relaxed">{modalError}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setModalError('')}
+                className="text-red-400 hover:text-red-700 p-1 rounded-lg hover:bg-red-100 transition-all cursor-pointer"
+                title="Đóng thông báo lỗi"
+              >
+                <X size={14} />
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Modal Body Content (Scrollable Center Area) */}
@@ -679,14 +703,6 @@ export const ContractsPage = () => {
                                 </h5>
                                 <span className="text-[10px] text-slate-400 font-mono">{item.code} {d.position ? `• ${d.position}` : ''}</span>
                               </div>
-                              <button
-                                type="button"
-                                onClick={() => handleAutoFillRecord(item)}
-                                className="px-2 py-1 rounded-lg bg-sky-50 hover:bg-sky-100 text-sky-700 font-bold text-[10px] border border-sky-200 flex items-center gap-1 cursor-pointer shrink-0"
-                                title="Điền tự động vào các ô tương ứng"
-                              >
-                                <Wand2 size={11} /> Tự điền
-                              </button>
                             </div>
 
                             {/* Detail Fields Quick Copy Rows */}
