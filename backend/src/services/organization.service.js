@@ -304,6 +304,77 @@ export class OrganizationService {
     return tree;
   }
 
+  async getPaginatedRootOrganizations(queryParams = {}, tenantContext = null) {
+    const page = Math.max(1, parseInt(queryParams.page) || 1);
+    const limit = Math.max(1, parseInt(queryParams.limit) || 20);
+    const search = (queryParams.search || '').trim();
+
+    const filter = { parentOrganizationId: null, deletedAt: null };
+    if (search) {
+      filter.$or = [
+        { name: { $regex: search, $options: 'i' } },
+        { code: { $regex: search, $options: 'i' } },
+        { managerEmail: { $regex: search, $options: 'i' } },
+      ];
+    }
+
+    if (tenantContext && tenantContext.role !== 'SUPER_ADMIN') {
+      const allowedOrgIds = (tenantContext.allowedOrgIds && tenantContext.allowedOrgIds.length > 0)
+        ? tenantContext.allowedOrgIds.map(id => String(id._id || id))
+        : (tenantContext.organizationId ? [String(tenantContext.organizationId._id || tenantContext.organizationId)] : []);
+      if (allowedOrgIds.length > 0) {
+        filter._id = { $in: allowedOrgIds };
+      }
+    }
+
+    const totalRoots = await Organization.countDocuments(filter);
+    const roots = await Organization.find(filter)
+      .sort({ name: 1 })
+      .skip((page - 1) * limit)
+      .limit(limit);
+
+    const enrichedRoots = await Promise.all(
+      roots.map(async (root) => {
+        const rootObj = root.toObject();
+        const childCount = await Organization.countDocuments({
+          parentOrganizationId: root._id,
+          deletedAt: null,
+        });
+        rootObj.childCount = childCount;
+        rootObj.hasChildren = childCount > 0;
+        return rootObj;
+      })
+    );
+
+    return {
+      roots: enrichedRoots,
+      totalRoots,
+      page,
+      limit,
+      hasMore: page * limit < totalRoots,
+    };
+  }
+
+  async getOrganizationChildren(parentId, tenantContext = null) {
+    const filter = { parentOrganizationId: parentId, deletedAt: null };
+    const children = await Organization.find(filter).sort({ name: 1 });
+
+    const enrichedChildren = await Promise.all(
+      children.map(async (child) => {
+        const childObj = child.toObject();
+        const childCount = await Organization.countDocuments({
+          parentOrganizationId: child._id,
+          deletedAt: null,
+        });
+        childObj.childCount = childCount;
+        childObj.hasChildren = childCount > 0;
+        return childObj;
+      })
+    );
+
+    return enrichedChildren;
+  }
+
   async deleteOrganization(orgId, tenantContext = null) {
     const org = await organizationRepository.findById(orgId, tenantContext);
     if (!org) {
@@ -328,7 +399,7 @@ export class OrganizationService {
     return await grant.save();
   }
 
-  async renewSubscription(orgId, planName, tenantContext = null) {
+  async renewSubscription(orgId, planName, durationMonths = 1, tenantContext = null) {
     const org = await organizationRepository.findById(orgId, tenantContext);
     if (!org) {
       throw new AppError('Tổ chức không tồn tại hoặc bạn không có quyền gia hạn.', 404);
@@ -339,29 +410,104 @@ export class OrganizationService {
       throw new AppError('Gói cước không hợp lệ. Vui lòng chọn FREE, BASIC, PRO hoặc VIP.', 400);
     }
 
+    const months = Math.max(1, parseInt(durationMonths) || 1);
     const now = new Date();
-    let newExpiresAt = new Date();
 
     if (planName === 'FREE') {
       org.plan = 'FREE';
       org.planExpiresAt = null;
       org.status = 'ACTIVE';
     } else {
-      // If currently active and not expired, extend from existing expiration
-      if (org.plan === planName && org.planExpiresAt && new Date(org.planExpiresAt) > now) {
-        newExpiresAt = new Date(org.planExpiresAt);
+      let baseDate = new Date();
+      if (org.planExpiresAt && new Date(org.planExpiresAt) > now) {
+        baseDate = new Date(org.planExpiresAt);
       }
-      // Add 30 days
-      newExpiresAt.setDate(newExpiresAt.getDate() + 30);
+      baseDate.setMonth(baseDate.getMonth() + months);
 
       org.plan = planName;
-      org.planExpiresAt = newExpiresAt;
+      org.planExpiresAt = baseDate;
       org.status = 'ACTIVE';
     }
 
     await org.save();
     return org;
   }
+
+  async grantCustomPlan(orgId, planName, durationMonths = 1, adminUser) {
+    const org = await organizationRepository.findById(orgId);
+    if (!org) {
+      throw new AppError('Tổ chức không tồn tại.', 404);
+    }
+
+    const validPlans = ['FREE', 'BASIC', 'PRO', 'VIP'];
+    if (!validPlans.includes(planName)) {
+      throw new AppError('Gói cước không hợp lệ. Vui lòng chọn FREE, BASIC, PRO hoặc VIP.', 400);
+    }
+
+    const months = Math.max(1, parseInt(durationMonths) || 1);
+    const now = new Date();
+
+    if (planName === 'FREE') {
+      org.plan = 'FREE';
+      org.planExpiresAt = null;
+      org.status = 'ACTIVE';
+    } else {
+      let baseDate = new Date();
+      if (org.planExpiresAt && new Date(org.planExpiresAt) > now) {
+        baseDate = new Date(org.planExpiresAt);
+      }
+      baseDate.setMonth(baseDate.getMonth() + months);
+
+      org.plan = planName;
+      org.planExpiresAt = baseDate;
+      org.status = 'ACTIVE';
+    }
+
+    await org.save();
+
+    // Audit Log
+    if (adminUser) {
+      const adminOrgId = adminUser.organizationId ? (adminUser.organizationId._id || adminUser.organizationId) : null;
+      await auditLogService.logAction(
+        { user: adminUser, tenantContext: { organizationId: adminOrgId } },
+        'ADMIN_GRANTED_PLAN',
+        'organization',
+        org._id
+      );
+    }
+
+    return org;
+  }
+
+  async toggleBanOrganization(orgId, banStatus, reason = '', adminUser) {
+    const org = await organizationRepository.findById(orgId);
+    if (!org) {
+      throw new AppError('Tổ chức không tồn tại.', 404);
+    }
+
+    const newStatus = banStatus === 'BANNED' || banStatus === 'SUSPENDED' ? 'SUSPENDED' : 'ACTIVE';
+    org.status = newStatus;
+    if (reason) {
+      org.rejectionReason = reason;
+    }
+
+    await org.save();
+
+    // Audit Log
+    if (adminUser) {
+      const adminOrgId = adminUser.organizationId ? (adminUser.organizationId._id || adminUser.organizationId) : null;
+      const actionType = newStatus === 'SUSPENDED' ? 'ADMIN_BANNED_ORG' : 'ADMIN_UNBANNED_ORG';
+      await auditLogService.logAction(
+        { user: adminUser, tenantContext: { organizationId: adminOrgId } },
+        actionType,
+        'organization',
+        org._id
+      );
+    }
+
+    return org;
+  }
 }
 
 export const organizationService = new OrganizationService();
+

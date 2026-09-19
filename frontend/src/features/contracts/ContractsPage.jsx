@@ -895,6 +895,7 @@ export const ContractsPage = () => {
                 <tr>
                   <th className="py-3 px-4">Mã Hợp Đồng</th>
                   <th className="py-3 px-4">Tiêu Đề / Tên</th>
+                  <th className="py-3 px-4">Tổ Chức</th>
                   <th className="py-3 px-4">Người Tạo</th>
                   <th className="py-3 px-4">Mẫu Số Hóa</th>
                   <th className="py-3 px-4">Phiên Bản</th>
@@ -911,6 +912,15 @@ export const ContractsPage = () => {
                     </td>
                     <td className="py-3.5 px-4 font-bold text-slate-900">
                       {c.title}
+                    </td>
+                    <td className="py-3.5 px-4 font-bold text-sky-900">
+                      {c.organizationId?.name ? (
+                        <span className="bg-sky-50 text-sky-700 px-2 py-0.5 rounded border border-sky-200 text-[11px]">
+                          {c.organizationId.name} ({c.organizationId.code || 'MAIN'})
+                        </span>
+                      ) : (
+                        <span className="text-slate-400 font-normal">Hệ thống</span>
+                      )}
                     </td>
                     <td className="py-3.5 px-4 font-extrabold text-slate-800">
                       {c.createdBy?.fullName || c.createdBy?.email || 'N/A'}

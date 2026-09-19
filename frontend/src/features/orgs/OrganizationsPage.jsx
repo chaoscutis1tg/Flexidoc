@@ -272,6 +272,17 @@ export const OrganizationsPage = () => {
     });
   }, []);
 
+  const [rootOrgs, setRootOrgs] = useState([]);
+  const [childrenMap, setChildrenMap] = useState({});
+  const [loadingChildren, setLoadingChildren] = useState({});
+  const [page, setPage] = useState(1);
+  const [totalRoots, setTotalRoots] = useState(0);
+  const [hasMoreRoots, setHasMoreRoots] = useState(false);
+  const [loadingRoots, setLoadingRoots] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+
+  const loadMoreRef = React.useRef(null);
+
   const flattenTree = (nodes, list = [], depth = 0) => {
     nodes.forEach(n => {
       list.push({ ...n, depth });
@@ -282,34 +293,98 @@ export const OrganizationsPage = () => {
     return list;
   };
 
-  const fetchTree = async () => {
+  const fetchRootOrgs = async (pageNum = 1, append = false) => {
+    if (append) {
+      setLoadingMore(true);
+    } else {
+      setLoadingRoots(true);
+    }
     try {
-      const res = await api.get('/organizations/tree');
-      const data = res.data || [];
-      setTree(data);
-      const flat = flattenTree(data);
-      setAllOrgsList(flat);
+      const res = await api.get(`/organizations/paginated-roots?page=${pageNum}&limit=20&search=${encodeURIComponent(search)}`);
+      const { roots = [], totalRoots = 0, hasMore = false } = res.data || {};
 
-      const initialExpanded = {};
-      flat.forEach(item => {
-        if (item.children && item.children.length > 0) {
-          initialExpanded[item._id] = true;
-        }
-      });
-      setExpandedNodes(initialExpanded);
+      if (append) {
+        setRootOrgs(prev => {
+          const existingIds = new Set(prev.map(r => r._id));
+          const newRoots = roots.filter(r => !existingIds.has(r._id));
+          return [...prev, ...newRoots];
+        });
+      } else {
+        setRootOrgs(roots);
+        setChildrenMap({});
+      }
+      setPage(pageNum);
+      setTotalRoots(totalRoots);
+      setHasMoreRoots(hasMore);
+
+      // Also update allOrgsList for table view fallback
+      const fullTreeRes = await api.get('/organizations/tree').catch(() => ({ data: [] }));
+      const flat = flattenTree(fullTreeRes.data || []);
+      setAllOrgsList(flat);
     } catch (err) {
       console.error(err);
     } finally {
+      setLoadingRoots(false);
+      setLoadingMore(false);
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    fetchTree();
-  }, []);
+  const fetchTree = async () => {
+    return fetchRootOrgs(1, false);
+  };
 
-  const toggleExpand = (id) => {
-    setExpandedNodes(prev => ({ ...prev, [id]: !prev[id] }));
+  useEffect(() => {
+    fetchRootOrgs(1, false);
+  }, [search]);
+
+  const fetchMoreRoots = () => {
+    if (hasMoreRoots && !loadingRoots && !loadingMore) {
+      fetchRootOrgs(page + 1, true);
+    }
+  };
+
+  // IntersectionObserver for Infinite Scroll
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMoreRoots && !loadingRoots && !loadingMore) {
+          fetchMoreRoots();
+        }
+      },
+      { threshold: 0.1 }
+    );
+    if (loadMoreRef.current) {
+      observer.observe(loadMoreRef.current);
+    }
+    return () => observer.disconnect();
+  }, [hasMoreRoots, loadingRoots, loadingMore, page]);
+
+  const toggleExpand = async (node) => {
+    const nodeObj = typeof node === 'object' ? node : { _id: node };
+    const orgId = nodeObj._id;
+    const isCurrentlyExpanded = !!expandedNodes[orgId];
+
+    if (isCurrentlyExpanded) {
+      setExpandedNodes(prev => ({ ...prev, [orgId]: false }));
+      return;
+    }
+
+    setExpandedNodes(prev => ({ ...prev, [orgId]: true }));
+
+    // Fetch children lazily on demand if not cached
+    const hasCachedChildren = Array.isArray(childrenMap[orgId]);
+    if (!hasCachedChildren) {
+      setLoadingChildren(prev => ({ ...prev, [orgId]: true }));
+      try {
+        const res = await api.get(`/organizations/${orgId}/children`);
+        setChildrenMap(prev => ({ ...prev, [orgId]: res.data || [] }));
+      } catch (err) {
+        console.error('Lỗi khi tải chi nhánh con:', err);
+      } finally {
+        setLoadingChildren(prev => ({ ...prev, [orgId]: false }));
+      }
+    }
   };
 
   const handleExpandAll = () => {
@@ -428,6 +503,56 @@ export const OrganizationsPage = () => {
       alert('Gia hạn gói cước cho chi nhánh con thất bại: ' + (err.message || 'Lỗi hệ thống'));
     }
   };
+
+  // Super Admin Ban / Unban Organization
+  const handleToggleBanOrg = async (node) => {
+    const isBanned = node.status === 'SUSPENDED';
+    let reason = '';
+    if (!isBanned) {
+      reason = window.prompt(`Khóa (Ban) hoạt động của tổ chức "${node.name}". Vui lòng nhập lý do khóa:`, 'Vi phạm điều khoản dịch vụ');
+      if (reason === null) return;
+    }
+
+    try {
+      await api.patch(`/organizations/${node._id}/ban-status`, {
+        banStatus: isBanned ? 'ACTIVE' : 'BANNED',
+        reason
+      });
+      fetchTree();
+      alert(`Đã ${isBanned ? 'mở khóa (ACTIVE)' : 'khóa (BAN/SUSPENDED)'} tổ chức "${node.name}" thành công!`);
+    } catch (err) {
+      alert('Thay đổi trạng thái thất bại: ' + (err.message || 'Lỗi hệ thống'));
+    }
+  };
+
+  // Super Admin Grant Custom Dynamic Plan
+  const [showGrantPlanModal, setShowGrantPlanModal] = useState(false);
+  const [selectedOrgForGrant, setSelectedOrgForGrant] = useState(null);
+  const [grantPlanName, setGrantPlanName] = useState('PRO');
+  const [grantDurationMonths, setGrantDurationMonths] = useState(1);
+
+  const handleOpenGrantPlanModal = (node) => {
+    setSelectedOrgForGrant(node);
+    setGrantPlanName(node.plan || 'PRO');
+    setGrantDurationMonths(1);
+    setShowGrantPlanModal(true);
+  };
+
+  const handleConfirmGrantPlan = async () => {
+    if (!selectedOrgForGrant) return;
+    try {
+      await api.patch(`/organizations/${selectedOrgForGrant._id}/grant-plan`, {
+        planName: grantPlanName,
+        durationMonths: grantDurationMonths
+      });
+      setShowGrantPlanModal(false);
+      fetchTree();
+      alert(`Super Admin đã cấp thành công gói ${grantPlanName} (${grantDurationMonths} tháng) cho tổ chức "${selectedOrgForGrant.name}"!`);
+    } catch (err) {
+      alert('Cấp gói cước thất bại: ' + (err.message || 'Lỗi hệ thống'));
+    }
+  };
+
 
   const [resendingOrgId, setResendingOrgId] = useState(null);
 
@@ -548,15 +673,17 @@ export const OrganizationsPage = () => {
 
   // Tree Card Renderer Component
   const TreeNodeCard = ({ node }) => {
-    const hasChildren = node.children && node.children.length > 0;
+    const nodeChildren = childrenMap[node._id] || node.children || [];
+    const hasChildren = (nodeChildren && nodeChildren.length > 0) || node.hasChildren || node.childCount > 0;
     const isExpanded = !!expandedNodes[node._id];
+    const isChildrenLoading = !!loadingChildren[node._id];
 
     // Search filter logic
     const matchesSearch = !search ||
       node.name.toLowerCase().includes(search.toLowerCase()) ||
       node.code.toLowerCase().includes(search.toLowerCase());
 
-    const hasMatchingChild = node.children && node.children.some(c =>
+    const hasMatchingChild = nodeChildren && nodeChildren.some(c =>
       c.name.toLowerCase().includes(search.toLowerCase()) || c.code.toLowerCase().includes(search.toLowerCase())
     );
 
@@ -564,7 +691,7 @@ export const OrganizationsPage = () => {
       return null;
     }
 
-    const isRoot = node.level === 0;
+    const isRoot = node.level === 0 || !node.parentOrganizationId;
     const isSub = node.level === 1;
 
     const iconBg = isRoot ? 'linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%)' : isSub ? '#dcfce7' : '#fef3c7';
@@ -582,11 +709,17 @@ export const OrganizationsPage = () => {
             <div className="flex items-center gap-3 min-w-0">
               {hasChildren ? (
                 <button
-                  onClick={() => toggleExpand(node._id)}
+                  onClick={() => toggleExpand(node)}
                   className="w-7 h-7 rounded-lg border border-slate-300 bg-white text-slate-700 flex items-center justify-center hover:bg-slate-50 cursor-pointer shadow-2xs transition-all shrink-0"
-                  title={isExpanded ? 'Thu gọn chi nhánh con' : 'Mở rộng chi nhánh con'}
+                  title={isExpanded ? 'Thu gọn chi nhánh con' : 'Mở rộng (Tải chi nhánh con)'}
                 >
-                  {isExpanded ? <ChevronDown size={17} /> : <ChevronRight size={17} />}
+                  {isChildrenLoading ? (
+                    <Loader2 size={15} className="animate-spin text-sky-600" />
+                  ) : isExpanded ? (
+                    <ChevronDown size={17} />
+                  ) : (
+                    <ChevronRight size={17} />
+                  )}
                 </button>
               ) : (
                 <div className="w-7 flex justify-center shrink-0">
@@ -643,10 +776,35 @@ export const OrganizationsPage = () => {
 
             {/* Right Standard Actions */}
             <div className="flex items-center gap-1.5 shrink-0">
+              {user?.role === 'SUPER_ADMIN' && (
+                <>
+                  <button
+                    onClick={() => handleToggleBanOrg(node)}
+                    className={`px-2.5 py-1.5 rounded-xl border text-xs font-bold flex items-center gap-1 cursor-pointer transition-all ${
+                      node.status === 'SUSPENDED'
+                        ? 'border-emerald-200 bg-emerald-50 hover:bg-emerald-100 text-emerald-700'
+                        : 'border-red-200 bg-red-50 hover:bg-red-100 text-red-700'
+                    }`}
+                    title={node.status === 'SUSPENDED' ? 'Mở Khóa Hoạt Động Tổ Chức' : 'Khóa (Ban) Hoạt Động Tổ Chức'}
+                  >
+                    {node.status === 'SUSPENDED' ? <CheckCircle2 size={14} /> : <XCircle size={14} />}
+                    {node.status === 'SUSPENDED' ? 'Mở Khóa' : 'Ban (Khóa)'}
+                  </button>
+
+                  <button
+                    onClick={() => handleOpenGrantPlanModal(node)}
+                    className="px-2.5 py-1.5 rounded-xl border border-purple-200 bg-purple-50 hover:bg-purple-100 text-purple-700 text-xs font-bold flex items-center gap-1 cursor-pointer transition-all"
+                    title="Super Admin Cấp Gói Động"
+                  >
+                    <Sparkles size={14} /> Cấp Gói
+                  </button>
+                </>
+              )}
+
               <button
                 onClick={() => handleOpenChildRenewal(node)}
-                className="px-2.5 py-1.5 rounded-xl border border-purple-200 bg-purple-50 hover:bg-purple-100 text-purple-700 text-xs font-bold flex items-center gap-1 cursor-pointer transition-all"
-                title="Gói Dịch Vụ"
+                className="px-2.5 py-1.5 rounded-xl border border-sky-200 bg-sky-50 hover:bg-sky-100 text-sky-700 text-xs font-bold flex items-center gap-1 cursor-pointer transition-all"
+                title="Gói Dịch Vụ Chi Nhánh"
               >
                 <Crown size={14} /> Gói Dịch Vụ
               </button>
@@ -687,7 +845,7 @@ export const OrganizationsPage = () => {
                   </span>
                 )}
                 {hasChildren ? (
-                  <span className="text-sky-700 font-bold">• {node.children.length} chi nhánh trực thuộc</span>
+                  <span className="text-sky-700 font-bold">• {node.childCount || nodeChildren.length || 0} chi nhánh trực thuộc</span>
                 ) : (
                   <span className="text-slate-400">• Chi nhánh độc lập</span>
                 )}
@@ -764,10 +922,21 @@ export const OrganizationsPage = () => {
 
         {/* Render Children Recursively with Connector */}
         {hasChildren && isExpanded && (
-          <div className="border-l-2 border-dashed border-slate-300 ml-6 pl-4 mt-1">
-            {node.children.map(child => (
-              <TreeNodeCard key={child._id} node={child} />
-            ))}
+          <div className="border-l-2 border-dashed border-slate-300 ml-6 pl-4 mt-1 space-y-2">
+            {isChildrenLoading ? (
+              <div className="py-2.5 px-4 text-xs font-bold text-sky-700 bg-sky-50 rounded-xl border border-sky-200 flex items-center gap-2 w-fit animate-pulse my-2">
+                <Loader2 size={15} className="animate-spin text-sky-600" />
+                <span>Đang tải danh sách chi nhánh con từ máy chủ...</span>
+              </div>
+            ) : nodeChildren.length > 0 ? (
+              nodeChildren.map(child => (
+                <TreeNodeCard key={child._id} node={child} />
+              ))
+            ) : (
+              <div className="py-2 text-[11.5px] text-slate-400 italic">
+                Chưa có chi nhánh con trực thuộc.
+              </div>
+            )}
           </div>
         )}
 
@@ -1090,11 +1259,12 @@ export const OrganizationsPage = () => {
       {/* Main Content View Area */}
       {viewMode === 'tree' ? (
         <div className="glass-panel" style={{ padding: '24px', minHeight: '420px', background: '#ffffff' }}>
-          {loading ? (
+          {loadingRoots ? (
             <div style={{ textAlign: 'center', padding: '40px', color: '#64748b', fontSize: '13.5px' }}>
-              Đang tải sơ đồ cây tổ chức...
+              <Loader2 size={24} className="animate-spin mx-auto text-sky-600 mb-2" />
+              Đang tải danh sách 20 tổ chức cha đầu tiên...
             </div>
-          ) : tree.length === 0 ? (
+          ) : rootOrgs.length === 0 ? (
             <div style={{
               textAlign: 'center',
               padding: '50px 24px',
@@ -1153,7 +1323,29 @@ export const OrganizationsPage = () => {
               </button>
             </div>
           ) : (
-            tree.map(node => <TreeNodeCard key={node._id} node={node} />)
+            <div className="space-y-3">
+              {rootOrgs.map(node => <TreeNodeCard key={node._id} node={node} />)}
+
+              {/* Load More & Infinite Scroll Trigger */}
+              {hasMoreRoots && (
+                <div ref={loadMoreRef} className="pt-6 pb-2 flex flex-col items-center justify-center gap-2">
+                  <button
+                    onClick={fetchMoreRoots}
+                    disabled={loadingMore}
+                    className="px-6 py-3 rounded-2xl bg-white border border-sky-300 text-sky-700 font-black text-xs sm:text-sm hover:bg-sky-50 shadow-sm hover:shadow-md transition-all cursor-pointer flex items-center gap-2"
+                  >
+                    {loadingMore ? (
+                      <><Loader2 size={16} className="animate-spin text-sky-600" /> Đang tải 20 tổ chức cha tiếp theo...</>
+                    ) : (
+                      <><ChevronsDown size={18} className="text-sky-600 animate-bounce" /> Tải Thêm 20 Tổ Chức Cha (Còn {totalRoots - rootOrgs.length} tổ chức)</>
+                    )}
+                  </button>
+                  <span className="text-[11.5px] text-slate-400 font-bold">
+                    Đã hiển thị {rootOrgs.length} / {totalRoots} tổ chức cha (Trang {page})
+                  </span>
+                </div>
+              )}
+            </div>
           )}
         </div>
       ) : (
@@ -2015,6 +2207,143 @@ export const OrganizationsPage = () => {
         document.body
       )}
 
+      {/* SUPER ADMIN DYNAMIC GRANT PLAN MODAL */}
+      {showGrantPlanModal && selectedOrgForGrant && createPortal(
+        <div className="fixed inset-0 z-[99999] bg-slate-950/80 backdrop-blur-md p-4 flex items-center justify-center animate-backdrop select-none">
+          <div className="bg-white rounded-3xl p-6 sm:p-7 max-w-lg w-[94vw] shadow-2xl border border-slate-200 animate-modal-pop text-slate-900">
+            
+            <div className="flex items-center justify-between pb-4 border-b border-slate-100 mb-4">
+              <div>
+                <h3 className="text-lg font-black text-slate-900 flex items-center gap-2">
+                  <Sparkles size={20} className="text-purple-600" /> Super Admin Cấp Gói Động
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Cấp gói cước và thời hạn sử dụng cho tổ chức <strong>"{selectedOrgForGrant.name}"</strong>
+                </p>
+              </div>
+              <button
+                onClick={() => setShowGrantPlanModal(false)}
+                className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition-all cursor-pointer"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="space-y-4 text-xs font-medium">
+              
+              {/* Current Organization Plan Info Box */}
+              <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-200 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-500 font-bold">Gói dịch vụ hiện tại:</span>
+                  <span className="font-black text-sky-800 bg-sky-50 px-2.5 py-0.5 rounded-md border border-sky-200">
+                    {selectedOrgForGrant.plan || 'FREE'}
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-500 font-bold">Trạng thái hạn sử dụng:</span>
+                  {selectedOrgForGrant.plan === 'FREE' || !selectedOrgForGrant.planExpiresAt ? (
+                    <span className="text-slate-600 font-extrabold bg-slate-100 px-2 py-0.5 rounded-md">
+                      ⚪ Chưa đăng ký (Gói FREE vĩnh viễn)
+                    </span>
+                  ) : new Date(selectedOrgForGrant.planExpiresAt) < new Date() ? (
+                    <span className="text-rose-700 font-extrabold bg-rose-50 px-2.5 py-0.5 rounded-md border border-rose-200">
+                      🔴 Đã hết hạn (Ngày hết: {new Date(selectedOrgForGrant.planExpiresAt).toLocaleDateString('vi-VN')})
+                    </span>
+                  ) : (
+                    <span className="text-emerald-700 font-extrabold bg-emerald-50 px-2.5 py-0.5 rounded-md border border-emerald-200">
+                      🟢 Còn hạn đến {new Date(selectedOrgForGrant.planExpiresAt).toLocaleDateString('vi-VN')}
+                    </span>
+                  )}
+                </div>
+
+                {grantPlanName !== 'FREE' && (
+                  <div className="pt-2 border-t border-slate-200 flex items-center justify-between text-[11.5px]">
+                    <span className="text-purple-900 font-bold">Mốc tính cấp mới:</span>
+                    <span className="text-purple-950 font-black">
+                      {(!selectedOrgForGrant.planExpiresAt || new Date(selectedOrgForGrant.planExpiresAt) < new Date())
+                        ? `Mốc tính từ HÔM NAY (${new Date().toLocaleDateString('vi-VN')}) +${grantDurationMonths} tháng`
+                        : `Cộng dồn từ mốc cũ (${new Date(selectedOrgForGrant.planExpiresAt).toLocaleDateString('vi-VN')}) +${grantDurationMonths} tháng`
+                      }
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Chọn Gói Cước Cấp Trực Tiếp:
+                </label>
+                <div className="grid grid-cols-4 gap-2">
+                  {['FREE', 'BASIC', 'PRO', 'VIP'].map((pName) => (
+                    <button
+                      key={pName}
+                      type="button"
+                      onClick={() => setGrantPlanName(pName)}
+                      className={`py-2 px-2.5 rounded-xl font-extrabold border transition-all cursor-pointer text-center ${
+                        grantPlanName === pName
+                          ? 'bg-purple-600 text-white border-purple-600 shadow-xs'
+                          : 'bg-slate-50 text-slate-700 border-slate-200 hover:border-slate-300'
+                      }`}
+                    >
+                      {pName}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {grantPlanName !== 'FREE' && (
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Số Tháng Cấp Hạn Sử Dụng (+Số Tháng):
+                  </label>
+                  <div className="grid grid-cols-4 gap-2">
+                    {[1, 3, 6, 12].map((m) => (
+                      <button
+                        key={m}
+                        type="button"
+                        onClick={() => setGrantDurationMonths(m)}
+                        className={`py-2 px-2.5 rounded-xl font-extrabold border transition-all cursor-pointer text-center ${
+                          grantDurationMonths === m
+                            ? 'bg-purple-600 text-white border-purple-600 shadow-xs'
+                            : 'bg-slate-50 text-slate-700 border-slate-200 hover:border-slate-300'
+                        }`}
+                      >
+                        +{m} Tháng
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="p-3.5 bg-purple-50/70 border border-purple-200 rounded-xl text-purple-900 text-[11.5px] leading-relaxed">
+                💡 <strong>Quy tắc gia hạn:</strong> Nếu tổ chức đã hết hạn, thời hạn mới sẽ được <strong>tự động tính bắt đầu từ HÔM NAY</strong>. Nếu tổ chức vẫn còn hạn, thời hạn mới sẽ được <strong>cộng dồn tiếp nối</strong> từ ngày hết hạn cũ.
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100 mt-5">
+              <button
+                type="button"
+                onClick={() => setShowGrantPlanModal(false)}
+                className="px-4 py-2 rounded-full border border-slate-300 text-slate-700 font-bold text-xs hover:bg-slate-100 transition-all cursor-pointer"
+              >
+                Hủy Bỏ
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmGrantPlan}
+                className="px-5 py-2 rounded-full bg-purple-600 hover:bg-purple-700 text-white font-extrabold text-xs shadow-md shadow-purple-600/25 cursor-pointer transition-all flex items-center gap-1.5"
+              >
+                <Sparkles size={15} /> Xác Nhận Cấp Gói {grantPlanName}
+              </button>
+            </div>
+
+          </div>
+        </div>,
+        document.body
+      )}
+
     </div>
   );
 };
+

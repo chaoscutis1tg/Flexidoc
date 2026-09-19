@@ -137,3 +137,46 @@ export const updateSubscriptionPlan = async (req, res, next) => {
   }
 };
 
+export const grantCustomPlan = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { planName, durationMonths } = req.body;
+    const org = await organizationService.grantCustomPlan(id, planName, durationMonths, req.user);
+    return sendSuccess(res, 200, `Super Admin đã cấp gói ${planName} (${durationMonths || 1} tháng) cho tổ chức ${org.name} thành công!`, org);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const toggleBanOrganization = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { banStatus, reason } = req.body;
+    const org = await organizationService.toggleBanOrganization(id, banStatus, reason, req.user);
+    const actionName = org.status === 'SUSPENDED' ? 'khóa (Ban)' : 'mở khóa';
+    return sendSuccess(res, 200, `Đã ${actionName} tổ chức ${org.name} thành công!`, org);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getPaginatedRootOrganizations = async (req, res, next) => {
+  try {
+    const result = await organizationService.getPaginatedRootOrganizations(req.query, req.tenantContext);
+    return sendSuccess(res, 200, 'Lấy danh sách tổ chức cha phân trang thành công', result);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getOrganizationChildren = async (req, res, next) => {
+  try {
+    const children = await organizationService.getOrganizationChildren(req.params.id, req.tenantContext);
+    return sendSuccess(res, 200, 'Lấy danh sách tổ chức con thành công', children);
+  } catch (error) {
+    next(error);
+  }
+};
+
+
+

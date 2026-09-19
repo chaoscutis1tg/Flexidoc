@@ -1,244 +1,462 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import api from '../../services/api';
 import { useAuth } from '../../app/AuthContext';
 import { fetchDynamicPlans, DEFAULT_PLANS_DATA } from '../../utils/planData';
-import { 
-  X, 
-  Crown, 
-  Check, 
-  Building2, 
-  CheckCircle2, 
-  AlertCircle,
+import {
+  X,
+  Crown,
+  Check,
   Building,
+  CheckCircle2,
+  AlertCircle,
   ShieldCheck,
-  Zap
+  Zap,
+  Copy,
+  Loader2,
+  QrCode,
+  ArrowLeft,
+  Clock
 } from 'lucide-react';
 
 export const RenewalModal = ({ isOpen, onClose }) => {
   const { user, refreshUser } = useAuth();
   const [plans, setPlans] = useState(DEFAULT_PLANS_DATA);
   const [selectedPlan, setSelectedPlan] = useState('PRO');
+  const [durationMonths, setDurationMonths] = useState(1);
+
+  // Flow Step: 'SELECT_PLAN' | 'PAYMENT_QR'
+  const [step, setStep] = useState('SELECT_PLAN');
+
+  // Created Order State
+  const [createdOrder, setCreatedOrder] = useState(null);
+  const [paymentConfig, setPaymentConfig] = useState({
+    bankName: 'MB BANK',
+    bankCode: 'MB',
+    accountNumber: '5408092006',
+    accountName: 'DO VAN KHOA',
+    orderPrefix: 'MTCTMS',
+  });
+
   const [loading, setLoading] = useState(false);
+  const [copiedCode, setCopiedCode] = useState(false);
+  const [copiedAcc, setCopiedAcc] = useState(false);
   const [successMsg, setSuccessMsg] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
 
+  const [manualSubmitted, setManualSubmitted] = useState(false);
+
+  // Fetch commercial plans and payment config on modal open
   useEffect(() => {
     if (isOpen) {
-      fetchDynamicPlans().then(data => {
+      setStep('SELECT_PLAN');
+      setCreatedOrder(null);
+      setSuccessMsg('');
+      setErrorMsg('');
+      setManualSubmitted(false);
+
+      fetchDynamicPlans().then((data) => {
         if (data && data.length > 0) {
-          // Filter out FREE for upgrade modal
-          const commercialPlans = data.filter(p => p.code !== 'FREE');
+          const commercialPlans = data.filter((p) => p.code !== 'FREE');
           if (commercialPlans.length > 0) {
             setPlans(commercialPlans);
           }
         }
       });
+
+      api.get('/system-settings/payment')
+        .then((res) => {
+          if (res.success && res.data) {
+            setPaymentConfig(res.data);
+          }
+        })
+        .catch(() => {});
     }
   }, [isOpen]);
 
+  // Polling order status if createdOrder is PENDING
+  useEffect(() => {
+    let timer;
+    if (step === 'PAYMENT_QR' && createdOrder && createdOrder.status === 'PENDING') {
+      timer = setInterval(async () => {
+        try {
+          const res = await api.get(`/orders/${createdOrder._id}`);
+          if (res.success && res.data) {
+            if (res.data.status === 'SUCCESS') {
+              setCreatedOrder(res.data);
+              setSuccessMsg(`Thanh toán thành công! Gói ${res.data.plan} đã được kích hoạt tự động.`);
+              await refreshUser();
+              clearInterval(timer);
+            }
+          }
+        } catch (e) {
+          // Silent polling fail
+        }
+      }, 3000);
+    }
+    return () => clearInterval(timer);
+  }, [step, createdOrder]);
+
   if (!isOpen) return null;
 
-  const handleConfirmRenew = async () => {
+  const currentOrg = user?.organizationId || {};
+  const currentPlanObj = plans.find((p) => p.code === selectedPlan) || plans[0];
+  const unitPrice = currentPlanObj ? (currentPlanObj.price || 199000) : 199000;
+  const totalPrice = unitPrice * durationMonths;
+
+  const handleCreateOrder = async () => {
     setLoading(true);
-    setSuccessMsg('');
     setErrorMsg('');
+    setManualSubmitted(false);
     try {
-      const res = await api.post('/organizations/renew-subscription', { planName: selectedPlan });
-      if (res.success) {
-        setSuccessMsg(`Đã gia hạn / nâng cấp thành công gói ${selectedPlan} cho tổ chức '${currentOrg.name || 'chính bạn'}'! Hạn dùng mới: 30 ngày.`);
-        await refreshUser();
-        setTimeout(() => {
-          onClose();
-        }, 1800);
+      const res = await api.post('/orders', {
+        plan: selectedPlan,
+        durationMonths,
+      });
+
+      if (res.success && res.data) {
+        setCreatedOrder({
+          ...res.data.order,
+          transferContent: res.data.transferContent,
+        });
+        if (res.data.paymentConfig) {
+          setPaymentConfig(res.data.paymentConfig);
+        }
+        setStep('PAYMENT_QR');
       }
     } catch (err) {
-      setErrorMsg(err.message || 'Gia hạn thất bại.');
+      setErrorMsg(err.message || 'Tạo đơn hàng thất bại. Vui lòng thử lại.');
     } finally {
       setLoading(false);
     }
   };
 
-  const currentOrg = user?.organizationId || {};
-  const currentSelectedPlanObj = plans.find(p => p.code === selectedPlan) || plans[0];
+  const handleManualSubmittedClick = () => {
+    setManualSubmitted(true);
+  };
 
-  return (
-    <div className="modal-overlay animate-backdrop" style={{ zIndex: 10000 }}>
-      <div 
-        className="modal-content animate-modal-pop" 
-        style={{ 
-          maxWidth: '820px', 
-          width: '94vw', 
-          padding: '28px 32px', 
-          borderRadius: '20px',
-          background: '#ffffff',
-          border: '1px solid #e2e8f0',
-          boxShadow: '0 20px 45px rgba(15, 23, 42, 0.15)',
-          overflow: 'hidden'
-        }}
+  const handleCopyAcc = () => {
+    if (paymentConfig.accountNumber) {
+      navigator.clipboard.writeText(paymentConfig.accountNumber);
+      setCopiedAcc(true);
+      setTimeout(() => setCopiedAcc(false), 2000);
+    }
+  };
+
+  const handleCopyContent = () => {
+    const content = createdOrder?.transferContent || `${paymentConfig.orderPrefix} ${createdOrder?.orderCode}`;
+    if (content) {
+      navigator.clipboard.writeText(content);
+      setCopiedCode(true);
+      setTimeout(() => setCopiedCode(false), 2000);
+    }
+  };
+
+  const vietQrUrl = createdOrder
+    ? `https://img.vietqr.io/image/${paymentConfig.bankCode || 'MB'}-${paymentConfig.accountNumber || '5408092006'}-compact2.png?amount=${createdOrder.amount}&addInfo=${encodeURIComponent(createdOrder.transferContent || `${paymentConfig.orderPrefix} ${createdOrder.orderCode}`)}&accountName=${encodeURIComponent(paymentConfig.accountName || 'DO VAN KHOA')}`
+    : '';
+
+  return createPortal(
+    <div
+      onClick={onClose}
+      className="fixed inset-0 z-[99999] bg-slate-950/80 backdrop-blur-md p-4 flex items-center justify-center animate-backdrop select-none"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="bg-white rounded-3xl p-6 sm:p-8 max-w-3xl w-[95vw] max-h-[92vh] overflow-y-auto shadow-2xl border border-slate-200 animate-modal-pop text-slate-900 relative z-10"
       >
-        {/* Modal Header - Clean Enterprise SaaS Style */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '22px', borderBottom: '1px solid #e2e8f0', paddingBottom: '16px' }}>
+        
+        {/* Header */}
+        <div className="flex items-center justify-between pb-4 border-b border-slate-200 mb-5">
           <div>
-            <h2 style={{ fontSize: '20px', fontWeight: '800', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <Crown size={22} className="text-sky-600" /> Nâng Cấp Gói Dịch Vụ Cho Tổ Chức Của Bạn
+            <h2 className="text-xl font-black text-slate-900 flex items-center gap-2">
+              <Crown className="text-sky-600 shrink-0" size={24} />
+              <span>Nâng Cấp Gói Dịch Vụ Cho Tổ Chức</span>
             </h2>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px', fontSize: '13px', color: '#64748b' }}>
-              <span>Tổ chức hiện tại đang sử dụng:</span>
-              <span style={{ fontWeight: '700', color: '#0369a1', background: '#f0f9ff', padding: '3px 10px', borderRadius: '8px', border: '1px solid #bae6fd', display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
-                <Building size={14} /> {currentOrg.name || 'Tổ chức của tôi'} ({currentOrg.code || 'MAIN'})
+            <div className="flex items-center gap-2 mt-1 text-xs text-slate-500 font-medium">
+              <span>Đơn vị:</span>
+              <span className="font-extrabold text-sky-700 bg-sky-50 px-2 py-0.5 rounded border border-sky-200 flex items-center gap-1">
+                <Building size={13} /> {currentOrg.name || 'Tổ chức của tôi'} ({currentOrg.code || 'MAIN'})
               </span>
             </div>
           </div>
 
-          <button 
+          <button
             onClick={onClose}
-            style={{ 
-              background: '#f8fafc', 
-              border: '1px solid #cbd5e1', 
-              color: '#64748b', 
-              width: '32px', 
-              height: '32px', 
-              borderRadius: '8px', 
-              display: 'flex', 
-              alignItems: 'center', 
-              justifyContent: 'center',
-              cursor: 'pointer',
-              transition: 'all 0.15s ease'
-            }}
-            title="Đóng"
+            className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition-all cursor-pointer"
           >
             <X size={18} />
           </button>
         </div>
 
-        {successMsg && (
-          <div style={{ background: '#dcfce7', border: '1px solid #86efac', padding: '12px 16px', borderRadius: '10px', fontSize: '13px', color: '#166534', marginBottom: '18px', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '600' }}>
-            <CheckCircle2 size={18} color="#16a34a" /> {successMsg}
-          </div>
-        )}
-
+        {/* Global Messages */}
         {errorMsg && (
-          <div style={{ background: '#fee2e2', border: '1px solid #fca5a5', padding: '12px 16px', borderRadius: '10px', fontSize: '13px', color: '#991b1b', marginBottom: '18px', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '600' }}>
-            <AlertCircle size={18} color="#dc2626" /> {errorMsg}
+          <div className="bg-red-50 border border-red-200 p-3 rounded-xl text-xs text-red-800 font-bold mb-4 flex items-center gap-2">
+            <AlertCircle size={16} className="shrink-0" /> {errorMsg}
           </div>
         )}
 
-        {/* Dynamic Pricing Cards Grid */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px', marginBottom: '24px' }}>
-          {plans.map((p) => {
-            const isSelected = selectedPlan === p.code;
-            const isPro = p.code === 'PRO';
-            const isVip = p.code === 'VIP';
+        {/* STEP 1: SELECT PLAN & DURATION */}
+        {step === 'SELECT_PLAN' ? (
+          <div>
+            {/* Plan Selector Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+              {plans.map((p) => {
+                const isSelected = selectedPlan === p.code;
+                const isVip = p.code === 'VIP';
 
-            return (
-              <div 
-                key={p.code}
-                onClick={() => setSelectedPlan(p.code)}
-                style={{ 
-                  borderRadius: '16px', 
-                  padding: '22px 18px', 
-                  cursor: 'pointer',
-                  position: 'relative',
-                  background: isSelected 
-                    ? (isVip ? '#faf5ff' : isPro ? '#f0f9ff' : '#f8fafc') 
-                    : '#ffffff',
-                  border: isSelected 
-                    ? `2px solid ${isVip ? '#9333ea' : isPro ? '#0284c7' : '#0284c7'}` 
-                    : '1px solid #e2e8f0',
-                  boxShadow: isSelected ? '0 8px 20px rgba(2, 132, 199, 0.12)' : '0 2px 6px rgba(0,0,0,0.02)',
-                  transition: 'all 0.2s ease',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'space-between'
-                }}
-              >
-                {/* Popular Tag */}
-                {p.popular && (
-                  <div style={{ position: 'absolute', top: '-11px', right: '16px', background: '#0284c7', color: '#ffffff', fontSize: '10px', fontWeight: '800', padding: '2px 10px', borderRadius: '10px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                    {p.popularBadgeText || 'Phổ Biến Nhất'}
+                return (
+                  <div
+                    key={p.code}
+                    onClick={() => setSelectedPlan(p.code)}
+                    className={`rounded-2xl p-5 cursor-pointer relative border transition-all flex flex-col justify-between ${
+                      isSelected
+                        ? isVip
+                          ? 'bg-purple-50/60 border-purple-500 shadow-md shadow-purple-500/10'
+                          : 'bg-sky-50/60 border-sky-500 shadow-md shadow-sky-500/10'
+                        : 'bg-white border-slate-200 hover:border-slate-300'
+                    }`}
+                  >
+                    {p.popular && (
+                      <div className="absolute -top-2.5 right-4 bg-sky-600 text-white text-[9.5px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider shadow-2xs">
+                        Phổ biến nhất
+                      </div>
+                    )}
+
+                    <div>
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">
+                        {p.subtitle || p.badge}
+                      </span>
+                      <h3 className="text-xl font-black text-slate-900 mt-0.5">{p.title}</h3>
+                      <div className="my-3 flex items-baseline gap-1">
+                        <span className="text-2xl font-black text-sky-600">
+                          {p.formattedPrice}
+                        </span>
+                        <span className="text-xs text-slate-500 font-bold">{p.billingCycle}</span>
+                      </div>
+                    </div>
+
+                    <ul className="space-y-2 pt-3 border-t border-slate-100 text-xs text-slate-600 font-medium">
+                      {p.features?.map((feat, idx) => (
+                        <li key={idx} className="flex items-start gap-1.5">
+                          <Check size={15} className="text-emerald-500 shrink-0 mt-0.5" />
+                          <span>{feat}</span>
+                        </li>
+                      ))}
+                    </ul>
                   </div>
-                )}
+                );
+              })}
+            </div>
 
+            {/* Duration Selector */}
+            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 mb-6">
+              <label className="text-xs font-bold text-slate-700 block mb-2">
+                Chọn Thời Gian Gia Hạn / Đăng Ký:
+              </label>
+              <div className="grid grid-cols-4 gap-2">
+                {[
+                  { months: 1, label: '1 Tháng' },
+                  { months: 3, label: '3 Tháng' },
+                  { months: 6, label: '6 Tháng' },
+                  { months: 12, label: '12 Tháng' },
+                ].map((opt) => (
+                  <button
+                    key={opt.months}
+                    type="button"
+                    onClick={() => setDurationMonths(opt.months)}
+                    className={`py-2 px-3 rounded-xl text-xs font-extrabold transition-all cursor-pointer border ${
+                      durationMonths === opt.months
+                        ? 'bg-sky-600 text-white border-sky-600 shadow-sm'
+                        : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300'
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Total Calculation */}
+              <div className="mt-4 pt-3 border-t border-slate-200 flex items-center justify-between text-xs font-extrabold text-slate-800">
+                <span>Tổng Tiền Thanh Toán ({durationMonths} tháng):</span>
+                <span className="text-lg font-black text-sky-700">
+                  {totalPrice.toLocaleString('vi-VN')} VNĐ
+                </span>
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="flex items-center justify-between pt-2 border-t border-slate-100">
+              <span className="text-xs text-slate-500 font-medium flex items-center gap-1">
+                <ShieldCheck size={16} className="text-emerald-500" /> Tự động duyệt qua SePay Webhook 24/7
+              </span>
+
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="px-5 py-2.5 rounded-full border border-slate-300 text-slate-700 font-bold text-xs hover:bg-slate-100 transition-all cursor-pointer"
+                >
+                  Hủy Bỏ
+                </button>
+                <button
+                  type="button"
+                  disabled={loading}
+                  onClick={handleCreateOrder}
+                  className="px-6 py-2.5 rounded-full bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-extrabold text-xs md:text-sm flex items-center gap-2 shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40 hover:-translate-y-0.5 active:scale-95 transition-all cursor-pointer"
+                >
+                  {loading ? <Loader2 size={16} className="animate-spin" /> : <QrCode size={16} />}
+                  Thanh Toán Ngay ({totalPrice.toLocaleString('vi-VN')}đ)
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : (
+          /* STEP 2: VIETQR PAYMENT MODAL */
+          <div className="animate-fade-in space-y-5">
+            {successMsg && (
+              <div className="bg-emerald-50 border border-emerald-300 p-4 rounded-2xl text-xs text-emerald-900 font-bold flex items-center gap-3">
+                <CheckCircle2 size={24} className="text-emerald-600 shrink-0" />
                 <div>
-                  <div style={{ fontSize: '11px', fontWeight: '800', color: isVip ? '#7e22ce' : '#0369a1', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                    {p.subtitle || p.badge}
-                  </div>
-                  <h3 style={{ fontSize: '20px', fontWeight: '900', color: '#0f172a', marginTop: '4px' }}>
-                    {p.title}
-                  </h3>
+                  <div className="text-sm font-black text-emerald-800">Thanh Toán Hoàn Tất!</div>
+                  <div>{successMsg}</div>
+                </div>
+              </div>
+            )}
 
-                  <div style={{ marginTop: '12px', display: 'flex', alignItems: 'baseline', gap: '4px' }}>
-                    <span style={{ fontSize: '24px', fontWeight: '900', color: isVip ? '#7e22ce' : '#0284c7' }}>
-                      {p.formattedPrice}
-                    </span>
-                    <span style={{ fontSize: '12px', color: '#64748b', fontWeight: '600' }}>
-                      {p.billingCycle}
-                    </span>
+            {manualSubmitted && !successMsg && (
+              <div className="bg-sky-50 border border-sky-300 p-3.5 rounded-2xl text-xs text-sky-900 font-bold flex items-center gap-3 animate-fade-in">
+                <CheckCircle2 size={22} className="text-sky-600 shrink-0" />
+                <div>
+                  <div className="text-sm font-black text-sky-900">Đã Ghi Nhận Thông Báo Chuyển Khoản!</div>
+                  <div>Đơn hàng <span className="font-mono text-sky-700">{createdOrder?.orderCode}</span> đã hiển thị trên Danh Sách Đơn Hàng Dịch Vụ hệ thống (Trạng thái: <strong>Chờ thanh toán / xác nhận</strong>). Admin sẽ kiểm tra nội dung <code className="font-mono bg-sky-100 px-1 py-0.5 rounded text-sky-800">{createdOrder?.transferContent}</code> và xác nhận cho bạn.</div>
+                </div>
+              </div>
+            )}
+
+            {!successMsg && !manualSubmitted && (
+              <div className="bg-amber-50 border border-amber-200 p-3 rounded-2xl text-xs text-amber-800 font-bold flex items-center gap-2 animate-pulse">
+                <Clock size={16} className="shrink-0 text-amber-600" />
+                <span>Hệ thống đang tự động kiểm tra giao dịch qua SePay Webhook... Sau khi chuyển khoản xong, bạn có thể nhấn nút "Tôi đã chuyển khoản thành công" bên dưới.</span>
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-slate-50 p-5 rounded-2xl border border-slate-200">
+              
+              {/* Left Column: VietQR Image */}
+              <div className="flex flex-col items-center justify-center bg-white p-4 rounded-xl border border-slate-200 shadow-sm text-center">
+                <div className="text-xs font-black text-slate-800 mb-2 flex items-center gap-1.5">
+                  <QrCode size={18} className="text-sky-600" />
+                  Mã VietQR Quét Nhanh Ngân Hàng
+                </div>
+
+                <img
+                  src={vietQrUrl}
+                  alt="VietQR Payment"
+                  className="w-56 h-56 object-contain rounded-lg border border-slate-100 shadow-xs my-2"
+                />
+
+                <span className="text-[11px] text-slate-500 font-medium">
+                  Mở ứng dụng Ngân hàng (MB, Vietcombank, Techcombank...) để quét QR tự động điền số tiền & nội dung.
+                </span>
+              </div>
+
+              {/* Right Column: Bank Details */}
+              <div className="flex flex-col justify-between space-y-3">
+                <div>
+                  <span className="text-xs font-black text-sky-600 uppercase tracking-wider block mb-2">
+                    Thông Tin Chuyển Khoản Thủ Công
+                  </span>
+
+                  <div className="space-y-3 text-xs">
+                    <div className="bg-white p-3 rounded-xl border border-slate-200">
+                      <span className="text-slate-400 block text-[10.5px] font-bold">Ngân Hàng:</span>
+                      <strong className="text-slate-900 font-black text-sm">{paymentConfig.bankName}</strong>
+                    </div>
+
+                    <div className="bg-white p-3 rounded-xl border border-slate-200 flex items-center justify-between">
+                      <div>
+                        <span className="text-slate-400 block text-[10.5px] font-bold">Số Tài Khoản:</span>
+                        <strong className="text-sky-700 font-mono font-black text-base">{paymentConfig.accountNumber}</strong>
+                      </div>
+                      <button
+                        onClick={handleCopyAcc}
+                        className="px-2.5 py-1 rounded-lg bg-sky-50 hover:bg-sky-100 text-sky-700 font-bold text-[11px] flex items-center gap-1 border border-sky-200 cursor-pointer"
+                      >
+                        {copiedAcc ? <Check size={13} className="text-emerald-600" /> : <Copy size={13} />}
+                        {copiedAcc ? 'Đã chép' : 'Sao chép'}
+                      </button>
+                    </div>
+
+                    <div className="bg-white p-3 rounded-xl border border-slate-200">
+                      <span className="text-slate-400 block text-[10.5px] font-bold">Chủ Tài Khoản:</span>
+                      <strong className="text-slate-900 font-black text-sm uppercase">{paymentConfig.accountName}</strong>
+                    </div>
+
+                    <div className="bg-white p-3 rounded-xl border border-slate-200 flex items-center justify-between">
+                      <div>
+                        <span className="text-slate-400 block text-[10.5px] font-bold">Số Tiền Cần Chuyển:</span>
+                        <strong className="text-emerald-700 font-black text-base">{createdOrder?.amount?.toLocaleString('vi-VN')} VNĐ</strong>
+                      </div>
+                    </div>
+
+                    {/* Important Transfer Content */}
+                    <div className="bg-amber-100/70 p-3.5 rounded-xl border border-amber-300">
+                      <span className="text-amber-900 block text-[11px] font-black uppercase mb-1">
+                        ⚠️ Nội Dung Chuyển Khoản (Bắt buộc):
+                      </span>
+                      <div className="flex items-center justify-between bg-white p-2 rounded-lg border border-amber-300 font-mono text-sm font-black text-red-600">
+                        <span>{createdOrder?.transferContent}</span>
+                        <button
+                          onClick={handleCopyContent}
+                          className="px-2.5 py-1 rounded-md bg-amber-600 hover:bg-amber-700 text-white font-bold text-[11px] flex items-center gap-1 cursor-pointer shadow-xs"
+                        >
+                          {copiedCode ? <Check size={13} /> : <Copy size={13} />}
+                          {copiedCode ? 'Đã chép' : 'Sao chép nội dung'}
+                        </button>
+                      </div>
+                    </div>
+
                   </div>
                 </div>
 
-                <div style={{ marginTop: '18px', borderTop: '1px solid #f1f5f9', paddingTop: '14px' }}>
-                  <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '12px', color: '#334155' }}>
-                    {p.features && p.features.map((feat, idx) => (
-                      <li key={idx} style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', lineHeight: '1.4' }}>
-                        <Check size={16} style={{ color: isVip ? '#9333ea' : '#10b981', flexShrink: 0, marginTop: '1px' }} />
-                        <span>{feat}</span>
-                      </li>
-                    ))}
-                  </ul>
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t border-slate-200">
+                  <button
+                    type="button"
+                    onClick={() => setStep('SELECT_PLAN')}
+                    className="text-xs font-bold text-slate-500 hover:text-slate-900 flex items-center gap-1 cursor-pointer"
+                  >
+                    <ArrowLeft size={14} /> Chọn lại gói cước
+                  </button>
+
+                  <div className="flex items-center gap-2">
+                    {!manualSubmitted && !successMsg && (
+                      <button
+                        type="button"
+                        onClick={handleManualSubmittedClick}
+                        className="px-4 py-2.5 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs flex items-center gap-1.5 shadow-md shadow-emerald-600/20 cursor-pointer transition-all active:scale-95"
+                      >
+                        <CheckCircle2 size={15} /> Tôi Đã Chuyển Khoản Thành Công
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={onClose}
+                      className="px-5 py-2.5 rounded-full bg-slate-900 hover:bg-slate-800 text-white font-extrabold text-xs shadow-md cursor-pointer"
+                    >
+                      Đóng Modal
+                    </button>
+                  </div>
                 </div>
 
               </div>
-            );
-          })}
-        </div>
 
-        {/* Actions Footer */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '16px', borderTop: '1px solid #e2e8f0', paddingTop: '18px', flexWrap: 'nowrap' }}>
-          <div style={{ fontSize: '12.5px', color: '#64748b', display: 'flex', alignItems: 'center', gap: '6px', flex: 1, minWidth: 0 }}>
-            <ShieldCheck size={16} color="#0284c7" style={{ flexShrink: 0 }} />
-            <span>Hạn sử dụng sẽ được <strong>tự động cộng dồn +30 ngày</strong> kể từ hôm nay.</span>
+            </div>
           </div>
-
-          <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexShrink: 0 }}>
-            <button 
-              type="button" 
-              className="btn-action btn-secondary" 
-              onClick={onClose}
-              style={{ padding: '10px 20px', borderRadius: '10px', whiteSpace: 'nowrap', flexShrink: 0, fontWeight: '600' }}
-            >
-              Hủy Bỏ
-            </button>
-
-            <button 
-              type="button"
-              disabled={loading}
-              className="btn-action"
-              onClick={handleConfirmRenew}
-              style={{ 
-                background: selectedPlan === 'VIP' ? '#9333ea' : '#0284c7', 
-                color: '#ffffff',
-                padding: '10px 22px', 
-                borderRadius: '10px',
-                fontWeight: '800',
-                fontSize: '13.5px',
-                boxShadow: '0 4px 12px rgba(2, 132, 199, 0.25)',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '8px',
-                border: 'none',
-                cursor: 'pointer',
-                whiteSpace: 'nowrap',
-                flexShrink: 0
-              }}
-            >
-              <Crown size={16} /> {loading ? 'Đang Xử Lý...' : `Xác Nhận & Kích Hoạt Gói ${selectedPlan}`}
-            </button>
-          </div>
-        </div>
+        )}
 
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
-

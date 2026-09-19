@@ -317,7 +317,8 @@ export class ContractService {
       sort: { createdAt: -1 },
       populate: [
         { path: 'templateId', select: 'name category' },
-        { path: 'createdBy', select: 'fullName email' }
+        { path: 'createdBy', select: 'fullName email' },
+        { path: 'organizationId', select: 'name code' }
       ]
     });
   }
@@ -326,7 +327,8 @@ export class ContractService {
     const contract = await contractRepository.findById(contractId, tenantContext, {
       populate: [
         { path: 'templateId', select: 'name category' },
-        { path: 'createdBy', select: 'fullName email' }
+        { path: 'createdBy', select: 'fullName email' },
+        { path: 'organizationId', select: 'name code' }
       ]
     });
     if (!contract) {

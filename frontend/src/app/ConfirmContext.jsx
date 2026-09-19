@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { 
   AlertTriangle, 
   Trash2, 
@@ -15,13 +16,14 @@ export const ConfirmProvider = ({ children }) => {
 
   const confirm = useCallback((options = {}) => {
     return new Promise((resolve) => {
+      const variant = options.variant || options.type || 'info';
       setConfirmState({
         title: options.title || 'Xác Nhận Thao Tác',
         message: options.message || 'Bạn có chắc chắn muốn thực hiện thao tác này?',
         subMessage: options.subMessage || '',
         confirmText: options.confirmText || 'Xác Nhận',
         cancelText: options.cancelText || 'Hủy Bỏ',
-        variant: options.variant || 'danger', // 'danger' | 'warning' | 'info' | 'success'
+        variant,
         resolve,
       });
     });

@@ -1,5 +1,6 @@
 import { Organization } from '../models/organization.model.js';
 import { PermissionGrant } from '../models/permission-grant.model.js';
+import { AppError } from '../utils/app-error.js';
 
 export const tenantContextMiddleware = async (req, res, next) => {
   try {
@@ -22,6 +23,11 @@ export const tenantContextMiddleware = async (req, res, next) => {
       tenantContext.allowedOrgIds = []; // empty array means GLOBAL access for SUPER_ADMIN when no org selected
     } else if (activeOrgId) {
       const orgId = activeOrgId;
+      const currentOrg = await Organization.findById(orgId).select('status name');
+      if (currentOrg && currentOrg.status === 'SUSPENDED' && user.role !== 'SUPER_ADMIN') {
+        return next(new AppError(`Tổ chức "${currentOrg.name}" hiện đang bị tạm khóa (Banned) bởi Super Admin. Vui lòng liên hệ hỗ trợ để mở khóa.`, 403));
+      }
+
       const allowedSet = new Set([orgId.toString()]);
 
       // Nếu Role là Org Admin, tự động kiểm tra xem có quyền DESCENDANTS hoặc grants hay không

@@ -12,6 +12,7 @@ import { TemplatesPage } from './features/templates/TemplatesPage';
 import { ContractsPage } from './features/contracts/ContractsPage';
 import { MasterDataPage } from './features/masterdata/MasterDataPage';
 import { AuditLogsPage } from './features/audit/AuditLogsPage';
+import { AdminOrdersRevenuePage } from './features/admin/AdminOrdersRevenuePage';
 
 const ProtectedRoute = ({ children, allowedRoles }) => {
   const { user, token, loading } = useAuth();
@@ -50,6 +51,7 @@ export const App = () => {
               <Route path="/templates" element={<ProtectedRoute allowedRoles={['SUPER_ADMIN', 'ORGANIZATION_ADMIN', 'STAFF']}><TemplatesPage /></ProtectedRoute>} />
               <Route path="/contracts" element={<ProtectedRoute allowedRoles={['SUPER_ADMIN', 'ORGANIZATION_ADMIN', 'STAFF']}><ContractsPage /></ProtectedRoute>} />
               <Route path="/audit-logs" element={<ProtectedRoute allowedRoles={['SUPER_ADMIN', 'ORGANIZATION_ADMIN']}><AuditLogsPage /></ProtectedRoute>} />
+              <Route path="/admin/orders" element={<ProtectedRoute allowedRoles={['SUPER_ADMIN']}><AdminOrdersRevenuePage /></ProtectedRoute>} />
             </Route>
 
             <Route path="*" element={<Navigate to="/" replace />} />
@@ -59,3 +61,4 @@ export const App = () => {
     </AuthProvider>
   );
 };
+

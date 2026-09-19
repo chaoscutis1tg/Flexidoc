@@ -71,6 +71,7 @@ export const DashboardLayout = () => {
         { label: 'Tổng Quan Hệ Thống', path: '/dashboard', icon: LayoutDashboard },
         { label: 'Cây Tổ Chức Phân Cấp', path: '/organizations', icon: Building2 },
         { label: 'Quản Lý Nhân Sự & Quyền', path: '/users', icon: Users },
+        { label: 'Đơn Hàng & Doanh Thu', path: '/admin/orders', icon: History },
         { label: 'Nhật Ký & Lưu Lượng Log', path: '/audit-logs', icon: History },
       ]
     }

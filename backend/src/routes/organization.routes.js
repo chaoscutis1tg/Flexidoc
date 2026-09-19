@@ -10,7 +10,11 @@ import {
   rejectOrganization,
   getMyPendingInvitations,
   getSubscriptionPlans,
-  updateSubscriptionPlan
+  updateSubscriptionPlan,
+  grantCustomPlan,
+  toggleBanOrganization,
+  getPaginatedRootOrganizations,
+  getOrganizationChildren
 } from '../controllers/organization.controller.js';
 import { authMiddleware } from '../middlewares/auth.middleware.js';
 import { tenantContextMiddleware } from '../middlewares/tenant-context.middleware.js';
@@ -25,8 +29,12 @@ router.use(tenantContextMiddleware);
 
 router.get('/my-pending-invitations', getMyPendingInvitations);
 router.get('/tree', getOrganizationTree);
+router.get('/paginated-roots', getPaginatedRootOrganizations);
+router.get('/:id/children', getOrganizationChildren);
 router.post('/', rbacGuard(['SUPER_ADMIN', 'ORGANIZATION_ADMIN']), createOrganization);
 router.patch('/plans/:code', rbacGuard(['SUPER_ADMIN']), updateSubscriptionPlan);
+router.patch('/:id/grant-plan', rbacGuard(['SUPER_ADMIN']), grantCustomPlan);
+router.patch('/:id/ban-status', rbacGuard(['SUPER_ADMIN']), toggleBanOrganization);
 router.patch('/:id', rbacGuard(['SUPER_ADMIN', 'ORGANIZATION_ADMIN']), updateOrganization);
 router.post('/:id/approve', approveOrganization);
 router.post('/:id/reject', rejectOrganization);
@@ -35,3 +43,4 @@ router.post('/permission-grants', rbacGuard(['SUPER_ADMIN', 'ORGANIZATION_ADMIN'
 router.post('/renew-subscription', rbacGuard(['SUPER_ADMIN', 'ORGANIZATION_ADMIN']), renewSubscription);
 
 export default router;
+
