@@ -364,6 +364,7 @@ export const DashboardPage = () => {
                 <tr className="border-b border-slate-200 text-[11px] font-extrabold text-slate-400 uppercase tracking-wider">
                   <th className="py-2.5 px-3">Mã Hợp Đồng</th>
                   <th className="py-2.5 px-3">Tên Hợp Đồng</th>
+                  <th className="py-2.5 px-3">Người Tạo</th>
                   <th className="py-2.5 px-3">Phiên Bản</th>
                   <th className="py-2.5 px-3">Trạng Thái</th>
                   <th className="py-2.5 px-3">Ngày Tạo</th>
@@ -375,6 +376,9 @@ export const DashboardPage = () => {
                   <tr key={c._id} className="hover:bg-slate-50">
                     <td className="py-3 px-3 font-mono font-bold text-sky-700">{c.code}</td>
                     <td className="py-3 px-3 font-bold text-slate-800">{c.title}</td>
+                    <td className="py-3 px-3 font-extrabold text-slate-700">
+                      {c.createdBy?.fullName || c.createdBy?.email || 'N/A'}
+                    </td>
                     <td className="py-3 px-3">
                       <span className="bg-slate-100 text-slate-600 text-[10px] font-bold px-2 py-0.5 rounded">v{c.currentVersion || '1.0'}</span>
                     </td>

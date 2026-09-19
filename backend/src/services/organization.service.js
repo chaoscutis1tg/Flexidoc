@@ -48,8 +48,17 @@ export class OrganizationService {
     data.ancestors = ancestors;
     data.level = level;
 
-    // Check if manager email already has a user account in the database
+    // Single Manager Constraint: Check if managerEmail is already assigned to another active/pending org
     if (data.managerEmail) {
+      const normalizedEmail = data.managerEmail.toLowerCase().trim();
+      const existingManagerOrg = await Organization.findOne({
+        managerEmail: normalizedEmail,
+        deletedAt: null
+      });
+      if (existingManagerOrg) {
+        throw new AppError(`Mỗi nhân sự chỉ được quản lý duy nhất 1 tổ chức/chi nhánh. Email '${data.managerEmail}' hiện đang là Quản lý của '${existingManagerOrg.name}' (Mã: ${existingManagerOrg.code}).`, 400);
+      }
+
       const managerUser = await userRepository.findByEmail(data.managerEmail);
       if (managerUser) {
         data.managerUserId = managerUser._id;
@@ -69,10 +78,9 @@ export class OrganizationService {
     const userEmail = currentUser?.email?.toLowerCase()?.trim();
     const isTargetManager = userEmail && org.managerEmail && (userEmail === org.managerEmail.toLowerCase().trim());
     const isSuperAdmin = currentUser?.role === 'SUPER_ADMIN';
-    const isOrgAdmin = currentUser?.role === 'ORGANIZATION_ADMIN';
 
-    if (!isTargetManager && !isSuperAdmin && !isOrgAdmin) {
-      throw new AppError('Bạn không có quyền xác nhận chấp nhận quyền quản lý chi nhánh này.', 403);
+    if (!isTargetManager && !isSuperAdmin) {
+      throw new AppError(`Chỉ duy nhất người được phân quyền (${org.managerEmail}) mới có quyền xác nhận tiếp nhận chi nhánh này.`, 403);
     }
 
     if (org.status === 'ACTIVE') {
@@ -120,10 +128,9 @@ export class OrganizationService {
     const userEmail = currentUser?.email?.toLowerCase()?.trim();
     const isTargetManager = userEmail && org.managerEmail && (userEmail === org.managerEmail.toLowerCase().trim());
     const isSuperAdmin = currentUser?.role === 'SUPER_ADMIN';
-    const isOrgAdmin = currentUser?.role === 'ORGANIZATION_ADMIN';
 
-    if (!isTargetManager && !isSuperAdmin && !isOrgAdmin) {
-      throw new AppError('Bạn không có quyền từ chối chi nhánh này.', 403);
+    if (!isTargetManager && !isSuperAdmin) {
+      throw new AppError(`Chỉ duy nhất người được phân quyền (${org.managerEmail}) mới có quyền phản hồi từ chối chi nhánh này.`, 403);
     }
 
     org.status = 'REJECTED_BY_MANAGER';
@@ -138,21 +145,66 @@ export class OrganizationService {
       throw new AppError('Tổ chức không tồn tại hoặc bạn không có quyền cập nhật.', 404);
     }
 
-    // Nếu vừa được đổi người quản lý mới hoặc gửi lại yêu cầu khi đang bị từ chối
-    if (org.status === 'REJECTED_BY_MANAGER' && (updateData.managerEmail || updateData.managerName)) {
-      updateData.status = 'PENDING_APPROVAL';
-      updateData.rejectionReason = '';
+    if (updateData.code && updateData.code.toUpperCase().trim() !== (org.code || '').toUpperCase().trim()) {
+      const existingCodeOrg = await organizationRepository.findByCode(updateData.code);
+      if (existingCodeOrg && String(existingCodeOrg._id) !== String(orgId)) {
+        throw new AppError(`Mã tổ chức '${updateData.code}' đã được sử dụng bởi tổ chức '${existingCodeOrg.name}'.`, 400);
+      }
     }
 
-    // Nếu đổi parentOrganizationId, chạy thuật toán kiểm tra chống vòng lặp (Cycle Detection BR-006, BR-007)
-    if (updateData.parentOrganizationId !== undefined && String(updateData.parentOrganizationId) !== String(org.parentOrganizationId)) {
-      const newParentId = updateData.parentOrganizationId;
+    // Nếu đổi người quản lý mới hoặc gửi lại yêu cầu khi đang ở trạng thái bị từ chối
+    const isNewManagerEmail = updateData.managerEmail && (updateData.managerEmail.toLowerCase().trim() !== (org.managerEmail || '').toLowerCase().trim());
+    
+    // Single Manager Constraint: Ensure manager is not already assigned to another org
+    if (updateData.managerEmail && isNewManagerEmail) {
+      const normalizedEmail = updateData.managerEmail.toLowerCase().trim();
+      const existingManagerOrg = await Organization.findOne({
+        managerEmail: normalizedEmail,
+        _id: { $ne: orgId },
+        deletedAt: null
+      });
+      if (existingManagerOrg) {
+        throw new AppError(`Mỗi nhân sự chỉ được quản lý duy nhất 1 tổ chức/chi nhánh. Email '${updateData.managerEmail}' hiện đang là Quản lý của tổ chức '${existingManagerOrg.name}' (Mã: ${existingManagerOrg.code}).`, 400);
+      }
+    }
 
-      if (newParentId) {
-        if (String(newParentId) === String(org._id)) {
-          throw new AppError('Tổ chức không thể làm cha của chính mình (BR-006).', 400);
+    if (org.status === 'REJECTED_BY_MANAGER' || isNewManagerEmail) {
+      updateData.status = 'PENDING_APPROVAL';
+      updateData.rejectionReason = '';
+
+      // Tự động liên kết managerUserId nếu email đã tồn tại trong danh sách tài khoản
+      if (updateData.managerEmail) {
+        const managerUser = await userRepository.findByEmail(updateData.managerEmail.trim());
+        if (managerUser) {
+          updateData.managerUserId = managerUser._id;
         }
+      }
+    }
 
+    // Trích xuất ID chuỗi từ parentOrganizationId để tránh lỗi so sánh Object [object Object]
+    let newParentId = updateData.parentOrganizationId;
+    if (newParentId && typeof newParentId === 'object' && newParentId._id) {
+      newParentId = newParentId._id.toString();
+    } else if (newParentId) {
+      newParentId = newParentId.toString();
+    } else {
+      newParentId = null;
+    }
+    updateData.parentOrganizationId = newParentId;
+
+    const currentParentId = org.parentOrganizationId 
+      ? (org.parentOrganizationId._id || org.parentOrganizationId).toString() 
+      : null;
+
+    // Tự động bảo vệ: Tổ chức không thể làm cha của chính mình -> tự động giữ nguyên parent hiện tại
+    if (newParentId && String(newParentId) === String(org._id)) {
+      newParentId = currentParentId;
+      updateData.parentOrganizationId = currentParentId;
+    }
+
+    // Nếu đổi parentOrganizationId thực sự, chạy thuật toán kiểm tra chống vòng lặp (Cycle Detection BR-006, BR-007)
+    if (updateData.parentOrganizationId !== undefined && newParentId !== currentParentId) {
+      if (newParentId) {
         const newParent = await organizationRepository.findById(newParentId);
         if (!newParent) {
           throw new AppError('Tổ chức cha mới không tồn tại.', 404);
@@ -194,7 +246,41 @@ export class OrganizationService {
   }
 
   async getOrganizationTree(tenantContext = null) {
-    const orgs = await organizationRepository.find({}, tenantContext, { sort: { level: 1, name: 1 } });
+    let orgs = [];
+
+    if (!tenantContext || tenantContext.role === 'SUPER_ADMIN') {
+      orgs = await organizationRepository.find({}, null, { sort: { level: 1, name: 1 } });
+    } else {
+      const scopedOrgIds = (tenantContext.allowedOrgIds && tenantContext.allowedOrgIds.length > 0)
+        ? tenantContext.allowedOrgIds.map(id => String(id._id || id))
+        : (tenantContext.organizationId ? [String(tenantContext.organizationId._id || tenantContext.organizationId)] : []);
+
+      if (scopedOrgIds.length === 0) {
+        return [];
+      }
+
+      // Fetch base orgs to extract all parent/ancestor IDs
+      const baseOrgs = await Organization.find({ _id: { $in: scopedOrgIds }, deletedAt: null });
+      const allRelevantIds = new Set(scopedOrgIds);
+
+      baseOrgs.forEach(org => {
+        if (org.parentOrganizationId) {
+          allRelevantIds.add(String(org.parentOrganizationId._id || org.parentOrganizationId));
+        }
+        if (org.ancestors && Array.isArray(org.ancestors)) {
+          org.ancestors.forEach(aId => allRelevantIds.add(String(aId._id || aId)));
+        }
+      });
+
+      // Query all ancestors, current orgs, and descendants
+      orgs = await Organization.find({
+        $or: [
+          { _id: { $in: Array.from(allRelevantIds) } },
+          { ancestors: { $in: scopedOrgIds } }
+        ],
+        deletedAt: null
+      }).sort({ level: 1, name: 1 });
+    }
     
     // Build tree representation
     const orgMap = {};

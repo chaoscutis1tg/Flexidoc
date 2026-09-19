@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useAuth } from '../../app/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -155,6 +156,18 @@ export const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
     }
   };
 
+  // Lock body scroll when AuthModal is open to completely block background interaction
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   const handleLoginSubmit = async (e) => {
@@ -262,10 +275,13 @@ export const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
     }
   };
 
-  return (
-    <div className="fixed inset-0 z-[10000] bg-slate-900/75 backdrop-blur-md p-4 flex items-center justify-center animate-backdrop">
+  return createPortal(
+    <div className="fixed inset-0 z-[99999] bg-slate-950/80 backdrop-blur-md p-4 flex items-center justify-center animate-backdrop overflow-hidden select-none pointer-events-auto">
       {/* Outer Card Container */}
-      <div className="max-w-[920px] w-[95vw] max-h-[92vh] bg-slate-900 p-3 rounded-[28px] overflow-hidden grid grid-cols-1 md:grid-cols-[46%_54%] gap-3 shadow-2xl border border-white/15 animate-modal-pop">
+      <div 
+        onClick={(e) => e.stopPropagation()}
+        className="max-w-[920px] w-[95vw] max-h-[92vh] bg-slate-900 p-3 rounded-[28px] overflow-hidden grid grid-cols-1 md:grid-cols-[46%_54%] gap-3 shadow-2xl border border-white/15 animate-modal-pop select-text pointer-events-auto"
+      >
 
         {/* LEFT COLUMN: Modern 3D Graphic Panel */}
         <div
@@ -864,6 +880,7 @@ export const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
           </div>
         </div>
       )}
-    </div>
+    </div>,
+    document.body
   );
 };

@@ -30,6 +30,7 @@ import {
   Check,
   UserCheck,
   UserX,
+  Loader2,
   X
 } from 'lucide-react';
 
@@ -57,6 +58,7 @@ export const OrganizationsPage = () => {
   // Manager Autocomplete Search State with 300ms Debounce
   const [managerQuery, setManagerQuery] = useState('');
   const [debouncedManagerQuery, setDebouncedManagerQuery] = useState('');
+  const [lastSearchedQuery, setLastSearchedQuery] = useState('');
   const [allCandidatesList, setAllCandidatesList] = useState([]);
   const [managerSuggestions, setManagerSuggestions] = useState([]);
   const [isSearchingManager, setIsSearchingManager] = useState(false);
@@ -101,8 +103,8 @@ export const OrganizationsPage = () => {
     return () => clearTimeout(timer);
   }, [managerQuery]);
 
-  // Load all candidates from Master Data & System Users
-  const loadAllCandidates = async (searchKeyword = '') => {
+  // Load all candidates from Master Data & System Users (strictly scoped to target organization)
+  const loadAllCandidates = async (searchKeyword = '', overrideOrgId = null) => {
     setIsSearchingManager(true);
     try {
       const q = searchKeyword ? `?search=${encodeURIComponent(searchKeyword.trim())}` : '';
@@ -111,42 +113,94 @@ export const OrganizationsPage = () => {
         api.get('/users')
       ]);
 
+      const userOrgId = user?.organizationId ? (user.organizationId._id || user.organizationId).toString() : null;
+      
+      let targetOrgId = overrideOrgId;
+      if (!targetOrgId && editForm?._id) {
+        targetOrgId = editForm._id.toString();
+      }
+      if (!targetOrgId && createForm?.parentOrganizationId) {
+        targetOrgId = createForm.parentOrganizationId.toString();
+      }
+      if (!targetOrgId) {
+        targetOrgId = userOrgId;
+      }
+
+      // Allowed organization scope: includes user org, target org, and parent/ancestors of target org
+      const allowedOrgIds = new Set();
+      if (userOrgId) allowedOrgIds.add(userOrgId);
+      if (targetOrgId) allowedOrgIds.add(targetOrgId);
+
+      const targetOrgObj = allOrgsList.find(o => o._id === targetOrgId);
+      if (targetOrgObj) {
+        if (targetOrgObj.parentOrganizationId) {
+          allowedOrgIds.add((targetOrgObj.parentOrganizationId._id || targetOrgObj.parentOrganizationId).toString());
+        }
+        if (targetOrgObj.ancestors && Array.isArray(targetOrgObj.ancestors)) {
+          targetOrgObj.ancestors.forEach(a => allowedOrgIds.add((a._id || a).toString()));
+        }
+      }
+
       let candidates = [];
 
-      // 1. Master Data Candidates
+      const matchesOrg = (itemOrgField) => {
+        if (allowedOrgIds.size === 0) return true; // Super Admin with no org context
+        if (!itemOrgField) return false;
+        const idStr = (itemOrgField._id || itemOrgField).toString();
+        return allowedOrgIds.has(idStr);
+      };
+
+      // 1. Master Data Candidates (Filtered strictly by targetOrgId)
       if (masterRes.status === 'fulfilled' && masterRes.value?.data) {
-        const mdList = (masterRes.value.data || []).map(item => {
-          const d = item.data || {};
-          const name = item.type === 'EMPLOYEE' 
-            ? (d.fullName || d.companyName || 'N/A') 
-            : (d.companyName || d.fullName || d.representative || 'N/A');
-          const email = d.email || (item.code ? `${item.code.toLowerCase()}@organization.com` : '');
-          return {
-            id: `md_${item._id}`,
-            name,
-            email,
-            position: d.position || d.repPosition || (item.type === 'EMPLOYEE' ? 'Nhân viên' : 'Đại diện'),
-            department: d.department || 'Ban Quản Lý',
-            phone: d.phone || '',
-            type: item.type,
-            code: item.code || ''
-          };
-        });
+        const mdList = (masterRes.value.data || [])
+          .filter(item => matchesOrg(item.organizationId))
+          .map(item => {
+            const d = item.data || {};
+            const name = item.type === 'EMPLOYEE' 
+              ? (d.fullName || d.companyName || 'N/A') 
+              : (d.companyName || d.fullName || d.representative || 'N/A');
+            const email = d.email || (item.code ? `${item.code.toLowerCase()}@organization.com` : '');
+            const orgObj = item.organizationId || {};
+            const orgName = typeof orgObj === 'object' ? (orgObj.name || '') : '';
+            const orgCode = typeof orgObj === 'object' ? (orgObj.code || '') : '';
+
+            return {
+              id: `md_${item._id}`,
+              name,
+              email,
+              position: d.position || d.repPosition || (item.type === 'EMPLOYEE' ? 'Nhân viên' : 'Đại diện'),
+              department: d.department || 'Ban Quản Lý',
+              phone: d.phone || '',
+              type: item.type,
+              code: item.code || '',
+              orgName,
+              orgCode
+            };
+          });
         candidates.push(...mdList);
       }
 
-      // 2. System Users Candidates
+      // 2. System Users Candidates (Filtered strictly by targetOrgId)
       if (usersRes.status === 'fulfilled' && usersRes.value?.data) {
-        const userList = (usersRes.value.data || []).map(u => ({
-          id: `usr_${u._id}`,
-          name: u.fullName || u.username || u.email,
-          email: u.email || '',
-          position: u.role || 'Tài khoản hệ thống',
-          department: u.department || 'Tổ chức',
-          phone: u.phone || '',
-          type: 'EMPLOYEE',
-          code: u.username || ''
-        }));
+        const userList = (usersRes.value.data || [])
+          .filter(u => matchesOrg(u.organizationId))
+          .map(u => {
+            const orgObj = u.organizationId || {};
+            const orgName = typeof orgObj === 'object' ? (orgObj.name || '') : '';
+            const orgCode = typeof orgObj === 'object' ? (orgObj.code || '') : '';
+            return {
+              id: `usr_${u._id}`,
+              name: u.fullName || u.username || u.email,
+              email: u.email || '',
+              position: u.role || 'Tài khoản hệ thống',
+              department: u.department || 'Tổ chức',
+              phone: u.phone || '',
+              type: 'EMPLOYEE',
+              code: u.username || '',
+              orgName,
+              orgCode
+            };
+          });
 
         userList.forEach(u => {
           if (u.email && !candidates.some(c => c.email && c.email.toLowerCase() === u.email.toLowerCase())) {
@@ -155,10 +209,7 @@ export const OrganizationsPage = () => {
         });
       }
 
-      // If initial load without keyword or empty master list, update master list
-      if (!searchKeyword || allCandidatesList.length === 0) {
-        setAllCandidatesList(candidates);
-      }
+      setAllCandidatesList(candidates);
 
       // Filter with Vietnamese unaccent
       if (searchKeyword) {
@@ -183,14 +234,15 @@ export const OrganizationsPage = () => {
 
   // Search manager from Master Data / Users when debounced query changes
   useEffect(() => {
-    if (!showCreateModal) return;
+    if (!showCreateModal && !showEditModal) return;
 
-    if (!debouncedManagerQuery || debouncedManagerQuery.trim().length === 0) {
+    const rawQuery = (debouncedManagerQuery || '').trim();
+
+    if (!rawQuery) {
       setManagerSuggestions(allCandidatesList);
       return;
     }
 
-    const rawQuery = debouncedManagerQuery.trim();
     const cleanQuery = removeVietnameseTones(rawQuery);
 
     const filtered = allCandidatesList.filter(item => {
@@ -201,13 +253,15 @@ export const OrganizationsPage = () => {
       return n.includes(cleanQuery) || e.includes(cleanQuery) || c.includes(cleanQuery) || d.includes(cleanQuery);
     });
 
-    if (filtered.length > 0) {
-      setManagerSuggestions(filtered);
-    } else {
-      // If local unaccent filter finds nothing, perform API search
-      loadAllCandidates(rawQuery);
+    setManagerSuggestions(filtered);
+
+    // Perform API search ONLY if local list has no match AND we haven't already searched this exact query
+    if (filtered.length === 0 && lastSearchedQuery !== rawQuery && !isSearchingManager) {
+      setLastSearchedQuery(rawQuery);
+      const targetOrg = showEditModal ? editForm?._id : (showCreateModal ? createForm?.parentOrganizationId : null);
+      loadAllCandidates(rawQuery, targetOrg);
     }
-  }, [debouncedManagerQuery, showCreateModal, allCandidatesList]);
+  }, [debouncedManagerQuery, showCreateModal, showEditModal, allCandidatesList, lastSearchedQuery, isSearchingManager]);
 
   useEffect(() => {
     fetchDynamicPlans().then(data => {
@@ -281,19 +335,28 @@ export const OrganizationsPage = () => {
       managerEmail: '',
     });
     setManagerQuery('');
+    setLastSearchedQuery('');
     setSelectedManagerObj(null);
     setShowManagerDropdown(false);
     setError('');
     setShowCreateModal(true);
-    loadAllCandidates('');
+    loadAllCandidates('', parentOrgId);
   };
 
   const handleSelectManagerCandidate = (candidate) => {
-    setCreateForm(prev => ({
-      ...prev,
-      managerName: candidate.name,
-      managerEmail: candidate.email
-    }));
+    if (showEditModal) {
+      setEditForm(prev => ({
+        ...prev,
+        managerName: candidate.name,
+        managerEmail: candidate.email
+      }));
+    } else {
+      setCreateForm(prev => ({
+        ...prev,
+        managerName: candidate.name,
+        managerEmail: candidate.email
+      }));
+    }
     setManagerQuery(candidate.name);
     setSelectedManagerObj(candidate);
     setShowManagerDropdown(false);
@@ -366,31 +429,84 @@ export const OrganizationsPage = () => {
     }
   };
 
+  const [resendingOrgId, setResendingOrgId] = useState(null);
+
+  const handleResendInvitation = async (node) => {
+    if (resendingOrgId) return;
+    setResendingOrgId(node._id);
+    try {
+      let parentId = node.parentOrganizationId 
+        ? String(node.parentOrganizationId._id || node.parentOrganizationId) 
+        : null;
+
+      if (parentId && parentId === String(node._id)) {
+        parentId = null;
+      }
+
+      await api.patch(`/organizations/${node._id}`, {
+        parentOrganizationId: parentId,
+        managerEmail: node.managerEmail,
+        managerName: node.managerName,
+        status: 'PENDING_APPROVAL'
+      });
+      await fetchTree();
+      alert(`✓ Đã gửi lại lời mời nhận quyền quản lý chi nhánh '${node.name}' tới email ${node.managerEmail} thành công!`);
+    } catch (err) {
+      alert('Gửi lại lời mời thất bại: ' + (err.message || 'Lỗi hệ thống'));
+    } finally {
+      setResendingOrgId(null);
+    }
+  };
+
   const handleOpenEdit = (node) => {
+    let parentId = node.parentOrganizationId 
+      ? String(node.parentOrganizationId._id || node.parentOrganizationId) 
+      : '';
+    // Safeguard: never let parentId equal node._id
+    if (parentId && parentId === String(node._id)) {
+      parentId = '';
+    }
     setEditForm({
-      _id: node._id,
+      _id: String(node._id),
       name: node.name,
       code: node.code,
-      parentOrganizationId: node.parentOrganizationId || '',
+      parentOrganizationId: parentId,
       managerName: node.managerName || '',
       managerEmail: node.managerEmail || '',
       status: node.status || 'ACTIVE',
     });
+    setManagerQuery(node.managerName || '');
+    setLastSearchedQuery('');
+    setSelectedManagerObj(null);
+    setShowManagerDropdown(false);
     setError('');
     setShowEditModal(true);
+    loadAllCandidates('', node._id);
   };
 
   const handleUpdateOrg = async (e) => {
     e.preventDefault();
     setError('');
     try {
+      let parentId = editForm.parentOrganizationId
+        ? String(editForm.parentOrganizationId._id || editForm.parentOrganizationId)
+        : null;
+
+      // Anti-loop safeguard: If parentId mistakenly matches _id, reset to null/current parent
+      if (parentId && String(parentId) === String(editForm._id)) {
+        const currentOrg = allOrgsList.find(o => String(o._id) === String(editForm._id));
+        parentId = currentOrg?.parentOrganizationId
+          ? String(currentOrg.parentOrganizationId._id || currentOrg.parentOrganizationId)
+          : null;
+      }
+
       await api.patch(`/organizations/${editForm._id}`, {
         name: editForm.name,
         code: editForm.code,
-        parentOrganizationId: editForm.parentOrganizationId || null,
+        parentOrganizationId: parentId,
         managerName: editForm.managerName,
         managerEmail: editForm.managerEmail,
-        status: editForm.status,
+        status: editForm.status === 'REJECTED_BY_MANAGER' ? 'PENDING_APPROVAL' : editForm.status,
       });
       setShowEditModal(false);
       fetchTree();
@@ -580,29 +696,65 @@ export const OrganizationsPage = () => {
               {/* Approval Actions */}
               <div className="flex items-center gap-2 shrink-0">
                 {node.status === 'PENDING_APPROVAL' && (
-                  <>
-                    <button
-                      onClick={() => handleApproveOrg(node)}
-                      className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black shadow-2xs cursor-pointer transition-all flex items-center gap-1"
-                    >
-                      <CheckCircle2 size={14} /> Xác Nhận & Kích Hoạt
-                    </button>
-                    <button
-                      onClick={() => handleRejectOrg(node)}
-                      className="px-2.5 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold cursor-pointer transition-all flex items-center gap-1"
-                    >
-                      <UserX size={14} /> Từ Chối
-                    </button>
-                  </>
+                  user?.email && node.managerEmail && (user.email.toLowerCase().trim() === node.managerEmail.toLowerCase().trim()) ? (
+                    <>
+                      <button
+                        onClick={() => handleApproveOrg(node)}
+                        className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black shadow-2xs cursor-pointer transition-all flex items-center gap-1"
+                      >
+                        <CheckCircle2 size={14} /> Xác Nhận & Kích Hoạt
+                      </button>
+                      <button
+                        onClick={() => handleRejectOrg(node)}
+                        className="px-2.5 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold cursor-pointer transition-all flex items-center gap-1"
+                      >
+                        <UserX size={14} /> Từ Chối
+                      </button>
+                    </>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <span className="px-2.5 py-1 rounded-lg bg-amber-50 text-amber-800 border border-amber-200 text-[11.5px] font-bold">
+                        Đang chờ {node.managerEmail || 'quản lý'} xác nhận
+                      </span>
+                      <button
+                        onClick={() => handleResendInvitation(node)}
+                        disabled={resendingOrgId === node._id}
+                        className="px-2.5 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold cursor-pointer transition-all flex items-center gap-1"
+                        title="Gửi lại lời mời cho người quản lý"
+                      >
+                        {resendingOrgId === node._id ? (
+                          <><Loader2 size={13} className="animate-spin" /> Đang Gửi...</>
+                        ) : (
+                          <><UserCheck size={13} /> Gửi Lại Lời Mời</>
+                        )}
+                      </button>
+                    </div>
+                  )
                 )}
 
                 {node.status === 'REJECTED_BY_MANAGER' && (
-                  <button
-                    onClick={() => handleOpenEdit(node)}
-                    className="px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-extrabold shadow-2xs cursor-pointer transition-all flex items-center gap-1"
-                  >
-                    <UserCheck size={14} /> Gửi Cho Quản Lý Mới
-                  </button>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      onClick={() => handleResendInvitation(node)}
+                      disabled={resendingOrgId === node._id}
+                      className={`px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black shadow-2xs cursor-pointer transition-all flex items-center gap-1.5 ${resendingOrgId === node._id ? 'opacity-70 cursor-wait' : ''}`}
+                      title={`Bấm để gửi lại lời mời nhận quyền quản lý tới ${node.managerEmail}`}
+                    >
+                      {resendingOrgId === node._id ? (
+                        <><Loader2 size={14} className="animate-spin" /> Đang Gửi Lời Mời...</>
+                      ) : (
+                        <><UserCheck size={14} /> Gửi Lại Cho Quản Lý Cũ</>
+                      )}
+                    </button>
+                    <button
+                      onClick={() => handleOpenEdit(node)}
+                      disabled={resendingOrgId === node._id}
+                      className="px-2.5 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold cursor-pointer transition-all flex items-center gap-1"
+                      title="Đổi email/người quản lý mới cho chi nhánh này"
+                    >
+                      <Edit size={14} /> Đổi Quản Lý Mới
+                    </button>
+                  </div>
                 )}
               </div>
             </div>
@@ -642,8 +794,8 @@ export const OrganizationsPage = () => {
         </button>
       </div>
 
-      {/* Header Acceptance Notification Card for Pending Approvals */}
-      {allOrgsList.filter(o => o.status === 'PENDING_APPROVAL').length > 0 && (
+      {/* Header Acceptance Notification Card for Pending Approvals (Only visible to assigned manager) */}
+      {allOrgsList.filter(o => o.status === 'PENDING_APPROVAL' && user?.email && o.managerEmail && o.managerEmail.toLowerCase().trim() === user.email.toLowerCase().trim()).length > 0 && (
         <div style={{
           background: 'linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)',
           border: '1px solid #fde68a',
@@ -662,16 +814,16 @@ export const OrganizationsPage = () => {
             </div>
             <div>
               <h4 style={{ fontSize: '14px', fontWeight: '800', color: '#92400e', margin: 0 }}>
-                Có {allOrgsList.filter(o => o.status === 'PENDING_APPROVAL').length} chi nhánh con đang chờ Quản Lý Chấp Nhận (Pending Accept)
+                Bạn có {allOrgsList.filter(o => o.status === 'PENDING_APPROVAL' && user?.email && o.managerEmail && o.managerEmail.toLowerCase().trim() === user.email.toLowerCase().trim()).length} chi nhánh đang chờ bạn Chấp Nhận Tiếp Nhận
               </h4>
               <p style={{ fontSize: '12px', color: '#b45309', margin: '2px 0 0 0' }}>
-                Chi nhánh sẽ chính thức kích hoạt sau khi người được phân quyền bấm xác nhận chấp nhận quyền quản lý.
+                Vui lòng bấm chấp nhận bên dưới để chính thức kích hoạt chi nhánh và tiếp nhận quyền quản lý.
               </p>
             </div>
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-            {allOrgsList.filter(o => o.status === 'PENDING_APPROVAL').map(org => (
+            {allOrgsList.filter(o => o.status === 'PENDING_APPROVAL' && user?.email && o.managerEmail && o.managerEmail.toLowerCase().trim() === user.email.toLowerCase().trim()).map(org => (
               <div key={org._id} style={{ display: 'flex', gap: '6px' }}>
                 <button
                   onClick={() => handleApproveOrg(org)}
@@ -741,34 +893,62 @@ export const OrganizationsPage = () => {
                 Có {allOrgsList.filter(o => o.status === 'REJECTED_BY_MANAGER').length} chi nhánh bị Người Quản Lý TỪ CHỐI tiếp nhận
               </h4>
               <p style={{ fontSize: '12px', color: '#be123c', margin: '2px 0 0 0' }}>
-                Người được phân quyền quản lý đã từ chối. Vui lòng bấm bên dưới để gán cho người quản lý mới.
+                Người quản lý được chỉ định đã từ chối. Bạn có thể bấm bên dưới để <strong>gửi lại lời mời cho người đó</strong> hoặc <strong>gán cho người mới</strong>.
               </p>
             </div>
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
             {allOrgsList.filter(o => o.status === 'REJECTED_BY_MANAGER').map(org => (
-              <button
-                key={org._id}
-                onClick={() => handleOpenEdit(org)}
-                style={{
-                  background: '#e11d48',
-                  color: '#ffffff',
-                  border: 'none',
-                  padding: '8px 16px',
-                  borderRadius: '10px',
-                  fontSize: '12px',
-                  fontWeight: '800',
-                  cursor: 'pointer',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  boxShadow: '0 2px 6px rgba(225, 29, 72, 0.25)',
-                  transition: 'all 0.15s ease'
-                }}
-              >
-                <UserCheck size={15} /> Gửi Cho Quản Lý Mới: {org.name}
-              </button>
+              <div key={org._id} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                <button
+                  onClick={() => handleResendInvitation(org)}
+                  disabled={resendingOrgId === org._id}
+                  style={{
+                    background: '#059669',
+                    color: '#ffffff',
+                    border: 'none',
+                    padding: '8px 14px',
+                    borderRadius: '10px',
+                    fontSize: '12px',
+                    fontWeight: '800',
+                    cursor: resendingOrgId === org._id ? 'wait' : 'pointer',
+                    opacity: resendingOrgId === org._id ? 0.7 : 1,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    boxShadow: '0 2px 6px rgba(5, 150, 105, 0.25)',
+                    transition: 'all 0.15s ease'
+                  }}
+                  title={`Gửi lại lời mời cho ${org.managerEmail}`}
+                >
+                  {resendingOrgId === org._id ? (
+                    <><Loader2 size={15} className="animate-spin" /> Đang Gửi...</>
+                  ) : (
+                    <><UserCheck size={15} /> Gửi Lại ({org.name})</>
+                  )}
+                </button>
+                <button
+                  onClick={() => handleOpenEdit(org)}
+                  style={{
+                    background: '#ffffff',
+                    color: '#be123c',
+                    border: '1px solid #fecdd3',
+                    padding: '8px 12px',
+                    borderRadius: '10px',
+                    fontSize: '12px',
+                    fontWeight: '800',
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '5px',
+                    transition: 'all 0.15s ease'
+                  }}
+                  title="Đổi người quản lý mới"
+                >
+                  <Edit size={14} /> Đổi Người Mới
+                </button>
+              </div>
             ))}
           </div>
         </div>
@@ -1078,8 +1258,8 @@ export const OrganizationsPage = () => {
       {showCreateModal && createPortal(
         <div className="modal-overlay animate-fade-in" style={{ zIndex: 10000 }}>
           <div 
-            className="bg-white rounded-3xl border border-slate-200 shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6 sm:p-7 space-y-6"
-            style={{ width: '92vw', maxWidth: '640px' }}
+            className="bg-white rounded-3xl border border-slate-200 shadow-2xl w-full max-w-3xl max-h-[92vh] overflow-y-auto p-6 sm:p-8 space-y-6"
+            style={{ width: '95vw', maxWidth: '780px' }}
           >
             {/* Modal Header */}
             <div className="flex items-center justify-between border-b border-slate-100 pb-4">
@@ -1248,8 +1428,17 @@ export const OrganizationsPage = () => {
                               <div className="font-extrabold text-xs text-slate-900 group-hover:text-sky-700 transition-colors truncate">
                                 {candidate.name}
                               </div>
-                              <div className="text-[11px] text-slate-500 mt-0.5 truncate">
-                                {candidate.position} • {candidate.department} • <strong className="text-sky-700">{candidate.email}</strong>
+                              <div className="text-[11px] text-slate-500 mt-0.5 flex items-center gap-1.5 flex-wrap">
+                                {candidate.orgName && (
+                                  <span className="font-bold text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded text-[10px]">
+                                    {candidate.orgName} ({candidate.orgCode})
+                                  </span>
+                                )}
+                                <span>Chức vụ: {candidate.position}</span>
+                                <span>•</span>
+                                <span>Phòng: {candidate.department}</span>
+                                <span>•</span>
+                                <strong className="text-sky-700">{candidate.email}</strong>
                               </div>
                             </div>
 
@@ -1362,8 +1551,8 @@ export const OrganizationsPage = () => {
       {showEditModal && createPortal(
         <div className="modal-overlay animate-fade-in" style={{ zIndex: 10000 }}>
           <div 
-            className="bg-white rounded-3xl border border-slate-200 shadow-2xl w-full max-w-xl max-h-[90vh] overflow-y-auto p-6 sm:p-7 space-y-6"
-            style={{ width: '92vw', maxWidth: '560px' }}
+            className="bg-white rounded-3xl border border-slate-200 shadow-2xl w-full max-w-3xl max-h-[92vh] overflow-y-auto p-6 sm:p-8 space-y-6"
+            style={{ width: '95vw', maxWidth: '780px' }}
           >
             {/* Modal Header */}
             <div className="flex items-center justify-between border-b border-slate-100 pb-4">
@@ -1432,42 +1621,156 @@ export const OrganizationsPage = () => {
                   onChange={(e) => setEditForm({ ...editForm, parentOrganizationId: e.target.value })}
                 >
                   <option value="">-- Không có (Tổ chức gốc Root) --</option>
-                  {allOrgsList.filter(o => o._id !== editForm._id).map(org => (
-                    <option key={org._id} value={org._id}>
-                      {org.name} ({org.code})
-                    </option>
-                  ))}
+                  {allOrgsList
+                    .filter(o => String(o._id) !== String(editForm._id))
+                    .map(org => (
+                      <option key={String(org._id)} value={String(org._id)}>
+                        {org.name} ({org.code})
+                      </option>
+                    ))}
                 </select>
               </div>
 
               {/* Manager Assignment Fields */}
-              <div className="p-4 bg-slate-50/90 rounded-2xl border border-slate-200/90 space-y-3">
-                <div className="flex items-center gap-2 text-slate-800 font-extrabold text-xs">
-                  <ShieldCheck size={16} className="text-amber-600" />
-                  <span>Phân Quyền Người Quản Lý Chi Nhánh</span>
+              <div className="p-5 bg-slate-50/90 rounded-2xl border border-slate-200/90 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2.5 text-slate-900 font-black text-sm">
+                    <ShieldCheck size={18} className="text-amber-600" />
+                    <span>Phân Quyền Người Quản Lý Chi Nhánh</span>
+                  </div>
+                  <span className="text-[11px] font-extrabold text-amber-700 bg-amber-100/80 px-2.5 py-1 rounded-full">
+                    Giao quyền quản trị chi nhánh
+                  </span>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">
-                      Họ & Tên Người Quản Lý
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {/* Search Manager Field */}
+                  <div className="relative">
+                    <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                      Họ & Tên Người Quản Lý Mới
                     </label>
-                    <input
-                      type="text"
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-900 bg-white focus:outline-none focus:border-amber-500"
-                      placeholder="Phùng Văn Huy"
-                      value={editForm.managerName}
-                      onChange={(e) => setEditForm({ ...editForm, managerName: e.target.value })}
-                    />
+                    <div className="relative flex items-center">
+                      <Search size={17} className="absolute left-3.5 text-slate-400 pointer-events-none" />
+                      <input
+                        type="text"
+                        className="w-full pl-10 pr-9 py-2.5 rounded-xl border border-slate-300 text-xs font-bold text-slate-900 bg-white focus:outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 transition-all"
+                        placeholder="Nhập tên, email để tìm người quản lý..."
+                        value={editForm.managerName}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setEditForm(prev => ({ ...prev, managerName: val }));
+                          setManagerQuery(val);
+                          setShowManagerDropdown(true);
+                        }}
+                        onFocus={() => {
+                          setShowManagerDropdown(true);
+                          if (allCandidatesList.length === 0) loadAllCandidates('');
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowManagerDropdown(!showManagerDropdown);
+                          if (allCandidatesList.length === 0) loadAllCandidates('');
+                        }}
+                        className="absolute right-2.5 p-1 text-slate-400 hover:text-slate-600 rounded-md transition-colors cursor-pointer"
+                      >
+                        {isSearchingManager ? (
+                          <div className="w-4 h-4 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
+                        ) : (
+                          <ChevronDown size={18} />
+                        )}
+                      </button>
+                    </div>
+
+                    {/* Floating Dropdown Suggestion List */}
+                    {showManagerDropdown && showEditModal && (
+                      <div className="absolute top-full left-0 mt-1 bg-white rounded-2xl border border-slate-200 shadow-2xl max-h-64 overflow-y-auto z-[9999] w-[140%] sm:w-[170%] min-w-[320px] max-w-[560px]">
+                        <div className="px-3.5 py-2.5 bg-slate-50 border-b border-slate-100 flex items-center justify-between text-[11px] font-black text-slate-500 uppercase tracking-wider">
+                          <span>Gợi ý nhân sự trong tổ chức ({managerSuggestions.length})</span>
+                          <button 
+                            type="button" 
+                            onClick={() => setShowManagerDropdown(false)}
+                            className="text-amber-600 hover:text-amber-800 text-xs font-bold cursor-pointer"
+                          >
+                            Đóng ✕
+                          </button>
+                        </div>
+
+                        {managerSuggestions.length > 0 ? (
+                          managerSuggestions.map((candidate) => (
+                            <div
+                              key={candidate.id}
+                              onClick={() => handleSelectManagerCandidate(candidate)}
+                              className="p-3.5 border-b border-slate-100 hover:bg-amber-50/80 cursor-pointer flex items-center justify-between gap-3 transition-colors group"
+                            >
+                              <div className="min-w-0 flex-1">
+                                <div className="font-extrabold text-xs text-slate-900 group-hover:text-amber-700 transition-colors flex items-center gap-2">
+                                  <span>{candidate.name}</span>
+                                  <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-md border ${
+                                    candidate.type === 'EMPLOYEE'
+                                      ? 'bg-amber-50 text-amber-700 border-amber-200'
+                                      : candidate.type === 'CUSTOMER'
+                                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                      : 'bg-purple-50 text-purple-700 border-purple-200'
+                                  }`}>
+                                    {candidate.type === 'EMPLOYEE' ? 'NHÂN VIÊN' : candidate.type === 'CUSTOMER' ? 'KHÁCH HÀNG' : 'ĐỐI TÁC'}
+                                  </span>
+                                </div>
+                                <div className="text-[11.5px] text-slate-600 mt-1 flex flex-wrap items-center gap-x-2">
+                                  {candidate.orgName && (
+                                    <span className="font-bold text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded text-[10.5px]">
+                                      {candidate.orgName} ({candidate.orgCode})
+                                    </span>
+                                  )}
+                                  <span>Chức vụ: {candidate.position}</span>
+                                  <span>•</span>
+                                  <span>Phòng: {candidate.department}</span>
+                                  <span>•</span>
+                                  <strong className="text-amber-700">{candidate.email}</strong>
+                                </div>
+                              </div>
+
+                              <button
+                                type="button"
+                                className="px-3 py-1.5 rounded-xl bg-amber-500 group-hover:bg-amber-600 text-white text-xs font-extrabold shadow-sm transition-all cursor-pointer shrink-0"
+                              >
+                                Chọn
+                              </button>
+                            </div>
+                          ))
+                        ) : (
+                          <div className="p-4 text-center space-y-2">
+                            <p className="text-xs text-slate-500 font-medium">
+                              {editForm.managerName ? (
+                                <>Không tìm thấy nhân sự nào khớp với <strong>"{editForm.managerName}"</strong></>
+                              ) : (
+                                'Chưa có dữ liệu nhân sự.'
+                              )}
+                            </p>
+                            {editForm.managerName && (
+                              <button
+                                type="button"
+                                onClick={() => setShowManagerDropdown(false)}
+                                className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold shadow-xs cursor-pointer"
+                              >
+                                Sử dụng tên "{editForm.managerName}" & Tự nhập Email
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
 
+                  {/* Email Input */}
                   <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                    <label className="block text-xs font-bold text-slate-700 mb-1.5">
                       Email Nhận Quyền Quản Lý
                     </label>
                     <input
                       type="email"
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-900 bg-white focus:outline-none focus:border-amber-500"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs font-bold text-slate-900 bg-white focus:outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 transition-all"
                       placeholder="manager@chinhanh.com"
                       value={editForm.managerEmail}
                       onChange={(e) => setEditForm({ ...editForm, managerEmail: e.target.value })}
@@ -1476,9 +1779,33 @@ export const OrganizationsPage = () => {
                 </div>
 
                 {editForm.status === 'REJECTED_BY_MANAGER' && (
-                  <div className="p-2.5 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs font-bold flex items-center gap-2">
-                    <XCircle size={15} className="shrink-0" />
-                    <span>Chi nhánh từng bị quản lý cũ từ chối. Nhập thông tin người quản lý mới và bấm "Lưu Thay Đổi" để gửi lại yêu cầu xác nhận.</span>
+                  <div className="p-3.5 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-bold flex items-start gap-2.5">
+                    <XCircle size={18} className="shrink-0 mt-0.5 text-rose-600" />
+                    <div>
+                      <div className="font-extrabold text-rose-950">Chi nhánh đang bị từ chối tiếp nhận:</div>
+                      <span>Bạn có thể giữ nguyên email để <strong>gửi lại lời mời cho người đã từ chối</strong>, hoặc thay đổi email để <strong>chọn quản lý mới</strong>. Bấm <strong>"Lưu Thay Đổi"</strong> để kích hoạt lại yêu cầu xác nhận.</span>
+                    </div>
+                  </div>
+                )}
+
+                {editForm.managerName && editForm.managerEmail && (
+                  <div className="p-3.5 bg-gradient-to-r from-amber-50 via-orange-50 to-amber-50 border border-amber-200 rounded-2xl flex items-center justify-between gap-3 shadow-2xs animate-fade-in">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-8 h-8 rounded-xl bg-amber-500 text-white flex items-center justify-center font-black text-sm shrink-0 shadow-sm">
+                        ✓
+                      </div>
+                      <div className="min-w-0">
+                        <div className="text-xs font-black text-amber-900 truncate">
+                          Đã chọn Người Quản Lý Mới: {editForm.managerName}
+                        </div>
+                        <div className="text-[11.5px] font-semibold text-slate-700 truncate mt-0.5">
+                          Lời mời xác nhận quản lý chi nhánh sẽ gửi đến email: <strong className="text-amber-800">{editForm.managerEmail}</strong>
+                        </div>
+                      </div>
+                    </div>
+                    <span className="text-[10px] font-black bg-amber-500 text-white px-3 py-1 rounded-full uppercase tracking-wider shrink-0 shadow-xs">
+                      Sẽ Gửi Lời Mời
+                    </span>
                   </div>
                 )}
               </div>

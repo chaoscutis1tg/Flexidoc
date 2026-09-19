@@ -895,6 +895,7 @@ export const ContractsPage = () => {
                 <tr>
                   <th className="py-3 px-4">Mã Hợp Đồng</th>
                   <th className="py-3 px-4">Tiêu Đề / Tên</th>
+                  <th className="py-3 px-4">Người Tạo</th>
                   <th className="py-3 px-4">Mẫu Số Hóa</th>
                   <th className="py-3 px-4">Phiên Bản</th>
                   <th className="py-3 px-4">Trạng Thái</th>
@@ -910,6 +911,9 @@ export const ContractsPage = () => {
                     </td>
                     <td className="py-3.5 px-4 font-bold text-slate-900">
                       {c.title}
+                    </td>
+                    <td className="py-3.5 px-4 font-extrabold text-slate-800">
+                      {c.createdBy?.fullName || c.createdBy?.email || 'N/A'}
                     </td>
                     <td className="py-3.5 px-4 text-slate-600 font-medium">
                       {c.templateId?.name || 'Mẫu tiêu chuẩn'}

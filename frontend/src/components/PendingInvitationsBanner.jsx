@@ -30,6 +30,13 @@ export const PendingInvitationsBanner = ({ onStatusChange }) => {
 
   useEffect(() => {
     fetchPendingInvitations();
+
+    // Polling every 4 seconds to immediately auto-remove banner if assigned manager changes
+    const timer = setInterval(() => {
+      fetchPendingInvitations();
+    }, 4000);
+
+    return () => clearInterval(timer);
   }, [user?.email]);
 
   const handleApprove = async (inv) => {

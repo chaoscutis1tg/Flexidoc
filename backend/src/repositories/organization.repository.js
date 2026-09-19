@@ -17,7 +17,7 @@ export class OrganizationRepository extends BaseRepository {
       ? tenantContext.allowedOrgIds
       : (tenantContext.organizationId ? [tenantContext.organizationId] : []);
 
-    if (allowedOrgIds.length > 0) {
+    if (allowedOrgIds.length > 0 && !finalFilter._id) {
       finalFilter._id = allowedOrgIds.length === 1 ? allowedOrgIds[0] : { $in: allowedOrgIds };
     }
 
