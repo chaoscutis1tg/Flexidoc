@@ -1,0 +1,2154 @@
+TRƯỜNG ĐẠI HỌC ...........................
+KHOA CÔNG NGHỆ THÔNG TIN
+TÀI LIỆU PHÂN TÍCH VÀ THIẾT KẾ HỆ THỐNG
+HỆ THỐNG QUẢN LÝ VÀ TẠO HỢP ĐỒNG THEO MẪU ĐA TỔ CHỨC
+Multi-Tenant Contract Template Management System (MT-CTMS)
+Loại tài liệu: Đặc tả yêu cầu & Thiết kế hệ thống (SRS/SDD)
+Phiên bản: 1.0
+Năm 2026
+MỤC LỤC
+TOC \h \o "1-3"
+DANH MỤC HÌNH
+Danh mục hình được cập nhật tự động dựa trên các hình/biểu đồ (Use Case, Activity, Sequence, Class, Component, Deployment, ERD) trình bày trong tài liệu. Khi chèn hình ảnh thực tế (Chương 3), vui lòng cập nhật lại danh mục này bằng chức năng Update Field của Word.
+DANH MỤC BẢNG
+Danh mục bảng bao gồm các bảng: Ma trận quyền, Danh sách Use Case, Thiết kế Collection, Business Rules, API Endpoint, Bảng kiểm thử... được trình bày xuyên suốt tài liệu.
+DANH MỤC THUẬT NGỮ
+Thuật ngữ
+Giải thích
+Tenant
+Một tổ chức (Organization) sử dụng độc lập trên nền tảng SaaS dùng chung
+Multi-tenant
+Kiến trúc cho phép nhiều tổ chức dùng chung hạ tầng/ứng dụng nhưng dữ liệu cách ly logic
+Organization Tree
+Cấu trúc cây phân cấp Cha–Con giữa các Organization
+Scope
+Phạm vi dữ liệu mà một quyền (Permission) được áp dụng: SELF, CHILDREN, DESCENDANTS, GLOBAL
+RBAC
+Role-Based Access Control – Kiểm soát truy cập dựa trên vai trò
+Template
+Mẫu hợp đồng đã được đánh dấu Field động, dùng để sinh Contract
+Field/Variable
+Vị trí dữ liệu động trong Template, ví dụ {{employee.fullName}}
+Contract
+Hợp đồng cụ thể được sinh ra từ Template và dữ liệu nhập
+Snapshot
+Bản sao dữ liệu Template tại thời điểm tạo Contract, không thay đổi theo Template sau này
+Master Data
+Dữ liệu dùng chung có thể tái sử dụng (Employee, Customer, Partner...)
+Audit Log
+Nhật ký ghi lại các hành động quan trọng trong hệ thống để truy vết
+IDOR
+Insecure Direct Object Reference – Lỗ hổng tham chiếu đối tượng trực tiếp không kiểm soát
+JWT
+JSON Web Token – Token xác thực người dùng
+MVP
+Minimum Viable Product – Phạm vi chức năng tối thiểu triển khai trước
+CHƯƠNG 1. TỔNG QUAN DỰ ÁN
+1.1. Giới thiệu đề tài
+Đề tài xây dựng “Hệ thống Quản lý và Tạo Hợp đồng theo Mẫu Đa Tổ chức” (Multi-Tenant Contract Template Management System – MT-CTMS) là một nền tảng phần mềm dạng SaaS (Software as a Service), cho phép nhiều tổ chức (doanh nghiệp, công ty mẹ – công ty con, chi nhánh) cùng sử dụng chung một hệ thống, trong khi dữ liệu nghiệp vụ của từng tổ chức được cách ly hoàn toàn về mặt logic và bảo mật.
+Hệ thống cho phép mỗi tổ chức tự chủ động số hóa các mẫu hợp đồng giấy/văn bản Word sẵn có của mình thành các Template điện tử có khả năng tái sử dụng, tự động sinh Form nhập liệu, và xuất ra hợp đồng hoàn chỉnh dưới định dạng PDF/DOCX chỉ trong vài thao tác, thay vì phải soạn thảo thủ công từng hợp đồng.
+1.2. Ý tưởng dự án
+Ý tưởng cốt lõi của hệ thống xoay quanh vòng đời: Tổ chức đăng ký sử dụng → Upload file hợp đồng mẫu → Đánh dấu các vị trí dữ liệu động trên tài liệu (Dynamic Field) → Hệ thống lưu thành Template có cấu hình Field (loại dữ liệu, bắt buộc, validate, giá trị mặc định) → Người dùng trong tổ chức chọn Template để tạo hợp đồng → Hệ thống tự động sinh Form nhập liệu tương ứng với các Field đã đánh dấu (không hard-code theo từng loại hợp đồng) → Người dùng nhập/hoặc chọn từ Master Data có sẵn → Preview → Generate hợp đồng hoàn chỉnh (PDF/DOCX) → Lưu trữ, quản lý phiên bản và ghi Audit Log.
+Điểm khác biệt quan trọng nhất so với các hệ thống quản lý văn bản thông thường là: Template được tự tạo bởi chính Organization, không phụ thuộc vào đội ngũ kỹ thuật hay Super Admin của nhà cung cấp dịch vụ. Đây là yêu cầu bắt buộc xuyên suốt toàn bộ thiết kế.
+1.3. Lý do chọn đề tài
+Việc quản lý hợp đồng theo phương pháp truyền thống (soạn thảo thủ công trên Word, lưu trữ rời rạc theo từng máy tính cá nhân) tại các doanh nghiệp, đặc biệt là doanh nghiệp có nhiều chi nhánh/công ty con, đang tồn tại nhiều vấn đề:
+Mất nhiều thời gian soạn thảo lại từ đầu cho mỗi hợp đồng, dù nội dung phần lớn giống nhau.
+Nhập dữ liệu lặp lại nhiều lần cho cùng một đối tượng (nhân viên, khách hàng, đối tác).
+Dễ sai sót thông tin do copy-paste thủ công, không có cơ chế kiểm tra định dạng (validate).
+Khó quản lý đồng thời nhiều mẫu hợp đồng cho nhiều loại nghiệp vụ khác nhau (lao động, dịch vụ, mua bán, hợp tác...).
+Không kiểm soát được phiên bản: khi mẫu hợp đồng thay đổi, không rõ hợp đồng cũ được lập theo mẫu nào.
+Khó tìm kiếm, tra cứu lại hợp đồng đã lập trước đó.
+Khó phân quyền truy cập hợp đồng theo từng phòng ban/nhân sự.
+Đặc biệt khó khăn trong mô hình tập đoàn có công ty mẹ – công ty con: không có cơ chế rõ ràng để công ty mẹ giám sát có kiểm soát dữ liệu của công ty con mà vẫn đảm bảo công ty con có quyền tự chủ vận hành riêng.
+Từ các bất cập trên, đề tài hướng đến xây dựng một nền tảng số hóa toàn diện, có kiến trúc multi-tenant, phân quyền chặt chẽ theo mô hình tổ chức phân cấp, đảm bảo tính tự chủ của từng đơn vị nhưng vẫn cho phép giám sát khi được cấp quyền — đây là bài toán có giá trị thực tiễn cao và có tính học thuật/kỹ thuật đủ sâu để làm đồ án tốt nghiệp hoặc nghiên cứu khoa học.
+1.4. Mục tiêu dự án
+Mục tiêu tổng quát: Xây dựng thành công một nền tảng SaaS multi-tenant cho phép các tổ chức tự tạo, quản lý Template hợp đồng và sinh hợp đồng tự động, đảm bảo cách ly dữ liệu, phân quyền linh hoạt theo mô hình tổ chức phân cấp, và có khả năng mở rộng.
+Mục tiêu cụ thể:
+Phân tích và thiết kế mô hình dữ liệu đa tổ chức (multi-tenant) đảm bảo cách ly dữ liệu (Tenant Isolation) ở mức Database, API và File Storage.
+Thiết kế mô hình tổ chức phân cấp Cha–Con (Hierarchical Organization) dạng cây, không giới hạn số cấp.
+Thiết kế hệ thống phân quyền RBAC kết hợp Scope (SELF/CHILDREN/DESCENDANTS/GLOBAL).
+Xây dựng cơ chế cho phép người dùng tổ chức tự đánh dấu vị trí dữ liệu động trên file hợp đồng mẫu và tự sinh Form nhập liệu tương ứng, không hard-code theo từng loại hợp đồng.
+Thiết kế cơ chế sinh hợp đồng tự động (Document Generation) ra định dạng PDF/DOCX.
+Thiết kế cơ chế quản lý phiên bản (Versioning) cho cả Template và Contract, đảm bảo Contract cũ không bị ảnh hưởng khi Template được cập nhật.
+Thiết kế cơ chế Audit Log để truy vết toàn bộ hành động quan trọng, đặc biệt là hành động của Super Admin khi truy cập dữ liệu Tenant.
+Đảm bảo các nguyên tắc bảo mật ứng dụng web theo khuyến nghị OWASP (Broken Access Control, IDOR, Injection, XSS...).
+1.5. Đối tượng sử dụng
+Nhóm đối tượng
+Mô tả
+Super Admin (Nhà cung cấp dịch vụ)
+Quản trị toàn bộ nền tảng SaaS: Organization, gói dịch vụ, cấu hình hệ thống, giám sát.
+Organization Admin
+Quản trị viên của một tổ chức (công ty, chi nhánh): quản lý User, Template, Contract, Master Data trong phạm vi tổ chức mình và các tổ chức con được cấp quyền.
+Staff
+Nhân viên nghiệp vụ trong tổ chức: sử dụng Template có sẵn để tạo, nhập liệu và sinh hợp đồng.
+Viewer
+Người dùng chỉ có quyền xem hợp đồng/Template được cấp phép, không có quyền chỉnh sửa.
+1.6. Phạm vi dự án
+Phạm vi chức năng của phiên bản MVP (Minimum Viable Product) bao gồm: Xác thực và quản lý phiên đăng nhập; Quản lý Organization và cây tổ chức Cha–Con; Quản lý User và phân quyền theo RBAC + Scope; Quản lý Template (upload file mẫu, đánh dấu Field động, cấu hình Field, versioning, publish/archive); Quản lý Master Data; Quản lý Contract (tạo, nhập liệu tự sinh Form, preview, generate PDF/DOCX, versioning, tìm kiếm, tải về); Audit Log; các cơ chế bảo mật nền tảng (Tenant Isolation, Object-level Authorization, File Security).
+Phạm vi không thuộc MVP (được liệt kê ở mục Định hướng phát triển tương lai bên dưới) bao gồm các chức năng nâng cao như ký điện tử, workflow phê duyệt đa cấp, tích hợp OCR/AI, tích hợp hệ thống ERP/HRM/CRM bên ngoài, ứng dụng di động.
+1.7. Định hướng hiện tại (MVP)
+Nền tảng web, giao diện responsive, hỗ trợ trình duyệt hiện đại.
+Một hệ thống Backend + Database dùng chung cho tất cả Organization (Shared Database, cách ly bằng organizationId).
+Sinh hợp đồng dạng PDF và DOCX từ Template + dữ liệu nhập.
+Quản lý phiên bản Template và Contract cơ bản (tạo version mới, xem lịch sử, không ghi đè).
+Phân quyền RBAC + Scope theo 4 vai trò cơ bản: Super Admin, Organization Admin, Staff, Viewer.
+1.8. Định hướng phát triển tương lai
+Các đề xuất dưới đây là ĐỀ XUẤT MỞ RỘNG (Future Development), không thuộc phạm vi triển khai MVP:
+[Đề xuất] Ký điện tử (e-signature) tích hợp xác thực OTP qua Email/SMS/Zalo.
+[Đề xuất] QR code xác thực tính hợp lệ của hợp đồng đã ký.
+[Đề xuất] Ứng dụng AI hỗ trợ soạn thảo, gợi ý điều khoản hợp đồng.
+[Đề xuất] OCR để tự động nhận diện vùng dữ liệu động khi upload file scan.
+[Đề xuất] Import DOCX nâng cao (giữ nguyên định dạng phức tạp, bảng biểu lồng nhau).
+[Đề xuất] Workflow phê duyệt hợp đồng đa cấp (PENDING_APPROVAL, APPROVED, REJECTED).
+[Đề xuất] Dashboard thống kê nâng cao, báo cáo BI.
+[Đề xuất] Ứng dụng di động (Mobile App) iOS/Android.
+[Đề xuất] API tích hợp với hệ thống ERP/HRM/CRM của bên thứ ba.
+CHƯƠNG 2. PHÂN TÍCH VÀ THIẾT KẾ HỆ THỐNG
+2.1. Phân tích bài toán
+Bài toán đặt ra gồm ba nhóm vấn đề lớn cần giải quyết đồng thời:
+Bài toán số hóa Template: làm sao để một tổ chức không có kiến thức kỹ thuật có thể tự chuyển đổi một file hợp đồng Word/PDF có sẵn thành một mẫu điện tử có khả năng tái sử dụng, mà không cần lập trình viên can thiệp cho từng mẫu mới.
+Bài toán sinh Form và sinh tài liệu động: làm sao hệ thống có thể tự động sinh giao diện nhập liệu và tài liệu đầu ra tương ứng với cấu trúc Field bất kỳ do người dùng tự định nghĩa, thay vì lập trình cứng (hard-code) cho từng loại hợp đồng.
+Bài toán đa tổ chức và phân cấp: làm sao một hệ thống dùng chung có thể phục vụ đồng thời nhiều tổ chức độc lập, đồng thời hỗ trợ mô hình công ty mẹ – công ty con với quy tắc chia sẻ/giới hạn quyền truy cập dữ liệu rõ ràng, chống rò rỉ dữ liệu chéo giữa các tổ chức (cross-tenant data leakage).
+Ba bài toán trên có mối quan hệ chặt chẽ: mô hình dữ liệu Template/Field/Contract phải được thiết kế độc lập với nội dung nghiệp vụ cụ thể (schema-less/metadata-driven), đồng thời mọi entity trong hệ thống đều phải gắn với ngữ cảnh tổ chức (organizationId) và được kiểm soát truy cập theo cây phân cấp tổ chức.
+2.2. Yêu cầu chức năng (Functional Requirements)
+Mã YC
+Tên yêu cầu
+Mô tả ngắn
+Ưu tiên
+FR-01
+Xác thực & phân quyền
+Đăng nhập/đăng xuất, quản lý phiên, RBAC + Scope
+MVP
+FR-02
+Quản lý Organization
+CRUD Organization, xây dựng cây Cha–Con
+MVP
+FR-03
+Quản lý User
+CRUD User, gán Role trong phạm vi Organization
+MVP
+FR-04
+Quản lý Template
+Upload file mẫu, đánh dấu Field, cấu hình Field, versioning
+MVP
+FR-05
+Sinh Form tự động
+Tự sinh Form nhập liệu từ danh sách Field của Template
+MVP
+FR-06
+Quản lý Master Data
+CRUD Employee/Customer/Partner để tái sử dụng khi tạo Contract
+MVP
+FR-07
+Quản lý Contract
+Tạo, nhập liệu, validate, preview, generate, versioning, tìm kiếm, tải về, hủy
+MVP
+FR-08
+Sinh tài liệu PDF/DOCX
+Render Template + dữ liệu thành file PDF/DOCX
+MVP
+FR-09
+Audit Log
+Ghi nhận và tra cứu lịch sử thao tác quan trọng
+MVP
+FR-10
+Quản lý gói dịch vụ & giới hạn
+Super Admin quản lý subscription, giới hạn số lượng theo gói
+MVP (rút gọn)
+FR-11
+Ký điện tử, OTP, workflow phê duyệt đa cấp
+Mở rộng vòng đời Contract với xác thực/ phê duyệt
+Future
+FR-12
+OCR, AI hỗ trợ soạn thảo
+Tự động nhận diện Field, gợi ý nội dung
+Future
+2.3. Yêu cầu phi chức năng (Non-Functional Requirements)
+Yêu cầu phi chức năng được trình bày chi tiết tại mục 2.3 và mở rộng tại Mục 38 của bộ yêu cầu gốc; tổng hợp như sau:
+Nhóm
+Yêu cầu
+Security
+Tuân thủ OWASP Top 10; RBAC + Scope; Tenant Isolation; mã hóa mật khẩu bằng Argon2/bcrypt; JWT có thời hạn; HTTPS bắt buộc.
+Performance
+Thời gian phản hồi API trung bình < 500ms cho thao tác CRUD; sinh PDF/DOCX < 5s cho hợp đồng thông thường (< 20 trang).
+Scalability
+Kiến trúc phải mở rộng theo chiều ngang (horizontal scaling) cho Backend; Database có khả năng sharding theo organizationId khi cần.
+Availability
+Mục tiêu uptime ≥ 99.5% cho môi trường production.
+Maintainability
+Kiến trúc Feature-Based, tách biệt Controller/Service/Repository, dễ bảo trì và mở rộng module mới.
+Usability
+Giao diện trực quan, thao tác đánh dấu Field không yêu cầu kiến thức kỹ thuật.
+Reliability
+Dữ liệu Contract/Template phải nhất quán (transaction-safe khi tạo Version).
+Backup & Recovery
+Sao lưu Database định kỳ (daily), có quy trình khôi phục (RPO ≤ 24h, RTO ≤ 4h đề xuất).
+Logging & Monitoring
+Ghi log ứng dụng tập trung; theo dõi lỗi (error tracking); cảnh báo khi có bất thường về truy cập.
+Data Privacy
+Dữ liệu nhạy cảm (CCCD, lương...) cần được kiểm soát truy cập chặt và cân nhắc mã hóa tại tầng lưu trữ.
+Về khả năng phục vụ số lượng lớn tổ chức: hệ thống được thiết kế theo mô hình Shared Database + organizationId (phân tích chi tiết tại mục 2.6), cho phép mở rộng tới hàng trăm/hàng nghìn Organization nhờ việc đánh index hợp lý trên organizationId, sử dụng connection pooling, cache tầng đọc (read cache) cho Template/Field ít thay đổi, và có thể tách Database theo nhóm Organization lớn (sharding) khi quy mô vượt ngưỡng của một cụm MongoDB.
+2.4. Actor
+Actor
+Loại
+Mô tả
+Super Admin
+Actor chính (trong hệ thống)
+Quản trị nền tảng SaaS, quản lý Organization, gói dịch vụ, cấu hình hệ thống
+Organization Admin
+Actor chính (trong hệ thống)
+Quản trị một Organization và các Organization con được cấp quyền
+Staff
+Actor chính (trong hệ thống)
+Tạo/nhập liệu/sinh hợp đồng dựa trên Template có sẵn
+Viewer
+Actor chính (trong hệ thống)
+Chỉ xem dữ liệu được phép, không chỉnh sửa
+PDF/DOCX Generator Service
+Actor phụ (hệ thống ngoài/nội bộ)
+Thành phần dịch vụ chịu trách nhiệm render tài liệu (Puppeteer/DOCX engine)
+File Storage Service
+Actor phụ
+Nơi lưu trữ file mẫu, file hợp đồng sinh ra (Private storage/Signed URL)
+Email Service
+Actor phụ
+Gửi thông báo, khôi phục mật khẩu (đề xuất mở rộng OTP, ký điện tử)
+Payment Gateway
+Actor phụ (Future)
+Thanh toán gói dịch vụ (Future Development)
+2.5. Phân quyền (RBAC + Scope)
+Hệ thống áp dụng mô hình Role-Based Access Control (RBAC) kết hợp Scope để giải quyết đồng thời hai chiều kiểm soát: “Người dùng được làm gì” (Permission theo Role) và “Người dùng được làm trên phạm vi dữ liệu nào” (Scope theo cây tổ chức).
+2.5.1. Định nghĩa Scope
+Scope
+Ý nghĩa
+SELF
+Chỉ áp dụng cho chính Organization hiện tại của người dùng
+CHILDREN
+Áp dụng cho các Organization con trực tiếp (1 cấp dưới)
+DESCENDANTS
+Áp dụng cho toàn bộ cây con phía dưới (mọi cấp)
+GLOBAL
+Áp dụng toàn hệ thống — chỉ dành cho Super Admin hoặc quyền đặc biệt được cấp tường minh
+2.5.2. Cấu trúc Permission: Resource + Action + Scope
+Mỗi quyền hạn được biểu diễn theo cú pháp resource:action:scope, cho phép cấu hình linh hoạt theo từng vai trò và từng Organization cụ thể (ví dụ một Organization cha có thể được cấp thêm quyền contract:view:descendants trong khi mặc định RBAC chỉ có contract:view:self).
+template:create:self        template:update:self        template:delete:self
+template:publish:self       template:view:self          template:view:descendants
+contract:create:self        contract:view:self           contract:view:descendants
+contract:update:self        contract:cancel:self         contract:download:self
+user:manage:self            user:manage:children          user:view:descendants
+organization:manage:self    organization:manage:children  organization:view:descendants
+masterdata:manage:self      auditlog:view:self             auditlog:view:global
+2.5.3. Ma trận Role – Permission mặc định
+Permission
+Super Admin
+Org Admin
+Staff
+Viewer
+organization:manage:*
+GLOBAL
+SELF/CHILDREN*
+—
+—
+user:manage:*
+GLOBAL
+SELF/CHILDREN*
+—
+—
+template:create/update/delete
+GLOBAL
+SELF
+—
+—
+template:view
+GLOBAL
+SELF
+SELF
+SELF
+contract:create/update
+GLOBAL
+SELF
+SELF
+—
+contract:view
+GLOBAL
+SELF/DESCENDANTS*
+SELF
+SELF (được gán)
+contract:cancel
+GLOBAL
+SELF
+—
+—
+masterdata:manage
+GLOBAL
+SELF
+SELF (giới hạn)
+—
+auditlog:view
+GLOBAL
+SELF
+—
+—
+(*) Quyền SELF/CHILDREN/DESCENDANTS của Organization Admin đối với tổ chức con chỉ có hiệu lực khi được cấp tường minh qua cơ chế Permission Grant (mục 2.5.4), không mặc định có sẵn — tuân thủ BR-004 và BR-005 (mục 2.9).
+2.5.4. Cơ chế cấp quyền mở rộng giữa Cha và Con (Permission Grant)
+Vì không được giả định Parent mặc nhiên có toàn quyền với Child (yêu cầu ở mục 4.3 đề bài), hệ thống thiết kế một Collection riêng gọi là PermissionGrant, cho phép Super Admin hoặc chính Organization con chủ động cấp thêm quyền xem/quản lý cho Organization cha theo từng loại tài nguyên và Scope cụ thể. Ví dụ: Organization A1 cấp cho Organization A quyền contract:view:self đối với dữ liệu của A1. Nếu không có bản ghi PermissionGrant tương ứng, mọi truy vấn của Organization A vào dữ liệu A1 phải bị từ chối (403 Forbidden), kể cả khi A là tổ chức cha trực tiếp.
+2.6. Kiến trúc Multi-Tenant
+Có ba mô hình kiến trúc multi-tenant phổ biến được phân tích để lựa chọn:
+Mô hình
+Ưu điểm
+Nhược điểm
+Database riêng cho mỗi Tenant
+Cách ly dữ liệu tuyệt đối; dễ backup/restore riêng lẻ
+Chi phí vận hành rất cao khi số lượng Organization lớn; khó nâng cấp schema đồng loạt; không phù hợp SaaS quy mô vừa/nhỏ
+Collection riêng cho mỗi Tenant
+Cách ly tốt hơn Shared Collection; vẫn dùng chung 1 Database instance
+Số lượng Collection tăng theo số Organization, khó quản lý index, khó truy vấn liên tổ chức (ví dụ Super Admin thống kê toàn hệ thống)
+Shared Database + organizationId (được chọn)
+Chi phí vận hành thấp; dễ nâng cấp; dễ thống kê toàn cục cho Super Admin; đơn giản hóa migration
+Rủi ro rò rỉ dữ liệu chéo nếu lập trình sai; phụ thuộc nhiều vào tầng Authorization
+Hệ thống lựa chọn phương án Shared Database + organizationId vì phù hợp với quy mô SaaS phục vụ số lượng lớn Organization vừa và nhỏ, chi phí hạ tầng hợp lý, đồng thời MongoDB hỗ trợ tốt việc đánh index compound trên organizationId kết hợp các trường truy vấn khác. Rủi ro của phương án này được giảm thiểu bằng tổ hợp nhiều lớp phòng vệ:
+Middleware Tenant Context: trích xuất organizationId của người dùng hiện tại từ JWT/session ngay tại tầng middleware, gắn vào request context, không cho phép ghi đè từ Body/Query.
+Query Scoping bắt buộc tại Repository Layer: mọi truy vấn đọc/ghi đều tự động chèn điều kiện organizationId (hoặc danh sách organizationId nằm trong Scope) trước khi gửi tới MongoDB — không cho phép Service layer tự ý bỏ qua bước này.
+Object-level Authorization: sau khi lấy được Resource theo _id, kiểm tra lại resource.organizationId có nằm trong Scope được phép của người dùng hay không (áp dụng cho trường hợp đoán ID).
+Index hợp lý: mọi Collection tenant-scoped đều có compound index bắt đầu bằng organizationId để đảm bảo hiệu năng truy vấn khi số lượng Organization và bản ghi tăng.
+Audit Log: ghi nhận mọi truy cập vượt phạm vi SELF hoặc truy cập của Super Admin vào dữ liệu Tenant.
+Automated Tests: bộ kiểm thử tự động (integration test) chuyên biệt cho kịch bản cố truy cập chéo Organization, đảm bảo mọi endpoint đều trả về 403/404 khi vi phạm Scope.
+2.7. Hierarchical Organization (Tổ chức phân cấp Cha–Con)
+Mô hình tổ chức được thiết kế dạng cây (tree), không giới hạn số cấp, thông qua trường parentOrganizationId trên chính Collection organizations. Một Organization có thể không có cha (Organization gốc), có duy nhất một cha, và có nhiều con.
+SUPER ADMIN
+ └── Organization A (root)
+      ├── Organization A1
+      │     ├── Organization A1.1
+      │     └── Organization A1.2
+      └── Organization A2
+ └── Organization B (root)
+      ├── Organization B1
+      └── Organization B2
+ └── Organization C (root)
+Phân tích được trình bày chi tiết tại mục 2.22 (Thiết kế Database cho Organization Tree) về việc lựa chọn giữa Adjacency List, Materialized Path và Nested Set.
+2.8. Quy tắc bảo vệ dữ liệu (Data Protection)
+Các quy tắc bảo vệ dữ liệu bắt buộc được tổng hợp lại như sau (chi tiết kỹ thuật trình bày tại mục 2.25 Thiết kế bảo mật):
+Mọi Collection chứa dữ liệu nghiệp vụ của Organization đều bắt buộc có trường organizationId, được đánh index.
+organizationId dùng để xác định phạm vi truy cập KHÔNG được lấy từ Frontend/Request Body/Query String, mà phải được xác định từ JWT/Session (Authentication Context) tại Backend.
+Mỗi request phải đi qua chuỗi kiểm tra: Authentication → Role/Permission → Resource Existence → Resource Ownership (organizationId) → Scope Matching.
+File hợp đồng/file mẫu được lưu trong Private Storage, truy cập thông qua Signed URL có thời hạn ngắn, kiểm tra quyền trước khi cấp URL — không cho phép truy cập trực tiếp bằng đường dẫn tĩnh có thể đoán được.
+Mọi hành động quan trọng (tạo/sửa/xóa Organization, User, Template, Contract; truy cập vượt phạm vi SELF; Super Admin truy cập dữ liệu Tenant) đều phải được ghi Audit Log đầy đủ ngữ cảnh.
+2.9. Business Rules
+Mã
+Nội dung
+BR-001
+User chỉ được truy cập dữ liệu thuộc Scope của mình (SELF/CHILDREN/DESCENDANTS/GLOBAL tùy Permission được cấp).
+BR-002
+Mọi Tenant Data (Users, Templates, Contracts, Master Data, Files, Audit Logs, Notifications...) đều phải có organizationId.
+BR-003
+Không tin organizationId từ client (Frontend) để xác định quyền; Backend luôn xác định Scope từ Authentication Context.
+BR-004
+Organization con KHÔNG tự động có quyền xem/quản lý dữ liệu của Organization cha.
+BR-005
+Organization cha chỉ được truy cập dữ liệu Organization con khi có Permission/Scope/PermissionGrant tường minh cho phép.
+BR-006
+Một Organization không được phép là Parent của chính nó (self-reference bị chặn ở tầng Service khi tạo/cập nhật parentOrganizationId).
+BR-007
+Không được tạo vòng lặp (cycle) trong cây Organization; khi đổi parentOrganizationId phải kiểm tra tổ chức mới không phải là hậu duệ (descendant) của chính nó.
+BR-008
+Mỗi Template phải thuộc về đúng một Organization (organizationId bắt buộc, không thể null).
+BR-009
+Mỗi Contract phải lưu tham chiếu chính xác templateId và templateVersion tại thời điểm tạo.
+BR-010
+Contract đã sinh ra không thay đổi nội dung khi Template gốc được cập nhật thành version mới (đảm bảo bằng cơ chế Snapshot).
+BR-011
+Mọi hành động của Super Admin khi truy cập dữ liệu thuộc phạm vi Tenant phải được ghi Audit Log kèm lý do truy cập (justification).
+BR-012
+File (Template gốc, Contract sinh ra) phải được bảo vệ theo Tenant, không cho phép truy cập chéo Organization dù đoán được đường dẫn.
+BR-013
+Các thao tác xóa dữ liệu quan trọng (Organization, User, Template, Contract) áp dụng Soft Delete (đánh dấu deletedAt) thay vì xóa vật lý.
+BR-014
+Không cho phép truy cập tài nguyên chỉ bằng cách đoán ID (IDOR) — luôn kiểm tra Object-level Authorization.
+BR-015
+Mọi thao tác quan trọng (tạo/sửa/xóa/publish/generate/download) phải ghi Audit Log.
+BR-016
+[Bổ sung] Một Field key (ví dụ employee.fullName) phải là duy nhất trong phạm vi một Template.
+BR-017
+[Bổ sung] Không được Publish một Template khi chưa có ít nhất một Field hợp lệ hoặc khi Template đang ở trạng thái ARCHIVED.
+BR-018
+[Bổ sung] Không được xóa cứng (hard delete) một Template đã từng được dùng để sinh Contract; chỉ được chuyển trạng thái ARCHIVED.
+BR-019
+[Bổ sung] Giới hạn số lượng Organization con/Template/Contract theo gói dịch vụ (Subscription Plan) do Super Admin cấu hình.
+2.10. Use Case Diagram
+Sơ đồ Use Case tổng quát mô tả toàn bộ chức năng hệ thống theo nhóm nghiệp vụ: Authentication, Organization, User, Template, Contract, Master Data, Audit. Mã nguồn PlantUML được cung cấp đầy đủ để render lại khi cần.
+Hình 2.1 — Use Case Diagram tổng quát
+@startuml UC_Overview
+left to right direction
+actor "Super Admin" as SA
+actor "Organization Admin" as OA
+actor "Staff" as ST
+actor "Viewer" as VW
+actor "PDF/DOCX Generator" as GEN
+actor "File Storage" as FS
+rectangle "MT-CTMS" {
+  package Authentication {
+    usecase "Đăng nhập" as UC1
+    usecase "Đăng xuất" as UC2
+    usecase "Đổi mật khẩu" as UC3
+  }
+  package Organization {
+    usecase "Tạo Organization" as UC4
+    usecase "Sửa/Khóa Organization" as UC5
+    usecase "Tạo Organization con" as UC6
+    usecase "Quản lý cây Organization" as UC7
+  }
+  package User {
+    usecase "Quản lý User" as UC8
+    usecase "Phân quyền" as UC9
+  }
+  package Template {
+    usecase "Upload/Tạo Template" as UC10
+    usecase "Đánh dấu Field" as UC11
+    usecase "Cấu hình Field" as UC12
+    usecase "Preview Template" as UC13
+    usecase "Publish/Archive Template" as UC14
+    usecase "Version Template" as UC15
+  }
+  package Contract {
+    usecase "Tạo Contract" as UC16
+    usecase "Nhập dữ liệu & Validate" as UC17
+    usecase "Preview Contract" as UC18
+    usecase "Generate PDF/DOCX" as UC19
+    usecase "Quản lý/Version Contract" as UC20
+    usecase "Tìm kiếm & Tải về" as UC21
+  }
+  package MasterData {
+    usecase "Quản lý Master Data" as UC22
+  }
+  package Audit {
+    usecase "Xem Audit Log" as UC23
+  }
+}
+SA --> UC4 
+ SA --> UC5 
+ SA --> UC23
+OA --> UC6 
+ OA --> UC7 
+ OA --> UC8 
+ OA --> UC9
+OA --> UC10 
+ OA --> UC14 
+ OA --> UC22 
+ OA --> UC23
+ST --> UC10 
+ ST --> UC11 
+ ST --> UC12 
+ ST --> UC13
+ST --> UC16 
+ ST --> UC17 
+ ST --> UC18 
+ ST --> UC20 
+ ST --> UC21
+VW --> UC21
+UC19 ..> GEN : <<include>>
+UC19 ..> FS : <<include>>
+UC16 ..> UC22 : <<extend>>
+@enduml
+Hình 2.1: Use Case Diagram tổng quát hệ thống MT-CTMS
+Ghi chú: Organization Admin thừa hưởng toàn bộ Use Case của Staff trong phạm vi tổ chức mình (quan hệ generalization ẩn để giữ sơ đồ gọn); Super Admin có thể thực hiện mọi Use Case ở phạm vi GLOBAL nhưng bị ràng buộc ghi Audit Log.
+2.11. Phân rã Use Case
+Các Use Case phức tạp, mang tính chất luồng nghiệp vụ nhiều bước được phân rã chi tiết dưới đây theo dạng cây chức năng con (sub use-case), làm cơ sở thiết kế Sequence Diagram và API tương ứng.
+2.11.1. UC: Tạo Template
+Tạo Template
+├── Upload File hợp đồng mẫu (DOCX/PDF)
+├── Validate File (MIME type, kích thước, số trang)
+├── Parse Document (trích xuất nội dung để hiển thị)
+├── Hiển thị Document trên Template Editor
+├── Chọn vùng dữ liệu động (bôi đen văn bản)
+├── Tạo Field (đặt tên, key, loại dữ liệu)
+├── Cấu hình Field (required, default, validate, options)
+├── Validate cấu hình Field (key duy nhất trong Template)
+├── Preview Template (hiển thị Field dạng {{key}} hoặc Tag)
+├── Lưu Template Version (v1)
+├── Publish Template (chuyển DRAFT → ACTIVE) [tùy chọn]
+└── Write Audit Log (TEMPLATE_CREATED / TEMPLATE_PUBLISHED)
+Sơ đồ phân rã 2.1: UC Tạo Template
+2.11.2. UC: Tạo Contract
+Tạo Contract
+├── Chọn Template (danh sách Template ACTIVE của Organization)
+├── Load Template Version hiện hành (hoặc version chỉ định)
+├── Load danh sách Field của Template Version
+├── Load Master Data liên quan (Employee/Customer/Partner) để gợi ý tự điền
+├── Hiển thị Form nhập liệu (tự sinh động từ danh sách Field)
+├── Nhập dữ liệu / Chọn nhanh từ Master Data
+├── Validate Input (theo rule của từng Field: required, format, type)
+├── Preview Contract (render tạm thời, chưa lưu)
+├── Xác nhận (Confirm)
+├── Render Template Engine (thay thế {{key}} bằng giá trị nhập)
+├── Generate Document (DOCX) và Generate PDF
+├── Lưu Contract (kèm Snapshot: templateId, templateVersion, inputData, renderedContent, file)
+└── Write Audit Log (CONTRACT_CREATED / CONTRACT_GENERATED)
+Sơ đồ phân rã 2.2: UC Tạo Contract
+2.11.3. UC: Quản lý Organization con
+Quản lý Organization con
+├── Tạo Organization con (kiểm tra không tạo vòng lặp, không tự làm cha chính mình)
+├── Gán Organization Admin cho Organization con
+├── (Tùy chọn) Cấp Permission Grant cho Organization cha xem/quản lý Organization con
+├── Xem cây Organization (Descendants Tree)
+├── Chuyển Organization sang Parent khác (kiểm tra cycle trước khi cập nhật)
+└── Write Audit Log (ORGANIZATION_CREATED / ORGANIZATION_TREE_UPDATED)
+Sơ đồ phân rã 2.3: UC Quản lý Organization con
+2.11.4. UC: Đánh dấu Dynamic Field (chi tiết mức thao tác)
+Đánh dấu Field
+├── Người dùng bôi đen đoạn văn bản trong Document Viewer (ví dụ: "Nguyễn Văn A")
+├── Hệ thống mở Form cấu hình Field nổi (popup)
+│     ├── Nhập Tên trường (label): "Họ và tên"
+│     ├── Nhập Key: "employee.fullName" (validate: duy nhất trong Template, đúng định dạng namespace.field)
+│     ├── Chọn Type: TEXT/NUMBER/DATE/...
+│     ├── Bật/tắt Required
+│     └── (Tùy chọn) Default value, Validation rule, Options (nếu SELECT/RADIO)
+├── Lưu Field vào danh sách Field tạm thời của Template Editor
+├── Hệ thống thay thế đoạn văn bản đã chọn bằng Tag hiển thị {{employee.fullName}}
+└── Field được lưu chính thức khi người dùng bấm "Lưu Template"
+Sơ đồ phân rã 2.4: UC Đánh dấu Field động
+2.11.5. UC: Publish Template & Versioning
+Publish Template
+├── Kiểm tra Template có ít nhất 1 Field hợp lệ (BR-017)
+├── Kiểm tra trạng thái hiện tại (chỉ Publish từ DRAFT)
+├── Tạo bản ghi TemplateVersion mới (snapshot Field list + file)
+├── Cập nhật currentVersion trên Template
+├── Chuyển trạng thái Template: DRAFT → ACTIVE
+└── Write Audit Log (TEMPLATE_PUBLISHED)
+Sơ đồ phân rã 2.5: UC Publish Template
+2.12. Activity Diagram
+2.12.1. Activity: Tạo Template
+@startuml Activity_CreateTemplate
+start
+:Upload file hợp đồng mẫu;
+:Validate file (MIME/size/extension);
+if (File hợp lệ?) then (không)
+  :Thông báo lỗi;
+  stop
+else (có)
+endif
+:Parse Document;
+:Hiển thị Document trên Editor;
+repeat
+  :Chọn vùng dữ liệu động;
+  :Tạo Field + Cấu hình Field;
+  :Validate Field (key duy nhất);
+repeat while (Còn Field cần đánh dấu?) is (có) not (không)
+:Preview Template;
+:Lưu Template Version (DRAFT);
+if (Publish ngay?) then (có)
+  :Publish Template (ACTIVE);
+endif
+:Write Audit Log;
+stop
+@enduml
+Hình 2.2: Activity Diagram — Tạo Template
+2.12.2. Activity: Tạo Contract
+@startuml Activity_CreateContract
+start
+:Login;
+:Chọn Template (ACTIVE);
+:Load Fields + Template Version;
+:Load Master Data liên quan;
+:Hệ thống tự sinh Form nhập liệu;
+:Nhập dữ liệu / chọn Master Data;
+:Validate dữ liệu;
+if (Hợp lệ?) then (không)
+  :Hiển thị lỗi từng Field;
+  stop
+else (có)
+endif
+:Preview Contract;
+if (Xác nhận?) then (không)
+  :Quay lại chỉnh sửa;
+  stop
+else (có)
+endif
+:Render Template Engine;
+:Generate DOCX + PDF;
+:Lưu Contract (Snapshot);
+:Write Audit Log;
+:Download / Xem kết quả;
+stop
+@enduml
+Hình 2.3: Activity Diagram — Tạo Contract
+2.12.3. Activity: Quản lý Organization Cha–Con
+@startuml Activity_OrgManagement
+start
+:Tạo Organization cha (root);
+:Tạo Organization con;
+:Kiểm tra vòng lặp / self-parent;
+if (Hợp lệ?) then (không)
+  :Từ chối, thông báo lỗi;
+  stop
+else (có)
+endif
+:Gán Organization Admin cho Organization con;
+if (Cấp Permission Grant cho Cha?) then (có)
+  :Tạo bản ghi PermissionGrant (scope, resource);
+endif
+:Organization con tự quản lý dữ liệu (SELF);
+:Write Audit Log;
+stop
+@enduml
+Hình 2.4: Activity Diagram — Quản lý Organization Cha–Con
+2.13. Sequence Diagram
+Các Sequence Diagram dưới đây thể hiện luồng xử lý xuyên suốt các tầng: Frontend → API Gateway/Router → Middleware (Auth/Tenant Context) → Authorization → Controller → Service → Repository → Database/Storage → Response, theo đúng kiến trúc phân tầng tại mục 2.16.
+2.13.1. Sequence: Đăng nhập (Login)
+@startuml Seq_Login
+actor User
+participant "Frontend (React)" as FE
+participant "API /auth/login" as API
+participant "AuthMiddleware" as MW
+participant "AuthController" as CTRL
+participant "AuthService" as SVC
+database "MongoDB" as DB
+User -> FE: Nhập email/password
+FE -> API: POST /api/v1/auth/login
+API -> MW: Rate limiting + Input validation
+MW -> CTRL: forward request
+CTRL -> SVC: login(email, password)
+SVC -> DB: findOne(User by email)
+DB --> SVC: User document
+SVC -> SVC: compare password (Argon2/bcrypt)
+alt Sai mật khẩu
+  SVC --> CTRL: throw InvalidCredentials
+  CTRL --> FE: 401 Unauthorized
+  SVC -> DB: Write Audit Log (LOGIN_FAILED)
+else Đúng mật khẩu
+  SVC -> SVC: generate JWT (userId, organizationId, role)
+  SVC -> DB: Write Audit Log (LOGIN_SUCCESS)
+  SVC --> CTRL: {accessToken, user}
+  CTRL --> FE: 200 OK + token
+end
+@enduml
+Hình 2.5: Sequence Diagram — Đăng nhập
+2.13.2. Sequence: Upload Template
+@startuml Seq_UploadTemplate
+actor Staff
+participant FE
+participant "API /templates/upload" as API
+participant AuthMW
+participant TemplateController as CTRL
+participant TemplateService as SVC
+participant FileStorage as FS
+database MongoDB as DB
+Staff -> FE: Chọn file mẫu
+FE -> API: POST /templates/upload (multipart)
+API -> AuthMW: Xác thực JWT, lấy organizationId từ token
+AuthMW -> CTRL: forward (organizationId đã xác định)
+CTRL -> SVC: uploadTemplateFile(file, organizationId)
+SVC -> SVC: Validate MIME/size/extension
+SVC -> FS: Lưu file vào Private Storage/{organizationId}/templates/
+FS --> SVC: fileKey
+SVC -> DB: Insert Template (status=DRAFT, organizationId)
+DB --> SVC: templateId
+SVC -> DB: Write Audit Log (TEMPLATE_UPLOADED)
+SVC --> CTRL: Template object
+CTRL --> FE: 201 Created
+@enduml
+Hình 2.6: Sequence Diagram — Upload Template
+2.13.3. Sequence: Đánh dấu Dynamic Field
+@startuml Seq_MarkField
+actor Staff
+participant FE as "Template Editor (React)"
+participant API as "API /templates/:id/fields"
+participant CTRL as FieldController
+participant SVC as TemplateService
+database DB as MongoDB
+Staff -> FE: Bôi đen văn bản + nhập cấu hình Field
+FE -> API: POST /templates/:id/fields {label,key,type,required,...}
+API -> CTRL: forward (kèm organizationId từ JWT)
+CTRL -> SVC: addField(templateId, organizationId, fieldDto)
+SVC -> DB: Kiểm tra Template thuộc organizationId (Object-level Auth)
+alt Không thuộc quyền
+  SVC --> CTRL: 403 Forbidden
+else Thuộc quyền
+  SVC -> SVC: Validate key duy nhất trong Template
+  SVC -> DB: Push field vào Template.fields[]
+  SVC -> DB: Write Audit Log (TEMPLATE_FIELD_ADDED)
+  SVC --> CTRL: Field mới
+  CTRL --> FE: 200 OK
+end
+@enduml
+Hình 2.7: Sequence Diagram — Đánh dấu Dynamic Field
+2.13.4. Sequence: Tạo Contract & Generate PDF
+@startuml Seq_CreateContract
+actor Staff
+participant FE
+participant API
+participant CTRL as ContractController
+participant SVC as ContractService
+participant TplSvc as TemplateService
+participant GEN as DocumentGenerator
+participant FS as FileStorage
+database DB as MongoDB
+Staff -> FE: Chọn Template, nhập dữ liệu, Confirm
+FE -> API: POST /contracts {templateId, inputData}
+API -> CTRL: forward (organizationId từ JWT)
+CTRL -> SVC: createContract(templateId, organizationId, inputData)
+SVC -> TplSvc: getActiveVersion(templateId, organizationId)
+TplSvc -> DB: Kiểm tra Template thuộc organizationId
+TplSvc --> SVC: TemplateVersion (fields, sourceFile)
+SVC -> SVC: Validate inputData theo Field rules
+SVC -> GEN: render(templateVersion, inputData)
+GEN --> SVC: renderedContent (HTML/DOCX buffer)
+SVC -> GEN: generatePDF(renderedContent)
+GEN --> SVC: pdfBuffer
+SVC -> FS: Lưu file DOCX & PDF vào {organizationId}/contracts/
+FS --> SVC: fileKeys
+SVC -> DB: Insert Contract (snapshot templateVersion, inputData, fileKeys)
+SVC -> DB: Write Audit Log (CONTRACT_CREATED, CONTRACT_GENERATED)
+SVC --> CTRL: Contract object
+CTRL --> FE: 201 Created + downloadUrl
+@enduml
+Hình 2.8: Sequence Diagram — Tạo Contract và Generate PDF
+2.13.5. Sequence: Organization cha truy cập dữ liệu Organization con
+@startuml Seq_ParentAccessChild
+actor "Org Admin (Parent)" as OA
+participant FE
+participant API
+participant AuthMW
+participant ScopeGuard
+participant CTRL as ContractController
+database DB as MongoDB
+OA -> FE: Xem danh sách Contract của Org con A1
+FE -> API: GET /contracts?organizationId=A1
+API -> AuthMW: Xác thực JWT, xác định organizationId thật = A (Parent)
+AuthMW -> ScopeGuard: Kiểm tra quyền contract:view:descendants hoặc PermissionGrant
+alt Không có quyền/không có PermissionGrant
+  ScopeGuard --> API: 403 Forbidden
+  API -> DB: Write Audit Log (ACCESS_DENIED, target=A1)
+else Có quyền hợp lệ
+  ScopeGuard -> CTRL: forward (allowedOrgIds=[A1])
+  CTRL -> DB: find Contracts where organizationId in allowedOrgIds
+  DB --> CTRL: Danh sách Contract của A1
+  CTRL -> DB: Write Audit Log (PARENT_ACCESSED_CHILD_DATA)
+  CTRL --> FE: 200 OK
+end
+@enduml
+Hình 2.9: Sequence Diagram — Organization cha truy cập dữ liệu Organization con
+2.13.6. Sequence: Super Admin truy cập dữ liệu Tenant
+@startuml Seq_SuperAdminAccess
+actor "Super Admin" as SA
+participant FE
+participant API
+participant AuthMW
+participant BreakGlass as "Break-Glass Guard"
+participant CTRL
+database DB
+SA -> FE: Truy cập dữ liệu Organization X (mục đích hỗ trợ)
+FE -> API: GET /organizations/X/contracts?reason=support-ticket-123
+API -> AuthMW: Xác thực Role = SUPER_ADMIN
+AuthMW -> BreakGlass: Yêu cầu reason bắt buộc
+alt Thiếu reason
+  BreakGlass --> API: 400 Bad Request (reason required)
+else Có reason
+  BreakGlass -> CTRL: forward request
+  CTRL -> DB: Truy vấn dữ liệu Organization X
+  CTRL -> DB: Write Audit Log (SUPER_ADMIN_TENANT_ACCESS, reason, IP, userAgent)
+  CTRL --> FE: 200 OK
+  DB -> DB: (Tùy chọn) Gửi cảnh báo cho Organization X về truy cập hỗ trợ
+end
+@enduml
+Hình 2.10: Sequence Diagram — Super Admin truy cập dữ liệu Tenant (Break-glass access)
+2.13.7. Sequence: Authorization thất bại (IDOR attempt)
+@startuml Seq_AuthzFail
+actor "User Organization A" as UA
+participant FE
+participant API
+participant AuthMW
+participant CTRL
+database DB
+UA -> FE: Sửa URL /contracts/{idOfOrgB}
+FE -> API: GET /contracts/{idOfOrgB}
+API -> AuthMW: Xác thực JWT (organizationId=A)
+AuthMW -> CTRL: forward
+CTRL -> DB: findById(idOfOrgB)
+DB --> CTRL: Contract (organizationId=B)
+CTRL -> CTRL: So sánh contract.organizationId với allowedScope(A)
+CTRL -> DB: Write Audit Log (UNAUTHORIZED_ACCESS_ATTEMPT)
+CTRL --> FE: 403 Forbidden
+@enduml
+Hình 2.11: Sequence Diagram — Authorization thất bại khi cố truy cập chéo tổ chức
+2.13.8. Sequence: Download file bảo mật
+@startuml Seq_DownloadFile
+actor User
+participant FE
+participant API
+participant CTRL as FileController
+participant FS as FileStorage
+database DB
+User -> FE: Bấm Tải hợp đồng
+FE -> API: GET /contracts/:id/download
+API -> CTRL: forward (organizationId từ JWT)
+CTRL -> DB: Kiểm tra Contract thuộc organizationId + Scope
+alt Không thuộc quyền
+  CTRL --> FE: 403 Forbidden
+else Thuộc quyền
+  CTRL -> FS: generateSignedUrl(fileKey, expiresIn=5m)
+  FS --> CTRL: signedUrl
+  CTRL -> DB: Write Audit Log (CONTRACT_DOWNLOADED)
+  CTRL --> FE: 200 OK {signedUrl}
+  FE -> FS: GET signedUrl (tải trực tiếp)
+end
+@enduml
+Hình 2.12: Sequence Diagram — Download file hợp đồng qua Signed URL
+2.14. Class Diagram
+Class Diagram dưới đây mô tả các lớp thực thể (Entity) chính và mối quan hệ, tương ứng trực tiếp với thiết kế Database tại mục 2.22.
+@startuml Class_Diagram
+class Organization {
+  +_id: ObjectId
+  +name: String
+  +code: String
+  +parentOrganizationId: ObjectId
+  +ancestors: ObjectId[]
+  +status: Enum
+  +subscriptionPlanId: ObjectId
+  +createdAt: Date
+  +deletedAt: Date
+}
+class User {
+  +_id: ObjectId
+  +organizationId: ObjectId
+  +email: String
+  +passwordHash: String
+  +role: Enum
+  +status: Enum
+}
+class PermissionGrant {
+  +_id: ObjectId
+  +granterOrganizationId: ObjectId
+  +granteeOrganizationId: ObjectId
+  +resource: String
+  +action: String
+  +scope: Enum
+  +expiresAt: Date
+}
+class Template {
+  +_id: ObjectId
+  +organizationId: ObjectId
+  +name: String
+  +category: String
+  +status: Enum
+  +currentVersion: Number
+  +sourceFileKey: String
+}
+class TemplateVersion {
+  +_id: ObjectId
+  +templateId: ObjectId
+  +version: Number
+  +fields: Field[]
+  +fileKey: String
+  +createdBy: ObjectId
+  +createdAt: Date
+}
+class Field {
+  +id: String
+  +key: String
+  +label: String
+  +type: Enum
+  +required: Boolean
+  +defaultValue: Mixed
+  +validation: Object
+  +options: String[]
+  +order: Number
+}
+class Contract {
+  +_id: ObjectId
+  +organizationId: ObjectId
+  +templateId: ObjectId
+  +templateVersion: Number
+  +code: String
+  +status: Enum
+  +currentVersion: Number
+  +createdBy: ObjectId
+}
+class ContractVersion {
+  +_id: ObjectId
+  +contractId: ObjectId
+  +version: Number
+  +inputData: Object
+  +renderedContent: String
+  +fileKeyDocx: String
+  +fileKeyPdf: String
+  +editedBy: ObjectId
+  +editedAt: Date
+}
+class MasterData {
+  +_id: ObjectId
+  +organizationId: ObjectId
+  +type: Enum
+  +data: Object
+}
+class AuditLog {
+  +_id: ObjectId
+  +userId: ObjectId
+  +organizationId: ObjectId
+  +action: String
+  +resource: String
+  +resourceId: ObjectId
+  +ip: String
+  +userAgent: String
+  +metadata: Object
+  +timestamp: Date
+}
+Organization "1" -- "0..*" Organization : parent/children
+Organization "1" -- "0..*" User
+Organization "1" -- "0..*" Template
+Organization "1" -- "0..*" Contract
+Organization "1" -- "0..*" MasterData
+Organization "1" -- "0..*" AuditLog
+Organization "1" -- "0..*" PermissionGrant : granter
+Organization "1" -- "0..*" PermissionGrant : grantee
+Template "1" *-- "1..*" TemplateVersion
+TemplateVersion "1" *-- "0..*" Field
+Contract "1" *-- "1..*" ContractVersion
+Template "1" -- "0..*" Contract : is used by
+User "1" -- "0..*" Contract : creates
+@enduml
+Hình 2.13: Class Diagram tổng quát hệ thống
+2.15. Component Diagram
+@startuml Component_Diagram
+package "Frontend (React + Vite)" {
+  [Auth Feature]
+  [Organization Feature]
+  [Template Feature]
+  [Contract Feature]
+  [Master Data Feature]
+  [Shared UI/Services]
+}
+package "Backend (Node.js + Express)" {
+  [API Gateway/Router]
+  [Auth Middleware]
+  [Tenant Context Middleware]
+  [RBAC/Scope Guard]
+  [Auth Module]
+  [Organization Module]
+  [User Module]
+  [Template Module]
+  [Contract Module]
+  [Master Data Module]
+  [Document Generation Service]
+  [Audit Log Module]
+  [Subscription Module]
+}
+database "MongoDB" as DB
+cloud "Private File Storage (S3-compatible)" as S3
+queue "(Future) Message Queue" as MQ
+[Frontend (React + Vite)] --> [API Gateway/Router] : REST/HTTPS (JWT)
+[API Gateway/Router] --> [Auth Middleware]
+[Auth Middleware] --> [Tenant Context Middleware]
+[Tenant Context Middleware] --> [RBAC/Scope Guard]
+[RBAC/Scope Guard] --> [Auth Module]
+[RBAC/Scope Guard] --> [Organization Module]
+[RBAC/Scope Guard] --> [User Module]
+[RBAC/Scope Guard] --> [Template Module]
+[RBAC/Scope Guard] --> [Contract Module]
+[RBAC/Scope Guard] --> [Master Data Module]
+[Contract Module] --> [Document Generation Service]
+[Document Generation Service] --> S3
+[Template Module] --> S3
+[Organization Module] --> DB
+[User Module] --> DB
+[Template Module] --> DB
+[Contract Module] --> DB
+[Master Data Module] --> DB
+[Audit Log Module] --> DB
+[Auth Module] --> [Audit Log Module]
+[Organization Module] --> [Audit Log Module]
+[Template Module] --> [Audit Log Module]
+[Contract Module] --> [Audit Log Module]
+[Contract Module] ..> MQ : (Future) Async PDF generation
+@enduml
+Hình 2.14: Component Diagram hệ thống
+2.16. Deployment Diagram
+@startuml Deployment_Diagram
+node "Client Browser" as Browser
+node "CDN / Static Hosting" as CDN {
+  artifact "React SPA (build)" as SPA
+}
+node "Load Balancer / Reverse Proxy (Nginx)" as LB
+node "Application Server Cluster" {
+  node "Node.js Instance 1" as N1 {
+    artifact "Express API" as API1
+  }
+  node "Node.js Instance 2 (N)" as N2 {
+    artifact "Express API" as API2
+  }
+}
+node "MongoDB Replica Set" {
+  database "Primary" as MP
+  database "Secondary 1" as MS1
+  database "Secondary 2" as MS2
+}
+node "Object Storage (S3-compatible, Private)" as S3
+node "Monitoring/Logging Stack" as MON
+Browser --> CDN : HTTPS
+Browser --> LB : HTTPS (REST API calls)
+LB --> N1
+LB --> N2
+N1 --> MP : mongodb+srv (TLS)
+N2 --> MP
+MP --> MS1 : replication
+MP --> MS2 : replication
+N1 --> S3 : Signed URL / Private access
+N2 --> S3
+N1 --> MON : logs/metrics
+N2 --> MON
+@enduml
+Hình 2.15: Deployment Diagram hệ thống
+Kiến trúc triển khai đề xuất theo mô hình Load Balancer đứng trước cụm Application Server (stateless, có thể scale ngang), MongoDB triển khai dạng Replica Set để đảm bảo tính sẵn sàng cao, File Storage sử dụng dịch vụ tương thích S3 với cơ chế Private Bucket + Signed URL, và một hệ thống Monitoring/Logging tập trung để theo dõi hiệu năng và phát hiện bất thường về bảo mật.
+2.17. Thiết kế kiến trúc hệ thống
+Hệ thống áp dụng kiến trúc phân lớp (Layered Architecture) kết hợp Feature-Based Architecture, theo luồng xử lý:
+Frontend (React SPA)
+        ↓ REST API (HTTPS/JWT)
+API Router
+        ↓
+Middleware (Auth, Tenant Context, RBAC/Scope Guard, Validation, Rate Limit)
+        ↓
+Controller (nhận request, gọi Service, trả response)
+        ↓
+Service (nghiệp vụ chính: validate, orchestration, transaction)
+        ↓
+Repository / Data Access (Mongoose Model, luôn tự động scope theo organizationId)
+        ↓
+MongoDB
+Việc tách rõ Repository/Data Access thành một lớp riêng biệt (thay vì gọi trực tiếp Mongoose Model trong Service) là quyết định thiết kế quan trọng: mọi truy vấn tenant-scoped bắt buộc phải đi qua Repository, nơi tự động chèn điều kiện organizationId, giúp giảm thiểu rủi ro lập trình viên quên áp dụng Tenant Isolation khi phát triển tính năng mới.
+2.18. Thiết kế Frontend
+Frontend sử dụng React + Vite, tổ chức theo Feature-Based Architecture:
+src/
+├── app/                  # Cấu hình App, Router, Providers (QueryClient, AuthProvider)
+├── components/           # Component dùng chung (Button, Input, Modal, Table...)
+├── layouts/              # Layout chung (DashboardLayout, AuthLayout)
+├── features/
+│   ├── auth/             # Login, Change Password, Auth store
+│   ├── dashboard/        # Trang tổng quan, thống kê
+│   ├── organizations/    # Quản lý Organization, cây tổ chức
+│   ├── users/            # Quản lý User, phân quyền
+│   ├── templates/        # Template Editor, đánh dấu Field, versioning
+│   ├── contracts/        # Tạo/nhập liệu/preview/generate/quản lý Contract
+│   ├── master-data/      # Quản lý Employee/Customer/Partner
+│   ├── documents/        # Xem/tải file PDF/DOCX
+│   └── settings/         # Cấu hình tài khoản, tổ chức
+├── services/             # API client (Axios instance, interceptor gắn JWT)
+├── hooks/                # Custom hooks dùng chung
+├── utils/                # Hàm tiện ích (format, validate)
+└── main.jsx
+Thư mục/Module
+Trách nhiệm chính
+app/
+Khởi tạo ứng dụng, cấu hình React Router, TanStack Query Client, Context xác thực toàn cục
+components/
+UI Component tái sử dụng, không chứa logic nghiệp vụ
+layouts/
+Bố cục khung trang (Sidebar, Header) theo vai trò người dùng
+features/*/
+Mỗi feature đóng gói đầy đủ: pages, components riêng, hooks riêng, api riêng — hạn chế phụ thuộc chéo giữa các feature
+services/
+Định nghĩa Axios instance, tự động đính kèm Access Token, xử lý refresh token/401
+hooks/
+Custom hook dùng chung (usePermission, useDebounce...)
+utils/
+Hàm hỗ trợ định dạng ngày/tiền tệ, validate schema (Zod) dùng chung
+Về công nghệ: React Hook Form kết hợp Zod để xử lý và validate Form động (Dynamic Form) sinh ra từ danh sách Field của Template — đây là điểm kỹ thuật quan trọng vì Form không được hard-code, mà phải build Schema Zod động dựa trên metadata Field trả về từ Backend. TanStack Query quản lý cache dữ liệu server (danh sách Template, Contract), Zustand (nếu cần) quản lý state cục bộ phức tạp như trạng thái Template Editor.
+2.19. Thiết kế Backend
+backend/
+└── src/
+    ├── config/            # Cấu hình DB, env, storage, CORS
+    ├── middlewares/       # authMiddleware, tenantContext, rbacGuard, errorHandler, rateLimiter
+    ├── modules/
+    │   ├── auth/          # login, logout, refresh token, đổi mật khẩu
+    │   ├── organizations/ # CRUD Organization, quản lý cây, PermissionGrant
+    │   ├── users/         # CRUD User, gán Role
+    │   ├── templates/     # Upload, Field, Version, Publish/Archive
+    │   ├── contracts/     # Tạo, nhập liệu, validate, generate, version
+    │   ├── master-data/   # CRUD Employee/Customer/Partner
+    │   ├── documents/     # Document Generation Service (Puppeteer/DOCX engine)
+    │   ├── audit-logs/    # Ghi và truy vấn Audit Log
+    │   └── subscriptions/ # Gói dịch vụ, giới hạn sử dụng
+    ├── utils/             # Helper: pagination, response wrapper, error classes
+    ├── app.js             # Cấu hình Express app, middleware pipeline
+    └── server.js          # Khởi động HTTP server, kết nối DB
+Module
+Trách nhiệm chính
+auth
+Xác thực, tạo/kiểm tra JWT, quản lý phiên đăng nhập, đổi mật khẩu, ghi log đăng nhập
+organizations
+CRUD Organization, xây dựng/truy vấn cây tổ chức, quản lý PermissionGrant, kiểm tra chống vòng lặp
+users
+CRUD User trong phạm vi Organization, gán Role, khóa/mở tài khoản
+templates
+Upload file mẫu, quản lý Field, TemplateVersion, Publish/Archive
+contracts
+Tạo Contract, orchestrate validate + render + generate + lưu Snapshot, ContractVersion
+master-data
+CRUD dữ liệu tái sử dụng (Employee/Customer/Partner) theo Organization
+documents
+Dịch vụ sinh tài liệu: chuyển đổi Template + dữ liệu thành DOCX/PDF (mục 2.20)
+audit-logs
+Cung cấp hàm ghi log dùng chung (writeAuditLog) cho các module khác gọi, và API tra cứu log
+subscriptions
+Quản lý gói dịch vụ, giới hạn số lượng Organization con/Template/Contract theo gói
+Middleware pipeline được thiết kế theo thứ tự cố định và bắt buộc cho mọi route (trừ các route public như /auth/login): (1) authMiddleware xác thực JWT hợp lệ và gắn req.user; (2) tenantContextMiddleware xác định organizationId/allowedScope từ req.user, không đọc từ Body/Query; (3) rbacGuard(resource, action) kiểm tra Permission tương ứng; (4) Controller/Service chỉ nhận req.tenantContext đã được xác thực để thao tác dữ liệu.
+2.20. Thiết kế Template Engine
+Template Engine chịu trách nhiệm hai việc: (1) biểu diễn hóa vị trí động trong tài liệu gốc thành placeholder chuẩn hóa {{namespace.field}}, và (2) thay thế placeholder bằng dữ liệu thực khi sinh Contract.
+Khi Parse Document (DOCX): sử dụng thư viện thao tác XML của DOCX (ví dụ docxtemplater hoặc pizzip + xml parsing tùy chỉnh) để đọc nội dung văn bản trong khi vẫn giữ định dạng gốc (font, style, bảng biểu).
+Vị trí được người dùng đánh dấu sẽ được thay thế trực tiếp trong Run XML của DOCX bằng placeholder {{key}}, đảm bảo định dạng gốc (bold, màu, cỡ chữ) của vùng văn bản không bị mất.
+Khi Generate Contract: dùng chính thư viện DOCX Templating để thay {{key}} bằng giá trị input, đảm bảo output DOCX giữ nguyên định dạng Template gốc.
+Để sinh PDF: có hai hướng — (a) chuyển DOCX đã điền dữ liệu sang PDF bằng LibreOffice headless (soffice --convert-to pdf), phù hợp khi cần giữ định dạng Word chính xác; (b) render HTML tương đương rồi dùng Puppeteer in ra PDF, phù hợp khi cần kiểm soát style linh hoạt hơn.
+So sánh phương án sinh PDF
+Phương án
+Ưu điểm
+Nhược điểm
+DOCX → LibreOffice headless → PDF
+Giữ định dạng Word gần như tuyệt đối; đơn giản triển khai trên Node.js server (child_process)
+Phụ thuộc binary LibreOffice trên server; xử lý đồng thời nhiều request cần quản lý queue/pool tiến trình
+HTML → Puppeteer → PDF
+Kiểm soát style linh hoạt (CSS); dễ styling nâng cao, watermark, header/footer động
+Phải chuyển đổi nội dung DOCX sang HTML trung gian, có thể lệch định dạng phức tạp (bảng lồng nhau)
+Đề xuất lựa chọn: sử dụng LibreOffice headless làm phương án chính cho việc chuyển đổi DOCX đã điền dữ liệu sang PDF (đảm bảo độ trung thực định dạng với hợp đồng gốc), Puppeteer được giữ lại như phương án dự phòng/mở rộng cho các trường hợp cần tùy biến giao diện PDF (ví dụ thêm watermark xác thực ở giai đoạn Future Development).
+2.21. Thiết kế Contract Engine
+Contract Engine là lớp Service điều phối toàn bộ vòng đời sinh một Contract, đảm bảo tính nguyên tử (atomicity) và tuân thủ nguyên tắc Snapshot (BR-009, BR-010):
+Bước 1 — Resolve Template Version: luôn lấy đúng version đang ACTIVE tại thời điểm tạo (hoặc version được người dùng chỉ định tường minh khi tạo lại từ Template cũ).
+Bước 2 — Validate Input theo Field Schema: build một Validation Schema động (tương đương Zod ở Backend) từ danh sách Field của Template Version, áp dụng cho toàn bộ input trước khi render.
+Bước 3 — Render & Generate: gọi Template Engine sinh DOCX + PDF.
+Bước 4 — Persist Snapshot: lưu Contract với các trường bất biến templateId, templateVersion, inputData (bản sao dữ liệu đã nhập), renderedContent/fileKeys — Contract KHÔNG tham chiếu động đến Template mới nếu Template được cập nhật sau đó.
+Bước 5 — Transaction: các thao tác ghi Contract + ContractVersion + AuditLog được bọc trong một MongoDB Transaction (session) khi triển khai trên Replica Set, đảm bảo không xảy ra trạng thái Contract được tạo nhưng thiếu Audit Log hoặc ngược lại.
+2.22. Thiết kế Database
+Hệ thống sử dụng MongoDB (NoSQL, document-oriented) kết hợp Mongoose ODM. Lựa chọn này phù hợp vì cấu trúc Field/Template mang tính chất động (schema-less theo từng loại hợp đồng), rất thuận lợi khi lưu dưới dạng mảng Object nhúng (embedded array) trong document Mongoose thay vì phải chuẩn hóa (normalize) thành nhiều bảng như RDBMS truyền thống.
+2.22.1. Sơ đồ quan hệ mức khái niệm (ERD logic)
+Organization (1) ──── (N) Organization        [self-reference: parentOrganizationId]
+Organization (1) ──── (N) User
+Organization (1) ──── (N) Template
+Organization (1) ──── (N) Contract
+Organization (1) ──── (N) MasterData
+Organization (1) ──── (N) AuditLog
+Organization (1) ──── (N) PermissionGrant  [granterOrganizationId]
+Organization (1) ──── (N) PermissionGrant  [granteeOrganizationId]
+Template     (1) ──── (N) TemplateVersion
+TemplateVersion (1) embeds (N) Field   [nhúng trực tiếp, không tách Collection riêng]
+Contract     (1) ──── (N) ContractVersion
+Template     (1) ──── (N) Contract       [tham chiếu templateId + templateVersion]
+User         (1) ──── (N) Contract       [createdBy]
+User         (1) ──── (N) AuditLog       [userId]
+Hình 2.16: ERD logic mức khái niệm
+2.22.2. Chi tiết Collection: organizations
+Field
+Kiểu
+Bắt buộc
+Mặc định
+Mô tả
+_id
+ObjectId
+x
+-
+Khóa chính
+name
+String
+x
+-
+Tên tổ chức
+code
+String
+x
+-
+Mã tổ chức, duy nhất toàn hệ thống
+parentOrganizationId
+ObjectId | null
+-
+null
+Tham chiếu Organization cha; null nếu là root
+ancestors
+ObjectId[]
+-
+[]
+Danh sách toàn bộ tổ tiên (Materialized Path rút gọn) — hỗ trợ truy vấn DESCENDANTS nhanh
+level
+Number
+-
+0
+Cấp độ trong cây (root = 0)
+status
+Enum
+x
+ACTIVE
+ACTIVE / SUSPENDED / LOCKED
+subscriptionPlanId
+ObjectId
+-
+-
+Tham chiếu gói dịch vụ
+createdAt / updatedAt
+Date
+x
+now
+Timestamp
+deletedAt
+Date | null
+-
+null
+Soft delete (BR-013)
+Index quan trọng: { code: 1 } unique; { parentOrganizationId: 1 }; { ancestors: 1 } (hỗ trợ truy vấn DESCENDANTS bằng $in); { status: 1, deletedAt: 1 }.
+2.22.3. Chi tiết Collection: users
+Field
+Kiểu
+Bắt buộc
+Mô tả
+_id
+ObjectId
+x
+Khóa chính
+organizationId
+ObjectId
+x
+Tenant Isolation — bắt buộc
+email
+String
+x
+Duy nhất trong phạm vi toàn hệ thống hoặc theo Organization tùy cấu hình
+passwordHash
+String
+x
+Argon2/bcrypt hash, không bao giờ trả về client
+fullName
+String
+x
+Họ tên hiển thị
+role
+Enum
+x
+SUPER_ADMIN / ORGANIZATION_ADMIN / STAFF / VIEWER
+permissions
+String[]
+-
+Danh sách Permission bổ sung ngoài Role mặc định (override)
+status
+Enum
+x
+ACTIVE / LOCKED / INVITED
+lastLoginAt
+Date
+-
+Thời điểm đăng nhập gần nhất
+deletedAt
+Date | null
+-
+Soft delete
+Index: { organizationId: 1, email: 1 } unique compound; { organizationId: 1, role: 1 }.
+2.22.4. Chi tiết Collection: permission_grants
+Field
+Kiểu
+Bắt buộc
+Mô tả
+_id
+ObjectId
+x
+Khóa chính
+granterOrganizationId
+ObjectId
+x
+Tổ chức cấp quyền (thường là Organization con)
+granteeOrganizationId
+ObjectId
+x
+Tổ chức được cấp quyền (thường là Organization cha)
+resource
+String
+x
+Ví dụ: contract, template, user
+action
+String
+x
+Ví dụ: view, manage
+scope
+Enum
+x
+SELF / CHILDREN / DESCENDANTS
+grantedBy
+ObjectId
+x
+User thực hiện cấp quyền
+expiresAt
+Date | null
+-
+Thời hạn hiệu lực, null = vô thời hạn
+createdAt
+Date
+x
+Timestamp
+Index: { granteeOrganizationId: 1, resource: 1, action: 1 }; { granterOrganizationId: 1 }.
+2.22.5. Chi tiết Collection: templates & template_versions
+Field
+Kiểu
+Bắt buộc
+Mô tả
+_id
+ObjectId
+x
+templates — Khóa chính
+organizationId
+ObjectId
+x
+Tenant Isolation
+name
+String
+x
+Tên Template
+category
+String
+-
+Loại hợp đồng (Lao động, Dịch vụ, Mua bán...)
+status
+Enum
+x
+DRAFT / ACTIVE / ARCHIVED
+currentVersion
+Number
+x
+Trỏ tới TemplateVersion đang hiệu lực
+visibility
+Enum
+-
+PRIVATE (mặc định) / SHARED_WITH_CHILDREN
+createdBy
+ObjectId
+x
+User tạo
+deletedAt
+Date | null
+-
+Soft delete — chỉ khi chưa từng sinh Contract (BR-018)
+Field (template_versions)
+Kiểu
+Bắt buộc
+Mô tả
+_id
+ObjectId
+x
+Khóa chính
+templateId
+ObjectId
+x
+Tham chiếu Template cha
+organizationId
+ObjectId
+x
+Denormalized để tối ưu truy vấn + Tenant Isolation
+version
+Number
+x
+Số thứ tự version, tăng dần
+fields
+Field[] (embedded)
+x
+Danh sách Field động — xem cấu trúc mục 2.22.6
+fileKey
+String
+x
+Đường dẫn file DOCX gốc (đã chèn placeholder) trong Private Storage
+createdBy
+ObjectId
+x
+User tạo version
+createdAt
+Date
+x
+Timestamp — dùng làm mốc lịch sử, không cho phép sửa
+Index: templates { organizationId: 1, status: 1 }; template_versions { templateId: 1, version: -1 } unique compound.
+2.22.6. Cấu trúc embedded object: Field
+Field {
+  id: String,            // 4-8 ký tự định danh nội bộ trong version
+  key: String,           // ví dụ: "employee.fullName" — duy nhất trong 1 TemplateVersion
+  label: String,         // "Họ và tên"
+  type: Enum[TEXT, TEXTAREA, NUMBER, CURRENCY, DATE, DATETIME,
+              EMAIL, PHONE, ADDRESS, SELECT, RADIO, CHECKBOX, BOOLEAN],
+  required: Boolean,
+  defaultValue: Mixed,
+  placeholder: String,
+  options: [{ label: String, value: String }],   // cho SELECT/RADIO/CHECKBOX
+  validation: {
+     min, max, minLength, maxLength, pattern, customMessage
+  },
+  order: Number,
+  description: String,
+  masterDataBinding: { type: Enum, sourceField: String }  // liên kết Master Data (mục 2.22.8)
+}
+2.22.7. Chi tiết Collection: contracts & contract_versions
+Field (contracts)
+Kiểu
+Bắt buộc
+Mô tả
+_id
+ObjectId
+x
+Khóa chính
+organizationId
+ObjectId
+x
+Tenant Isolation
+code
+String
+x
+Mã hợp đồng, ví dụ HD-0001, duy nhất theo Organization
+templateId
+ObjectId
+x
+Tham chiếu Template gốc
+templateVersion
+Number
+x
+Version được dùng để tạo — bất biến (BR-009)
+status
+Enum
+x
+DRAFT / GENERATED / COMPLETED / CANCELLED
+currentVersion
+Number
+x
+Trỏ tới ContractVersion hiện hành
+createdBy
+ObjectId
+x
+User tạo
+deletedAt
+Date | null
+-
+Soft delete
+Field (contract_versions)
+Kiểu
+Bắt buộc
+Mô tả
+_id
+ObjectId
+x
+Khóa chính
+contractId
+ObjectId
+x
+Tham chiếu Contract cha
+organizationId
+ObjectId
+x
+Denormalized cho Tenant Isolation
+version
+Number
+x
+Số thứ tự version
+inputData
+Object
+x
+Snapshot dữ liệu người dùng đã nhập (key-value theo Field key)
+renderedContent
+String
+-
+Nội dung HTML trung gian dùng cho Preview (nếu áp dụng)
+fileKeyDocx / fileKeyPdf
+String
+x
+Đường dẫn file kết quả trong Private Storage
+editedBy
+ObjectId
+x
+User thực hiện tạo version này
+editedAt
+Date
+x
+Timestamp bất biến
+Index: contracts { organizationId: 1, code: 1 } unique compound; { organizationId: 1, status: 1, createdAt: -1 } phục vụ tìm kiếm/lọc; contract_versions { contractId: 1, version: -1 } unique compound.
+2.22.8. Chi tiết Collection: master_data
+Field
+Kiểu
+Bắt buộc
+Mô tả
+_id
+ObjectId
+x
+Khóa chính
+organizationId
+ObjectId
+x
+Tenant Isolation
+type
+Enum
+x
+EMPLOYEE / CUSTOMER / PARTNER
+data
+Object
+x
+Dữ liệu linh hoạt theo type, ví dụ {fullName, dob, idNumber, address, phone}
+searchText
+String
+-
+Trường tổng hợp phục vụ full-text search (tên/CCCD/SĐT)
+deletedAt
+Date | null
+-
+Soft delete
+Index: { organizationId: 1, type: 1 }; text index trên searchText phục vụ tìm kiếm nhanh khi tự động điền dữ liệu tạo Contract.
+2.22.9. Chi tiết Collection: audit_logs
+Field
+Kiểu
+Bắt buộc
+Mô tả
+_id
+ObjectId
+x
+Khóa chính
+userId
+ObjectId
+x
+Người thực hiện hành động
+organizationId
+ObjectId
+x
+Tổ chức của người thực hiện
+targetOrganizationId
+ObjectId
+-
+Tổ chức bị tác động (khác organizationId khi truy cập chéo)
+action
+String
+x
+Ví dụ: LOGIN_SUCCESS, TEMPLATE_PUBLISHED, CONTRACT_DOWNLOADED
+resource
+String
+x
+Loại tài nguyên: organization/user/template/contract/file
+resourceId
+ObjectId
+-
+ID tài nguyên liên quan
+ip
+String
+x
+Địa chỉ IP nguồn
+userAgent
+String
+x
+Thông tin trình duyệt/thiết bị
+metadata
+Object
+-
+Dữ liệu ngữ cảnh bổ sung (reason, oldValue/newValue...)
+timestamp
+Date
+x
+Thời điểm ghi log, không thể chỉnh sửa (immutable, append-only)
+Index: { organizationId: 1, timestamp: -1 }; { userId: 1, timestamp: -1 }; { action: 1, timestamp: -1 }. Collection này được thiết kế append-only (không có API update/delete) để đảm bảo tính toàn vẹn bằng chứng.
+2.22.10. Collection bổ sung: files, notifications, subscriptions
+Collection
+Field chính
+Ghi chú
+files
+organizationId, ownerType, ownerId, storageKey, mimeType, size, checksum
+Metadata tập trung cho mọi file, tách khỏi nội dung nhị phân (nội dung nằm ở Object Storage)
+notifications
+organizationId, userId, type, payload, readAt
+Thông báo trong hệ thống (Contract cần xử lý, Template được publish...)
+subscriptions
+organizationId, planCode, limits{maxUsers,maxTemplates,maxOrgChildren}, expiresAt
+Quản lý gói dịch vụ & giới hạn sử dụng do Super Admin cấu hình
+2.23. Thiết kế cây Organization trong Database (Organization Tree)
+Ba phương án lưu trữ cấu trúc cây phổ biến được phân tích:
+Phương án
+Mô tả
+Ưu điểm
+Nhược điểm
+Adjacency List (parentOrganizationId)
+Mỗi node lưu tham chiếu cha trực tiếp
+Đơn giản, dễ cập nhật khi chuyển cha (chỉ sửa 1 field)
+Truy vấn toàn bộ Descendants cần đệ quy nhiều lần (tốn hiệu năng nếu cây sâu)
+Materialized Path
+Mỗi node lưu chuỗi đường dẫn từ root, ví dụ /A/A1/A1.1
+Truy vấn Descendants bằng regex/prefix rất nhanh
+Cập nhật path của toàn bộ subtree khi di chuyển node tốn kém
+Nested Set (left/right)
+Mỗi node lưu 2 số left/right thể hiện vị trí trong duyệt cây
+Truy vấn Descendants/Ancestors cực nhanh (1 query)
+Cập nhật (thêm/xóa/di chuyển node) rất phức tạp, phải re-index nhiều node
+Phương án được lựa chọn: kết hợp Adjacency List (parentOrganizationId) làm nguồn sự thật (source of truth) để thao tác thêm/sửa/di chuyển đơn giản, kèm theo trường ancestors (mảng ObjectId toàn bộ tổ tiên, tương tự Materialized Path dạng mảng thay vì chuỗi) được tính toán lại (denormalize) mỗi khi cây thay đổi, nhằm tối ưu hiệu năng truy vấn DESCENDANTS/ANCESTORS bằng một query $in duy nhất, mà không phải xử lý đệ quy ở tầng ứng dụng cho mỗi lần đọc. Đây là phương án cân bằng tốt giữa độ phức tạp cập nhật (chỉ cần recalculate ancestors cho subtree bị ảnh hưởng khi di chuyển node — vốn là thao tác không thường xuyên) và hiệu năng đọc (là thao tác xảy ra liên tục).
+2.23.1. Quy tắc chống vòng lặp và tự tham chiếu
+Khi tạo/cập nhật parentOrganizationId, Service kiểm tra: newParentId !== organization._id (BR-006 — không tự làm cha chính mình).
+Kiểm tra newParentId không nằm trong tập organization.descendants hiện tại (nếu có, nghĩa là đang cố biến hậu duệ thành tổ tiên → tạo vòng lặp, từ chối theo BR-007).
+Sau khi cập nhật parentOrganizationId hợp lệ, chạy job cập nhật lại trường ancestors cho chính node đó và toàn bộ subtree phía dưới (BFS/DFS một lần, giới hạn quy mô vì thao tác di chuyển node hiếm khi xảy ra).
+2.23.2. Cách lấy toàn bộ cây / Descendants / kiểm tra quyền truy cập
+// Lấy toàn bộ Descendants của Organization X (bao gồm cả X)
+db.organizations.find({ ancestors: X._id })
+// Lấy Children trực tiếp
+db.organizations.find({ parentOrganizationId: X._id })
+// Kiểm tra quyền truy cập của Organization Y vào resource thuộc Organization Z
+// (Scope = DESCENDANTS của Y):
+isAllowed = Z._id === Y._id || Z.ancestors.includes(Y._id)
+2.24. Thiết kế API
+Toàn bộ API tuân theo chuẩn RESTful, versioned tại tiền tố /api/v1/, xác thực bằng JWT Bearer Token. Bảng dưới đây mô tả mục đích, quyền truy cập tối thiểu, và request/response chính cho từng nhóm endpoint (không trình bày code triển khai, chỉ đặc tả).
+2.24.1. Authentication
+Endpoint
+Method
+Quyền
+Mô tả
+/auth/login
+POST
+Public
+Đăng nhập bằng email/password, trả về accessToken + thông tin user
+/auth/logout
+POST
+Authenticated
+Vô hiệu hóa phiên hiện tại (thu hồi refresh token nếu có)
+/auth/me
+GET
+Authenticated
+Trả về thông tin user hiện tại kèm Permission/Scope hiệu lực
+/auth/change-password
+POST
+Authenticated
+Đổi mật khẩu, yêu cầu xác nhận mật khẩu cũ
+2.24.2. Organizations
+Endpoint
+Method
+Quyền
+Mô tả
+/organizations
+GET
+organization:view:*
+Danh sách Organization trong Scope của user
+/organizations
+POST
+organization:manage (SUPER_ADMIN)
+Tạo Organization gốc mới
+/organizations/:id
+GET
+organization:view:*
+Chi tiết 1 Organization (kiểm tra thuộc Scope)
+/organizations/:id
+PATCH
+organization:manage:*
+Cập nhật thông tin Organization
+/organizations/:id/children
+POST
+organization:manage:self
+Tạo Organization con trực tiếp
+/organizations/:id/tree
+GET
+organization:view:descendants
+Lấy toàn bộ cây con (descendants)
+/organizations/:id/permission-grants
+POST
+organization:manage:self
+Cấp quyền cho Organization khác (thường cấp cho cha)
+2.24.3. Users
+Endpoint
+Method
+Quyền
+Mô tả
+/users
+GET
+user:view:*
+Danh sách User trong Scope
+/users
+POST
+user:manage:self
+Tạo User mới trong Organization hiện tại
+/users/:id
+GET
+user:view:*
+Chi tiết User (kiểm tra Object-level Authorization)
+/users/:id
+PATCH
+user:manage:*
+Cập nhật thông tin/Role của User
+/users/:id
+DELETE
+user:manage:self
+Khóa/vô hiệu hóa User (soft delete)
+2.24.4. Templates
+Endpoint
+Method
+Quyền
+Mô tả
+/templates
+GET
+template:view:self
+Danh sách Template của Organization
+/templates
+POST
+template:create:self
+Tạo Template mới (metadata)
+/templates/upload
+POST
+template:create:self
+Upload file hợp đồng mẫu (multipart/form-data)
+/templates/:id
+GET
+template:view:self
+Chi tiết Template + version hiện hành + fields
+/templates/:id
+PATCH
+template:update:self
+Cập nhật metadata Template
+/templates/:id
+DELETE
+template:delete:self
+Archive/xóa mềm Template (BR-018)
+/templates/:id/versions
+POST
+template:update:self
+Tạo TemplateVersion mới (kèm danh sách Field cập nhật)
+/templates/:id/publish
+POST
+template:update:self
+Chuyển trạng thái DRAFT → ACTIVE
+/templates/:id/archive
+POST
+template:update:self
+Chuyển trạng thái → ARCHIVED
+2.24.5. Contracts
+Endpoint
+Method
+Quyền
+Mô tả
+/contracts
+GET
+contract:view:*
+Danh sách Contract (tìm kiếm, lọc, phân trang) trong Scope
+/contracts
+POST
+contract:create:self
+Tạo Contract mới từ Template + inputData
+/contracts/:id
+GET
+contract:view:*
+Chi tiết Contract, kèm version hiện hành
+/contracts/:id
+PATCH
+contract:update:self
+Cập nhật dữ liệu (sinh ContractVersion mới)
+/contracts/:id/preview
+POST
+contract:create:self
+Render thử nội dung (không lưu Version)
+/contracts/:id/generate
+POST
+contract:create:self
+Sinh chính thức file PDF/DOCX và lưu Version
+/contracts/:id/versions
+GET
+contract:view:*
+Lịch sử các version của Contract
+/contracts/:id/download
+GET
+contract:download:*
+Lấy Signed URL tải file
+/contracts/:id/cancel
+POST
+contract:cancel:self
+Hủy hợp đồng (đổi trạng thái CANCELLED)
+2.24.6. Master Data
+Endpoint
+Method
+Quyền
+Mô tả
+/employees
+GET / POST
+masterdata:manage:self
+Danh sách / tạo mới hồ sơ nhân viên dùng chung
+/employees/:id
+PATCH / DELETE
+masterdata:manage:self
+Cập nhật / vô hiệu hóa hồ sơ
+/customers, /partners
+GET/POST/PATCH/DELETE
+masterdata:manage:self
+Tương tự Employee, áp dụng cho Customer/Partner
+2.24.7. Audit
+Endpoint
+Method
+Quyền
+Mô tả
+/audit-logs
+GET
+auditlog:view:*
+Tra cứu Audit Log theo Scope, hỗ trợ filter theo action/resource/thời gian
+2.25. Thiết kế File Storage
+Toàn bộ file (Template gốc, file Contract sinh ra) được lưu trên hệ thống Object Storage tương thích S3, cấu hình ở chế độ Private Bucket (không public), tổ chức theo cấu trúc thư mục theo Organization để dễ quản lý và audit:
+/{organizationId}/templates/{templateId}/v{version}/source.docx
+/{organizationId}/contracts/{contractId}/v{version}/output.docx
+/{organizationId}/contracts/{contractId}/v{version}/output.pdf
+File Access Control: mọi yêu cầu tải file đều đi qua API Backend để kiểm tra Object-level Authorization trước, Backend mới cấp Signed URL có thời hạn ngắn (ví dụ 5 phút) — không cho phép Frontend lưu và tái sử dụng URL tĩnh vĩnh viễn.
+MIME Validation: chỉ chấp nhận .docx, .doc (chuyển đổi trước), .pdf khi upload Template mẫu; kiểm tra Magic Number thực tế của file, không chỉ dựa vào phần đuôi file.
+File Size Validation: giới hạn kích thước tối đa (ví dụ 20MB/file) để tránh tấn công từ chối dịch vụ (DoS) qua upload file lớn.
+Extension Whitelist: chỉ cho phép danh sách đuôi file được duyệt trước, từ chối mọi đuôi file khác (.exe, .sh, .php...).
+Malware Scanning: [Đề xuất] tích hợp dịch vụ quét virus/malware (ví dụ ClamAV) trước khi lưu trữ chính thức file upload từ người dùng.
+Private Storage & Signed URL: Bucket cấu hình chặn truy cập public hoàn toàn; mọi truy cập hợp lệ đều thông qua Signed URL do Backend chủ động sinh ra sau khi xác thực quyền.
+2.26. Thiết kế bảo mật (Security Design)
+2.26.1. Authentication & Authorization
+Authentication: JWT (access token thời hạn ngắn, ví dụ 15–30 phút) kết hợp Refresh Token (thời hạn dài hơn, lưu HttpOnly Cookie) để giảm thiểu rủi ro đánh cắp token.
+Mật khẩu: băm bằng Argon2 (khuyến nghị) hoặc bcrypt với cost factor phù hợp; không lưu trữ plaintext dưới bất kỳ hình thức nào.
+Authorization: kết hợp RBAC (Role) + ABAC nhẹ (Scope theo cây tổ chức) + Object-level Authorization (kiểm tra ownership từng resource).
+2.26.2. Các nguy cơ điển hình và biện pháp phòng chống
+Kịch bản tấn công
+Biện pháp phòng chống
+User A cố truy cập Contract của Organization B
+Repository luôn scope theo organizationId thuộc allowedScope(A); nếu không khớp trả 403/404; ghi Audit Log UNAUTHORIZED_ACCESS_ATTEMPT
+User A thay đổi organizationId trong Request Body/Query
+Backend hoàn toàn bỏ qua organizationId từ client khi xác định Scope; luôn dùng giá trị từ JWT/Session (Tenant Context Middleware)
+User A đoán Contract ID của Organization B (IDOR)
+Sau khi findById, so sánh resource.organizationId với allowedScope trước khi trả dữ liệu (Object-level Authorization bắt buộc ở mọi Controller)
+User tải file của Organization B qua URL
+File Storage ở chế độ Private; chỉ cấp Signed URL sau khi Backend xác thực quyền sở hữu/scope tương ứng
+Organization con cố truy cập dữ liệu Organization cha
+Mặc định KHÔNG có quyền (BR-004); mọi truy cập đều bị từ chối trừ khi có PermissionGrant tường minh theo chiều ngược lại
+Organization cha cố truy cập dữ liệu Organization con
+Yêu cầu Permission Scope = CHILDREN/DESCENDANTS được cấu hình hoặc PermissionGrant hợp lệ; nếu không có, từ chối (BR-005)
+Super Admin truy cập dữ liệu Tenant
+Cho phép theo quyền GLOBAL nhưng bắt buộc cung cấp lý do (reason) và ghi Audit Log đầy đủ (break-glass access, BR-011)
+2.26.3. Các lớp bảo vệ ứng dụng web (OWASP)
+Hạng mục
+Biện pháp áp dụng
+Injection (NoSQL Injection)
+Dùng Mongoose với schema chặt chẽ; validate/sanitize input; không nối chuỗi truy vấn thủ công; dùng thư viện chống NoSQL injection (express-mongo-sanitize)
+XSS
+Sanitize input hiển thị lại (đặc biệt trong Preview Contract); React tự động escape theo mặc định; CSP header
+CSRF
+Sử dụng Bearer Token trong header (không dựa vào Cookie cho hành động ghi) giúp giảm thiểu CSRF; nếu dùng Cookie cho refresh token thì bật SameSite=Strict + CSRF Token
+Broken Access Control / IDOR
+RBAC + Scope + Object-level Authorization bắt buộc ở mọi Controller (phân tích chi tiết 2.26.2)
+Path Traversal
+Không dùng tên file người dùng cung cấp trực tiếp làm storage key; sinh storageKey ngẫu nhiên/UUID nội bộ
+Rate Limiting
+Giới hạn số lần gọi API đăng nhập/upload trong khoảng thời gian để chống brute-force và DoS
+Security Headers
+Áp dụng Helmet (CSP, X-Frame-Options, X-Content-Type-Options...)
+CORS
+Chỉ định whitelist origin của Frontend chính thức, không dùng wildcard * khi có Authentication
+Input Validation
+Validate toàn bộ input tại Backend bằng schema (Zod/Joi) độc lập với validate ở Frontend (không tin tưởng Frontend)
+Data Encryption
+Mã hóa dữ liệu khi truyền (TLS/HTTPS bắt buộc); cân nhắc mã hóa tại tầng ứng dụng cho trường dữ liệu nhạy cảm (CCCD) — [Đề xuất mở rộng]
+Session/Token Expiration
+Access Token thời hạn ngắn; cơ chế thu hồi Refresh Token khi đổi mật khẩu/đăng xuất toàn bộ thiết bị
+2.26.4. Cơ chế Break-Glass Access cho Super Admin
+Khi Super Admin cần truy cập dữ liệu của một Organization cụ thể để hỗ trợ kỹ thuật (ví dụ xử lý ticket hỗ trợ), hệ thống yêu cầu bắt buộc cung cấp trường reason (lý do truy cập, ví dụ mã ticket hỗ trợ) trong request. Thiếu reason, request bị từ chối với 400 Bad Request. Mọi truy cập break-glass được ghi Audit Log với đầy đủ userId, organizationId mục tiêu, reason, IP, userAgent, thời điểm, và (đề xuất mở rộng) tự động gửi thông báo cho Organization Admin của tổ chức bị truy cập để đảm bảo tính minh bạch.
+2.27. Thiết kế Audit Log
+Audit Log Module cung cấp một hàm dùng chung writeAuditLog(context) được gọi từ tất cả các Service khác ngay sau khi thao tác nghiệp vụ hoàn tất thành công (hoặc thất bại do vi phạm quyền), đảm bảo tính nhất quán về cấu trúc log. Danh sách hành động tối thiểu cần ghi log:
+Nhóm
+Hành động ghi log
+Authentication
+LOGIN_SUCCESS, LOGIN_FAILED, LOGOUT
+Organization
+ORGANIZATION_CREATED, ORGANIZATION_UPDATED, ORGANIZATION_LOCKED, ORGANIZATION_TREE_UPDATED
+User
+USER_CREATED, USER_UPDATED, USER_LOCKED, USER_DELETED, PERMISSION_CHANGED
+Template
+TEMPLATE_CREATED, TEMPLATE_UPDATED, TEMPLATE_DELETED, TEMPLATE_VERSION_CREATED, TEMPLATE_PUBLISHED, TEMPLATE_ARCHIVED
+Contract
+CONTRACT_CREATED, CONTRACT_UPDATED, CONTRACT_CANCELLED, CONTRACT_PREVIEWED, CONTRACT_GENERATED, CONTRACT_DOWNLOADED
+File
+FILE_DOWNLOADED
+Bảo mật
+UNAUTHORIZED_ACCESS_ATTEMPT, CROSS_ORG_ACCESS (vượt phạm vi SELF), SUPER_ADMIN_TENANT_ACCESS
+Cấu trúc bản ghi Audit Log (đã trình bày chi tiết tại mục 2.22.9) đảm bảo tối thiểu: userId, organizationId, action, resource, resourceId, timestamp, ip, userAgent, metadata. Collection audit_logs được thiết kế append-only (không cung cấp API PATCH/DELETE) để đảm bảo giá trị làm bằng chứng khi cần điều tra sự cố.
+2.28. Thiết kế Versioning
+2.28.1. Template Versioning
+Mỗi lần Template được chỉnh sửa về nội dung Field hoặc file nguồn, hệ thống không ghi đè dữ liệu cũ mà tạo một bản ghi TemplateVersion mới với số version tăng dần. Trường currentVersion trên Template luôn trỏ đến version mới nhất đang ACTIVE. Khi một Contract được tạo, nó lưu lại chính xác templateVersion tại thời điểm đó (BR-009), đảm bảo truy vết được chính xác Contract được sinh ra từ cấu trúc Field và nội dung mẫu nào, kể cả khi Template gốc đã được cập nhật nhiều lần sau đó.
+2.28.2. Contract Versioning
+Tương tự, khi người dùng có quyền chỉnh sửa Contract đã tạo (ví dụ sửa lại một trường thông tin trước khi hoàn tất), hệ thống tạo ContractVersion mới thay vì ghi đè, lưu lại: ai sửa (editedBy), sửa lúc nào (editedAt), sửa gì (so sánh inputData giữa 2 version liền kề — có thể tính diff ở tầng ứng dụng khi cần hiển thị), version nào đang hiện hành (currentVersion trên Contract). Việc khôi phục về version cũ (rollback) được thực hiện bằng cách tạo một version MỚI có nội dung giống hệt version cũ được chọn, thay vì xóa các version ở giữa — đảm bảo lịch sử luôn liền mạch và không bị mất (immutable history).
+CHƯƠNG 3. KẾT QUẢ HỆ THỐNG
+Chương này trình bày cấu trúc để chèn minh họa giao diện thực tế của hệ thống sau khi triển khai. Toàn bộ khu vực Screenshot và số liệu minh họa được để trống theo đúng yêu cầu — không tự tạo hoặc bịa hình ảnh/số liệu. Mỗi mục chỉ trình bày: tên chức năng, mục đích, mô tả ngắn, khu vực chèn Screenshot và mô tả Screenshot cần chèn.
+3.1. Giao diện đăng nhập
+Mục
+Nội dung
+Mục đích
+Xác thực người dùng trước khi truy cập hệ thống.
+Mô tả ngắn
+Form nhập email/mật khẩu, xử lý lỗi đăng nhập, liên kết quên mật khẩu.
+Khu vực chèn Screenshot
+[ĐỂ TRỐNG — Chèn ảnh chụp màn hình chức năng thực tế tại đây]
+Mô tả Screenshot
+[ĐỂ TRỐNG — Mô tả nội dung ảnh chụp: màn hình nào, thao tác nào đang diễn ra]
+3.2. Dashboard
+Mục
+Nội dung
+Mục đích
+Cung cấp cái nhìn tổng quan cho từng vai trò người dùng.
+Mô tả ngắn
+Thống kê số lượng Template/Contract, biểu đồ hoạt động gần đây theo Scope của người dùng.
+Khu vực chèn Screenshot
+[ĐỂ TRỐNG — Chèn ảnh chụp màn hình chức năng thực tế tại đây]
+Mô tả Screenshot
+[ĐỂ TRỐNG — Mô tả nội dung ảnh chụp: màn hình nào, thao tác nào đang diễn ra]
+3.3. Quản lý Organization
+Mục
+Nội dung
+Mục đích
+Quản trị thông tin cơ bản của một tổ chức.
+Mô tả ngắn
+Danh sách, tạo mới, chỉnh sửa, khóa Organization.
+Khu vực chèn Screenshot
+[ĐỂ TRỐNG — Chèn ảnh chụp màn hình chức năng thực tế tại đây]
+Mô tả Screenshot
+[ĐỂ TRỐNG — Mô tả nội dung ảnh chụp: màn hình nào, thao tác nào đang diễn ra]
+3.4. Quản lý Organization cha/con
+Mục
+Nội dung
+Mục đích
+Trực quan hóa và thao tác trên cây tổ chức phân cấp.
+Mô tả ngắn
+Giao diện dạng cây (tree view), thao tác tạo tổ chức con, cấp Permission Grant.
+Khu vực chèn Screenshot
+[ĐỂ TRỐNG — Chèn ảnh chụp màn hình chức năng thực tế tại đây]
+Mô tả Screenshot
+[ĐỂ TRỐNG — Mô tả nội dung ảnh chụp: màn hình nào, thao tác nào đang diễn ra]
+3.5. Quản lý User
+Mục
+Nội dung
+Mục đích
+Quản trị tài khoản người dùng trong phạm vi tổ chức.
+Mô tả ngắn
+Danh sách User, tạo/sửa/khóa tài khoản, gán Role.
+Khu vực chèn Screenshot
+[ĐỂ TRỐNG — Chèn ảnh chụp màn hình chức năng thực tế tại đây]
+Mô tả Screenshot
+[ĐỂ TRỐNG — Mô tả nội dung ảnh chụp: màn hình nào, thao tác nào đang diễn ra]
+3.6. Upload Template
+Mục
+Nội dung
+Mục đích
+Số hóa file hợp đồng mẫu ban đầu.
+Mô tả ngắn
+Giao diện chọn/kéo-thả file DOCX/PDF, hiển thị trạng thái xử lý upload.
+Khu vực chèn Screenshot
+[ĐỂ TRỐNG — Chèn ảnh chụp màn hình chức năng thực tế tại đây]
+Mô tả Screenshot
+[ĐỂ TRỐNG — Mô tả nội dung ảnh chụp: màn hình nào, thao tác nào đang diễn ra]
+3.7. Đánh dấu Dynamic Field
+Mục
+Nội dung
+Mục đích
+Cho phép người dùng tự đánh dấu vị trí dữ liệu động trên tài liệu.
+Mô tả ngắn
+Document Viewer cho phép bôi đen văn bản, popup cấu hình Field, danh sách Field đã tạo.
+Khu vực chèn Screenshot
+[ĐỂ TRỐNG — Chèn ảnh chụp màn hình chức năng thực tế tại đây]
+Mô tả Screenshot
+[ĐỂ TRỐNG — Mô tả nội dung ảnh chụp: màn hình nào, thao tác nào đang diễn ra]
+3.8. Quản lý Template
+Mục
+Nội dung
+Mục đích
+Quản lý toàn bộ vòng đời Template.
+Mô tả ngắn
+Danh sách Template theo trạng thái (DRAFT/ACTIVE/ARCHIVED), lịch sử version.
+Khu vực chèn Screenshot
+[ĐỂ TRỐNG — Chèn ảnh chụp màn hình chức năng thực tế tại đây]
+Mô tả Screenshot
+[ĐỂ TRỐNG — Mô tả nội dung ảnh chụp: màn hình nào, thao tác nào đang diễn ra]
+3.9. Tạo Contract
+Mục
+Nội dung
+Mục đích
+Sinh hợp đồng từ Template có sẵn.
+Mô tả ngắn
+Chọn Template, Form nhập liệu tự sinh động theo Field, gợi ý từ Master Data.
+Khu vực chèn Screenshot
+[ĐỂ TRỐNG — Chèn ảnh chụp màn hình chức năng thực tế tại đây]
+Mô tả Screenshot
+[ĐỂ TRỐNG — Mô tả nội dung ảnh chụp: màn hình nào, thao tác nào đang diễn ra]
+3.10. Preview Contract
+Mục
+Nội dung
+Mục đích
+Xem trước nội dung hợp đồng trước khi sinh chính thức.
+Mô tả ngắn
+Bản xem trước hiển thị đầy đủ nội dung đã thay thế dữ liệu.
+Khu vực chèn Screenshot
+[ĐỂ TRỐNG — Chèn ảnh chụp màn hình chức năng thực tế tại đây]
+Mô tả Screenshot
+[ĐỂ TRỐNG — Mô tả nội dung ảnh chụp: màn hình nào, thao tác nào đang diễn ra]
+3.11. Generate PDF/DOCX
+Mục
+Nội dung
+Mục đích
+Xuất file hợp đồng hoàn chỉnh.
+Mô tả ngắn
+Kết quả sinh file, nút tải về định dạng PDF/DOCX.
+Khu vực chèn Screenshot
+[ĐỂ TRỐNG — Chèn ảnh chụp màn hình chức năng thực tế tại đây]
+Mô tả Screenshot
+[ĐỂ TRỐNG — Mô tả nội dung ảnh chụp: màn hình nào, thao tác nào đang diễn ra]
+3.12. Quản lý Contract
+Mục
+Nội dung
+Mục đích
+Tra cứu, tìm kiếm, quản lý các hợp đồng đã tạo.
+Mô tả ngắn
+Danh sách Contract, bộ lọc theo trạng thái/thời gian, lịch sử version.
+Khu vực chèn Screenshot
+[ĐỂ TRỐNG — Chèn ảnh chụp màn hình chức năng thực tế tại đây]
+Mô tả Screenshot
+[ĐỂ TRỐNG — Mô tả nội dung ảnh chụp: màn hình nào, thao tác nào đang diễn ra]
+3.13. Master Data
+Mục
+Nội dung
+Mục đích
+Quản lý dữ liệu dùng chung để tái sử dụng khi tạo Contract.
+Mô tả ngắn
+Danh sách Employee/Customer/Partner, chức năng tìm kiếm nhanh.
+Khu vực chèn Screenshot
+[ĐỂ TRỐNG — Chèn ảnh chụp màn hình chức năng thực tế tại đây]
+Mô tả Screenshot
+[ĐỂ TRỐNG — Mô tả nội dung ảnh chụp: màn hình nào, thao tác nào đang diễn ra]
+3.14. Audit Log
+Mục
+Nội dung
+Mục đích
+Tra cứu lịch sử thao tác quan trọng trong hệ thống.
+Mô tả ngắn
+Bảng log có bộ lọc theo thời gian/hành động/người dùng.
+Khu vực chèn Screenshot
+[ĐỂ TRỐNG — Chèn ảnh chụp màn hình chức năng thực tế tại đây]
+Mô tả Screenshot
+[ĐỂ TRỐNG — Mô tả nội dung ảnh chụp: màn hình nào, thao tác nào đang diễn ra]
+3.15. Phân quyền
+Mục
+Nội dung
+Mục đích
+Cấu hình Role và Permission cho người dùng.
+Mô tả ngắn
+Giao diện gán Role, xem ma trận quyền hiệu lực của một User.
+Khu vực chèn Screenshot
+[ĐỂ TRỐNG — Chèn ảnh chụp màn hình chức năng thực tế tại đây]
+Mô tả Screenshot
+[ĐỂ TRỐNG — Mô tả nội dung ảnh chụp: màn hình nào, thao tác nào đang diễn ra]
+3.16. Các chức năng khác
+Mục
+Nội dung
+Mục đích
+Các chức năng bổ sung phát sinh trong quá trình triển khai thực tế.
+Mô tả ngắn
+[ĐỂ TRỐNG — Bổ sung khi có chức năng phát sinh thêm]
+Khu vực chèn Screenshot
+[ĐỂ TRỐNG — Chèn ảnh chụp màn hình chức năng thực tế tại đây]
+Mô tả Screenshot
+[ĐỂ TRỐNG — Mô tả nội dung ảnh chụp: màn hình nào, thao tác nào đang diễn ra]
+CHƯƠNG 4. KIỂM THỬ HỆ THỐNG
+Chương này chỉ xây dựng khung (form) để ghi nhận kết quả kiểm thử thực tế sau khi hệ thống được triển khai. Toàn bộ số liệu (số lượng Test Case, thời gian, số lần test, Passed/Failed) được để trống — không tự tạo hoặc suy diễn số liệu kiểm thử.
+4.1. Kế hoạch kiểm thử
+Kiểm thử được thực hiện theo các hạng mục tương ứng trực tiếp với các chức năng và yêu cầu phi chức năng đã phân tích tại Chương 2, đặc biệt chú trọng nhóm Data Isolation và Security do đây là các yêu cầu bắt buộc, mang tính sống còn của một hệ thống multi-tenant.
+4.2. Bảng theo dõi kết quả kiểm thử
+STT
+Hạng mục kiểm thử
+Số lượng Test Case
+Thời gian bắt đầu
+Thời gian kết thúc
+Số lần Test
+Passed
+Failed
+Ghi chú
+1
+Authentication
+2
+Organization
+3
+Organization Parent/Child
+4
+User & Permission
+5
+Template
+6
+Dynamic Field
+7
+Contract
+8
+PDF/DOCX Generation
+9
+Master Data
+10
+Data Isolation
+11
+Security
+12
+Audit Log
+13
+File Management
+14
+Tổng cộng
+4.3. Gợi ý kịch bản kiểm thử trọng yếu (để tham khảo khi lập Test Case chi tiết)
+Kiểm thử Data Isolation: User của Organization A không thể xem/sửa/xóa dữ liệu (Template, Contract, User, Master Data) của Organization B bằng bất kỳ hình thức nào (UI thao tác thông thường, gọi API trực tiếp, sửa ID trên URL).
+Kiểm thử Organization Parent/Child: xác nhận Organization con không tự động thấy dữ liệu cha; xác nhận cha chỉ thấy dữ liệu con khi có Permission Grant hợp lệ; xác nhận hệ thống từ chối tạo vòng lặp trong cây tổ chức.
+Kiểm thử Security: thử các kịch bản IDOR, đoán ID, sửa organizationId trong request, brute-force đăng nhập, upload file sai định dạng/quá kích thước.
+Kiểm thử Versioning: xác nhận khi Template được cập nhật version mới, các Contract cũ vẫn giữ nguyên nội dung theo templateVersion đã lưu (Snapshot).
+Kiểm thử Audit Log: xác nhận mọi hành động quan trọng (đặc biệt Super Admin truy cập Tenant) đều được ghi log đầy đủ và không thể chỉnh sửa/xóa qua API.
+KẾT LUẬN
+Những gì hệ thống giải quyết được
+Số hóa quy trình tạo hợp đồng, giảm đáng kể thời gian soạn thảo lặp lại nhờ cơ chế Template + Dynamic Field.
+Cho phép từng tổ chức tự chủ hoàn toàn trong việc tạo và quản lý mẫu hợp đồng của riêng mình, không phụ thuộc đội kỹ thuật trung tâm.
+Đảm bảo cách ly dữ liệu chặt chẽ giữa các tổ chức trên cùng một nền tảng dùng chung (multi-tenant an toàn).
+Hỗ trợ mô hình tổ chức phân cấp Cha–Con linh hoạt, với cơ chế phân quyền rõ ràng, không mặc định trao quyền quá mức cho bất kỳ cấp nào.
+Cung cấp cơ chế truy vết đầy đủ (Audit Log) cho mọi thao tác quan trọng, kể cả hành vi quản trị đặc quyền của Super Admin.
+Quản lý phiên bản Template và Contract đảm bảo tính toàn vẹn lịch sử pháp lý của hợp đồng đã phát hành.
+Những hạn chế
+Phiên bản MVP chưa hỗ trợ ký điện tử, do đó tính pháp lý của hợp đồng sinh ra vẫn cần quy trình ký ngoài hệ thống (in ra ký tay hoặc dùng dịch vụ ký số bên thứ ba).
+Cơ chế parse/đánh dấu Field trên file DOCX phức tạp (bảng lồng nhau, hình ảnh chèn giữa văn bản) có thể gặp giới hạn kỹ thuật, cần kiểm thử kỹ với các mẫu hợp đồng đa dạng thực tế.
+Chưa có cơ chế workflow phê duyệt đa cấp trước khi hợp đồng được coi là hoàn tất (COMPLETED).
+Hiệu năng sinh PDF hàng loạt (batch) chưa được tối ưu bằng hàng đợi bất đồng bộ (message queue) trong phạm vi MVP.
+Những vấn đề chưa triển khai (Future Development, xem thêm mục 1.8)
+Ký điện tử, xác thực OTP qua Email/SMS/Zalo, QR xác thực hợp đồng.
+Workflow phê duyệt đa cấp (PENDING_APPROVAL, APPROVED, REJECTED).
+Tích hợp OCR tự động nhận diện vùng dữ liệu động, AI hỗ trợ soạn thảo điều khoản.
+Ứng dụng di động, tích hợp API với hệ thống ERP/HRM/CRM bên thứ ba.
+Khả năng mở rộng
+Nhờ kiến trúc Shared Database + organizationId kết hợp Feature-Based Architecture ở cả Frontend và Backend, hệ thống có khả năng mở rộng thêm module nghiệp vụ mới (ví dụ: quản lý hóa đơn, quản lý tài sản) mà không ảnh hưởng đến các module hiện có. Về hạ tầng, kiến trúc Stateless Application Server cho phép scale ngang dễ dàng sau Load Balancer; MongoDB có thể chuyển sang Sharded Cluster theo organizationId khi số lượng Organization và dữ liệu tăng vượt khả năng của một Replica Set.
+Hướng phát triển tương lai
+Xem chi tiết định hướng phát triển tại mục 1.8 của Chương 1. Về mặt kỹ thuật, đề xuất ưu tiên triển khai theo thứ tự: (1) hoàn thiện MVP và kiểm thử bảo mật multi-tenant kỹ lưỡng; (2) bổ sung workflow phê duyệt và ký điện tử cơ bản; (3) tối ưu hiệu năng sinh tài liệu bằng hàng đợi bất đồng bộ; (4) mở rộng tích hợp hệ thống bên thứ ba và ứng dụng di động.
+TÀI LIỆU THAM KHẢO
+Danh sách nguồn tham khảo kỹ thuật chính thống, không bịa đặt nguồn:
+React – Official Documentation. https://react.dev
+Vite – Official Documentation. https://vitejs.dev
+Tailwind CSS – Official Documentation. https://tailwindcss.com/docs
+Node.js – Official Documentation. https://nodejs.org/en/docs
+Express.js – Official Documentation. https://expressjs.com
+MongoDB – Official Documentation. https://www.mongodb.com/docs
+Mongoose ODM – Official Documentation. https://mongoosejs.com/docs/guide.html
+JSON Web Token (JWT) – jwt.io Introduction. https://jwt.io/introduction
+OWASP Top 10 – The OWASP Foundation. https://owasp.org/www-project-top-ten/
+OWASP Cheat Sheet Series (Access Control, Authentication). https://cheatsheetseries.owasp.org
+Unified Modeling Language (UML) Specification – Object Management Group (OMG). https://www.omg.org/spec/UML
+PlantUML – Official Documentation. https://plantuml.com
+REST API Design – Microsoft REST API Guidelines. https://github.com/microsoft/api-guidelines
+REVIEW KIẾN TRÚC
+Mục này rà soát lại toàn bộ thiết kế đã trình bày, chỉ ra các điểm rủi ro/có thể gây lỗi và đề xuất hướng xử lý trước khi bắt tay vào lập trình thực tế, đúng theo yêu cầu kiểm tra chéo (self-review) đặt ra ban đầu.
+1. Rủi ro liên quan Multi-tenant
+Rủi ro: lập trình viên quên chèn điều kiện organizationId ở một truy vấn Mongoose cụ thể (đặc biệt trong các thao tác aggregate/report phức tạp), dẫn đến rò rỉ dữ liệu chéo tổ chức.
+Đề xuất: bắt buộc mọi Model tenant-scoped implement một Repository dùng chung (base repository) tự động chèn organizationId; viết Automated Test riêng chuyên rà soát “cross-tenant leakage” chạy trong CI/CD cho mọi endpoint mới.
+Rủi ro: các API thống kê/dashboard cho Super Admin dễ bị lập trình sai thành truy vấn không giới hạn Scope, vô tình lộ dữ liệu chi tiết thay vì số liệu tổng hợp.
+Đề xuất: tách riêng API dành cho Super Admin (aggregate/anonymized) khỏi API truy vấn chi tiết dùng chung với Tenant.
+2. Rủi ro liên quan Organization Cha/Con
+Rủi ro: cập nhật trường ancestors không đồng bộ khi di chuyển một subtree lớn (nếu thao tác không được bọc transaction, có thể để lại trạng thái cây không nhất quán giữa các node).
+Đề xuất: bọc toàn bộ thao tác di chuyển node + cập nhật ancestors trong MongoDB Transaction; giới hạn độ sâu/độ lớn subtree cho phép di chuyển trong một lần thao tác nếu cây quá lớn.
+Rủi ro: PermissionGrant hết hạn (expiresAt) nhưng cache Permission ở tầng ứng dụng/Frontend chưa được làm mới, dẫn đến hiển thị nhầm quyền truy cập.
+Đề xuất: luôn kiểm tra expiresAt tại thời điểm xử lý request ở Backend (không tin cache Frontend); TTL ngắn cho cache Permission phía server nếu có sử dụng.
+3. Lỗ hổng bảo mật cần lưu ý thêm
+Rate limiting cần áp dụng riêng biệt cho endpoint upload file và endpoint generate PDF (tốn tài nguyên CPU/memory cao), tránh bị lợi dụng gây DoS bằng cách gọi liên tục.
+Cần rà soát kỹ endpoint /contracts/:id/preview vì đây là nơi dữ liệu người dùng nhập được render trực tiếp — nguy cơ XSS nếu renderedContent hiển thị lại dưới dạng HTML không được sanitize.
+Trường permissions (override) trên User cần được giới hạn nghiêm ngặt ai có quyền chỉnh sửa (chỉ SUPER_ADMIN hoặc ORGANIZATION_ADMIN với quyền user:manage phù hợp), tránh trường hợp một User tự leo thang đặc quyền (privilege escalation) qua endpoint cập nhật hồ sơ của chính mình.
+Cần đảm bảo endpoint đổi Role của một User không cho phép Organization Admin tự gán mình lên SUPER_ADMIN hoặc gán Role vượt quá quyền hạn được cấp.
+4. Vấn đề về Template/DOCX
+Rủi ro: thư viện xử lý DOCX có thể không xử lý tốt trường hợp vùng bôi đen của người dùng nằm vắt qua nhiều Run XML khác nhau (do Word tách text thành nhiều run vì lý do định dạng/spell-check), dẫn đến đánh dấu Field sai vị trí hoặc mất định dạng.
+Đề xuất: chạy bước “merge runs” (coalesce các run liền kề cùng định dạng) trước khi cho phép người dùng bôi đen/đánh dấu Field, tương tự kỹ thuật chuẩn hóa XML tài liệu Word.
+Rủi ro: file DOCX mẫu chứa macro hoặc nội dung độc hại (macro-enabled) có thể gây rủi ro bảo mật khi xử lý phía server.
+Đề xuất: chỉ chấp nhận .docx chuẩn (Open XML, không macro), từ chối .docm; kết hợp quét malware trước khi xử lý.
+5. Vấn đề về Database
+Rủi ro: việc nhúng (embed) mảng fields trong TemplateVersion có thể khiến document MongoDB phình to nếu Template có rất nhiều Field (giới hạn document MongoDB là 16MB) — tuy hiếm khi xảy ra với hợp đồng thông thường nhưng cần được kiểm soát.
+Đề xuất: giới hạn số lượng Field tối đa hợp lý trên một Template (ví dụ 200 Field) ở tầng validate.
+Rủi ro: index { organizationId: 1, ... } tuy tối ưu truy vấn theo tổ chức nhưng có thể chưa đủ khi Super Admin cần truy vấn toàn cục nhiều điều kiện (ví dụ báo cáo toàn hệ thống theo khoảng thời gian) — dễ gây full collection scan nếu không có index phù hợp.
+Đề xuất: bổ sung index phụ trợ riêng cho các truy vấn thống kê toàn cục của Super Admin (ví dụ { createdAt: -1, status: 1 }), tách biệt với index tối ưu cho truy vấn Tenant thông thường.
+6. Vấn đề về hiệu năng (Performance)
+Rủi ro: sinh PDF bằng LibreOffice headless là thao tác tốn CPU và có độ trễ; nếu xử lý đồng bộ (synchronous) trong request HTTP, số lượng request đồng thời lớn có thể làm nghẽn toàn bộ Application Server.
+Đề xuất: với MVP có thể chấp nhận xử lý đồng bộ có giới hạn (queue nội bộ + timeout); về lâu dài nên chuyển sang xử lý bất đồng bộ qua Message Queue (đã đánh dấu Future trong Component Diagram) để tách rời việc sinh tài liệu khỏi vòng đời request/response.
+7. Các vấn đề cần xử lý trước khi bắt đầu code
+Chốt chính xác thư viện xử lý DOCX Templating sẽ dùng (ví dụ docxtemplater có giấy phép thương mại cho một số tính năng nâng cao — cần xác nhận license phù hợp với mục đích sử dụng) trước khi thiết kế chi tiết Template Engine.
+Viết bộ Integration Test cho các kịch bản Tenant Isolation và Object-level Authorization NGAY TỪ ĐẦU (song song với module đầu tiên), thay vì để đến cuối dự án, vì đây là yêu cầu xuyên suốt ảnh hưởng đến mọi module.
+Thống nhất chuẩn đặt tên Field key (namespace.field) và cơ chế validate ngay từ giai đoạn thiết kế Template Editor, tránh phải migrate dữ liệu Field đã tạo khi đổi chuẩn giữa chừng.
+Xác định rõ chính sách giới hạn theo gói dịch vụ (Subscription limits) ngay từ đầu vì nó ảnh hưởng đến logic tạo Organization con/Template/User ở nhiều module khác nhau.
+Kết luận Review
+Nhìn chung, kiến trúc được đề xuất trong tài liệu đáp ứng đầy đủ các yêu cầu bắt buộc về multi-tenant, phân cấp tổ chức, phân quyền và bảo mật đặt ra ban đầu. Các rủi ro nêu trên chủ yếu là rủi ro triển khai (implementation risk) hơn là rủi ro thiết kế nền tảng (fundamental design risk), có thể kiểm soát tốt bằng kỷ luật lập trình (coding discipline), kiểm thử tự động sớm, và tuân thủ nghiêm ngặt các Business Rule cùng nguyên tắc Security Design đã đặc tả tại Chương 2.
