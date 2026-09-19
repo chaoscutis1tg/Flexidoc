@@ -44,8 +44,12 @@ const organizationSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['ACTIVE', 'PENDING_APPROVAL', 'EXPIRED', 'SUSPENDED', 'LOCKED'],
+    enum: ['ACTIVE', 'PENDING_APPROVAL', 'EXPIRED', 'SUSPENDED', 'LOCKED', 'REJECTED_BY_MANAGER'],
     default: 'ACTIVE',
+  },
+  rejectionReason: {
+    type: String,
+    default: '',
   },
   plan: {
     type: String,

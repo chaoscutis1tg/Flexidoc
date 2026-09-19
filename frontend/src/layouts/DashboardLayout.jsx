@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../app/AuthContext';
 import { RenewalModal } from '../features/subscription/RenewalModal';
+import { PendingInvitationsBanner } from '../components/PendingInvitationsBanner';
 import { 
   FileText, 
   LayoutDashboard, 
@@ -359,6 +360,7 @@ export const DashboardLayout = () => {
 
         {/* Dynamic Page Content */}
         <main style={{ padding: '28px', flex: 1, display: 'flex', flexDirection: 'column' }}>
+          <PendingInvitationsBanner onStatusChange={refreshUser} />
           <Outlet />
         </main>
       </div>

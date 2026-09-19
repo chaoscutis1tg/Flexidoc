@@ -19,13 +19,35 @@ export const createOrganization = async (req, res, next) => {
   }
 };
 
+export const getMyPendingInvitations = async (req, res, next) => {
+  try {
+    const invitations = await organizationService.getMyPendingInvitations(req.user?.email);
+    return sendSuccess(res, 200, 'Lấy danh sách lời mời quản lý tổ chức thành công', invitations);
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const approveOrganization = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const org = await organizationService.approveOrganization(id, req.tenantContext);
+    const org = await organizationService.approveOrganization(id, req.user);
 
     await auditLogService.logAction(req, 'ORGANIZATION_APPROVED', 'organization', org._id, org._id);
     return sendSuccess(res, 200, 'Xác nhận và Kích hoạt Chi Nhánh Tổ Chức Con thành công!', org);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const rejectOrganization = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { reason } = req.body || {};
+    const org = await organizationService.rejectOrganization(id, reason, req.user);
+
+    await auditLogService.logAction(req, 'ORGANIZATION_REJECTED', 'organization', org._id, org._id);
+    return sendSuccess(res, 200, 'Đã từ chối quyền quản lý chi nhánh thành công', org);
   } catch (error) {
     next(error);
   }

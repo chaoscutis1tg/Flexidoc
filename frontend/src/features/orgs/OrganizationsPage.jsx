@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import api from '../../services/api';
+import { useAuth } from '../../app/AuthContext';
 import { fetchDynamicPlans, DEFAULT_PLANS_DATA } from '../../utils/planData';
 import {
   Building2,
@@ -25,10 +26,14 @@ import {
   Crown,
   Clock,
   Zap,
-  Check
+  Check,
+  UserCheck,
+  UserX,
+  X
 } from 'lucide-react';
 
 export const OrganizationsPage = () => {
+  const { user, refreshUser } = useAuth();
   const [tree, setTree] = useState([]);
   const [allOrgsList, setAllOrgsList] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -63,6 +68,8 @@ export const OrganizationsPage = () => {
     name: '',
     code: '',
     parentOrganizationId: '',
+    managerName: '',
+    managerEmail: '',
     status: 'ACTIVE',
   });
 
@@ -312,10 +319,27 @@ export const OrganizationsPage = () => {
   const handleApproveOrg = async (node) => {
     try {
       await api.post(`/organizations/${node._id}/approve`);
+      await refreshUser();
       fetchTree();
-      alert(`Đã xác nhận chấp nhận quản lý & kích hoạt chi nhánh '${node.name}' thành công!`);
+      alert(`Đã xác nhận chấp nhận quyền quản lý & kích hoạt chi nhánh '${node.name}' thành công! Role của bạn đã được nâng cấp lên Quản Lý Tổ Chức.`);
     } catch (err) {
       alert('Kích hoạt chi nhánh thất bại: ' + (err.message || 'Lỗi hệ thống'));
+    }
+  };
+
+  const handleRejectOrg = async (node) => {
+    const reason = window.prompt(
+      `Từ chối nhận quyền quản lý chi nhánh "${node.name}". Vui lòng nhập lý do từ chối:`,
+      'Tôi không thể nhận quản lý chi nhánh này vào lúc này.'
+    );
+    if (reason === null) return;
+
+    try {
+      await api.post(`/organizations/${node._id}/reject`, { reason });
+      fetchTree();
+      alert(`Đã phản hồi TỪ CHỐI nhận quyền quản lý chi nhánh '${node.name}'. Thông báo đã được gửi tới người tạo chi nhánh để chỉ định quản lý mới.`);
+    } catch (err) {
+      alert('Từ chối thất bại: ' + (err.message || 'Lỗi hệ thống'));
     }
   };
 
@@ -346,6 +370,8 @@ export const OrganizationsPage = () => {
       name: node.name,
       code: node.code,
       parentOrganizationId: node.parentOrganizationId || '',
+      managerName: node.managerName || '',
+      managerEmail: node.managerEmail || '',
       status: node.status || 'ACTIVE',
     });
     setError('');
@@ -360,6 +386,8 @@ export const OrganizationsPage = () => {
         name: editForm.name,
         code: editForm.code,
         parentOrganizationId: editForm.parentOrganizationId || null,
+        managerName: editForm.managerName,
+        managerEmail: editForm.managerEmail,
         status: editForm.status,
       });
       setShowEditModal(false);
@@ -413,283 +441,168 @@ export const OrganizationsPage = () => {
     const isRoot = node.level === 0;
     const isSub = node.level === 1;
 
-    // Vibrant theme markers per level
-    const cardBg = isRoot ? 'linear-gradient(135deg, #f0f9ff 0%, #ffffff 100%)' : '#ffffff';
-    const borderColor = isRoot ? '#7dd3fc' : isSub ? '#a7f3d0' : '#fde68a';
-    const leftAccent = isRoot ? '#0284c7' : isSub ? '#059669' : '#d97706';
-    const iconBg = isRoot ? '#0284c7' : isSub ? '#e6f4ea' : '#fef3c7';
-    const iconColor = isRoot ? '#ffffff' : isSub ? '#059669' : '#d97706';
+    const iconBg = isRoot ? 'linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%)' : isSub ? '#dcfce7' : '#fef3c7';
+    const iconColor = isRoot ? '#0284c7' : isSub ? '#16a34a' : '#d97706';
 
     return (
-      <div style={{ position: 'relative', marginTop: '12px' }}>
+      <div className="animate-fade-in my-2">
 
-        {/* Main Node Card */}
-        <div
-          style={{
-            padding: '16px 20px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            background: cardBg,
-            borderRadius: '14px',
-            border: `1px solid ${borderColor}`,
-            borderLeft: `6px solid ${leftAccent}`,
-            boxShadow: isRoot ? '0 4px 16px rgba(2, 132, 199, 0.08)' : '0 2px 8px rgba(0,0,0,0.03)',
-            transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-            gap: '16px'
-          }}
-        >
-          {/* Left Info Section */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flex: 1, minWidth: 0 }}>
-
-            {/* Expand / Collapse Button */}
-            {hasChildren ? (
-              <button
-                onClick={() => toggleExpand(node._id)}
-                style={{
-                  background: '#ffffff',
-                  border: '1px solid #cbd5e1',
-                  borderRadius: '8px',
-                  color: '#334155',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  width: '28px',
-                  height: '28px',
-                  boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
-                  transition: 'all 0.15s ease'
-                }}
-                title={isExpanded ? 'Thu gọn chi nhánh con' : 'Mở rộng chi nhánh con'}
-              >
-                {isExpanded ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
-              </button>
-            ) : (
-              <div style={{ width: '28px', display: 'flex', justifyContent: 'center' }}>
-                <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#cbd5e1' }}></span>
-              </div>
-            )}
-
-            {/* Icon Avatar */}
-            <div style={{
-              width: '44px',
-              height: '44px',
-              borderRadius: '12px',
-              background: iconBg,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: iconColor,
-              flexShrink: 0,
-              boxShadow: isRoot ? '0 4px 12px rgba(2, 132, 199, 0.25)' : 'none'
-            }}>
-              {isRoot ? <Building2 size={22} /> : isSub ? <Building size={20} /> : <Layers size={20} />}
-            </div>
-
-            {/* Title & Metadata */}
-            <div style={{ flex: 1, overflow: 'hidden' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-                <span style={{ fontWeight: '800', fontSize: '15px', color: '#0f172a' }}>{node.name}</span>
-
-                {/* Code Pill */}
-                <span className="badge" style={{ fontSize: '11px', background: '#f1f5f9', color: '#475569', border: '1px solid #e2e8f0' }}>
-                  Mã: <strong>{node.code}</strong>
-                </span>
-
-                {/* Level Badge */}
-                {isRoot ? (
-                  <span style={{ fontSize: '10px', fontWeight: '800', background: '#0284c7', color: '#ffffff', padding: '3px 10px', borderRadius: '12px', letterSpacing: '0.03em' }}>
-                    TỔ CHỨC GỐC (ROOT)
-                  </span>
-                ) : (
-                  <span style={{ fontSize: '10px', fontWeight: '700', background: isSub ? '#e6f4ea' : '#fef3c7', color: isSub ? '#137333' : '#b45309', padding: '3px 9px', borderRadius: '10px', border: `1px solid ${isSub ? '#ceead6' : '#fde68a'}` }}>
-                    Cấp {node.level} • Chi Nhánh
-                  </span>
-                )}
-              </div>
-
-              {/* Description line */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginTop: '4px', fontSize: '12px', color: '#64748b', flexWrap: 'wrap' }}>
-                <span>
-                  {hasChildren ? (
-                    <strong style={{ color: '#0284c7' }}>{node.children.length} chi nhánh trực thuộc</strong>
-                  ) : (
-                    'Chi nhánh độc lập'
-                  )}
-                </span>
-                {node.managerEmail && (
-                  <span style={{ color: '#475569', background: '#f1f5f9', padding: '2px 8px', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
-                    👤 Người Quản Lý: <strong>{node.managerName || 'Chưa đặt tên'}</strong> ({node.managerEmail})
-                  </span>
-                )}
-                {node.parentOrganizationId && (
-                  <span style={{ color: '#94a3b8' }}>• Thuộc cấp thượng tầng</span>
-                )}
-              </div>
-            </div>
-
-          </div>
-
-          {/* Right Section: Status Badge & Action Pill Buttons */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexShrink: 0 }}>
-
-            {/* Status Indicator */}
-            <span style={{
-              fontSize: '11px',
-              fontWeight: '700',
-              padding: '5px 12px',
-              borderRadius: '20px',
-              background: node.status === 'ACTIVE' ? '#dcfce7' : node.status === 'PENDING_APPROVAL' ? '#fef3c7' : '#fee2e2',
-              color: node.status === 'ACTIVE' ? '#15803d' : node.status === 'PENDING_APPROVAL' ? '#b45309' : '#b91c1c',
-              border: `1px solid ${node.status === 'ACTIVE' ? '#bbf7d0' : node.status === 'PENDING_APPROVAL' ? '#fde68a' : '#fca5a5'}`,
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '5px'
-            }}>
-              {node.status === 'ACTIVE' ? (
-                <>
-                  <CheckCircle2 size={13} color="#16a34a" /> HOẠT ĐỘNG
-                </>
-              ) : node.status === 'PENDING_APPROVAL' ? (
-                <>
-                  <Clock size={13} color="#d97706" /> CHỜ QUẢN LÝ XÁC NHẬN
-                </>
-              ) : (
-                <>
-                  <XCircle size={13} color="#dc2626" /> TẠM KHÓA
-                </>
-              )}
-            </span>
-
-            {/* Color-Coded Pill Action Group */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-
-              {node.status === 'PENDING_APPROVAL' && (
+        <div className="bg-white rounded-2xl border border-slate-200/90 shadow-2xs p-4 space-y-3 hover:border-sky-300 transition-all">
+          
+          {/* Row 1: Main Header & Primary Action Controls */}
+          <div className="flex items-center justify-between flex-wrap gap-3">
+            
+            {/* Left Info: Expand + Icon + Title + Badges */}
+            <div className="flex items-center gap-3 min-w-0">
+              {hasChildren ? (
                 <button
-                  onClick={() => handleApproveOrg(node)}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '4px',
-                    padding: '6px 12px',
-                    borderRadius: '8px',
-                    border: '1px solid #7dd3fc',
-                    background: '#e0f2fe',
-                    color: '#0369a1',
-                    fontSize: '12px',
-                    fontWeight: '800',
-                    cursor: 'pointer',
-                    transition: 'all 0.15s ease',
-                    boxShadow: '0 1px 2px rgba(0,0,0,0.04)'
-                  }}
-                  title="Xác nhận chấp nhận nhận quyền quản lý & kích hoạt chi nhánh con này"
+                  onClick={() => toggleExpand(node._id)}
+                  className="w-7 h-7 rounded-lg border border-slate-300 bg-white text-slate-700 flex items-center justify-center hover:bg-slate-50 cursor-pointer shadow-2xs transition-all shrink-0"
+                  title={isExpanded ? 'Thu gọn chi nhánh con' : 'Mở rộng chi nhánh con'}
                 >
-                  <CheckCircle2 size={14} /> Xác Nhận & Kích Hoạt
+                  {isExpanded ? <ChevronDown size={17} /> : <ChevronRight size={17} />}
                 </button>
+              ) : (
+                <div className="w-7 flex justify-center shrink-0">
+                  <span className="w-1.5 h-1.5 rounded-full bg-slate-300" />
+                </div>
               )}
 
+              <div 
+                className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 shadow-2xs"
+                style={{ background: iconBg, color: iconColor }}
+              >
+                {isRoot ? <Building2 size={20} /> : isSub ? <Building size={18} /> : <Layers size={18} />}
+              </div>
+
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="font-extrabold text-sm text-slate-900 truncate">{node.name}</span>
+                  <span className="text-[11px] font-bold px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 border border-slate-200">
+                    Mã: <strong>{node.code}</strong>
+                  </span>
+                  {isRoot ? (
+                    <span className="text-[10px] font-extrabold px-2.5 py-0.5 rounded-full bg-sky-600 text-white uppercase tracking-wider">
+                      ROOT
+                    </span>
+                  ) : (
+                    <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200">
+                      Cấp {node.level} • Chi Nhánh
+                    </span>
+                  )}
+
+                  {/* Status Indicator */}
+                  <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full border flex items-center gap-1.5 ${
+                    node.status === 'ACTIVE'
+                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                      : node.status === 'PENDING_APPROVAL'
+                      ? 'bg-amber-50 text-amber-800 border-amber-200'
+                      : node.status === 'REJECTED_BY_MANAGER'
+                      ? 'bg-rose-50 text-rose-700 border-rose-200'
+                      : 'bg-red-50 text-red-700 border-red-200'
+                  }`}>
+                    {node.status === 'ACTIVE' ? (
+                      <><CheckCircle2 size={13} className="text-emerald-600" /> HOẠT ĐỘNG</>
+                    ) : node.status === 'PENDING_APPROVAL' ? (
+                      <><Clock size={13} className="text-amber-600" /> CHỜ QUẢN LÝ XÁC NHẬN</>
+                    ) : node.status === 'REJECTED_BY_MANAGER' ? (
+                      <><XCircle size={13} className="text-rose-600" /> QUẢN LÝ TỪ CHỐI</>
+                    ) : (
+                      <><XCircle size={13} className="text-red-600" /> TẠM KHÓA</>
+                    )}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Right Standard Actions */}
+            <div className="flex items-center gap-1.5 shrink-0">
               <button
                 onClick={() => handleOpenChildRenewal(node)}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                  padding: '6px 12px',
-                  borderRadius: '8px',
-                  border: '1px solid #e9d5ff',
-                  background: '#faf5ff',
-                  color: '#9333ea',
-                  fontSize: '12px',
-                  fontWeight: '700',
-                  cursor: 'pointer',
-                  transition: 'all 0.15s ease',
-                  boxShadow: '0 1px 2px rgba(0,0,0,0.04)'
-                }}
-                title="Mua / Nâng cấp gói dịch vụ cho chi nhánh con này"
+                className="px-2.5 py-1.5 rounded-xl border border-purple-200 bg-purple-50 hover:bg-purple-100 text-purple-700 text-xs font-bold flex items-center gap-1 cursor-pointer transition-all"
+                title="Gói Dịch Vụ"
               >
                 <Crown size={14} /> Gói Dịch Vụ
               </button>
 
               <button
                 onClick={() => handleOpenAddChild(node._id)}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                  padding: '6px 12px',
-                  borderRadius: '8px',
-                  border: '1px solid #bbf7d0',
-                  background: '#dcfce7',
-                  color: '#15803d',
-                  fontSize: '12px',
-                  fontWeight: '700',
-                  cursor: 'pointer',
-                  transition: 'all 0.15s ease',
-                  boxShadow: '0 1px 2px rgba(0,0,0,0.04)'
-                }}
-                title="Thêm chi nhánh con trực thuộc tổ chức này"
+                className="px-2.5 py-1.5 rounded-xl border border-emerald-200 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-bold flex items-center gap-1 cursor-pointer transition-all"
+                title="Thêm chi nhánh con"
               >
                 <Plus size={14} /> Thêm Con
               </button>
 
               <button
                 onClick={() => handleOpenEdit(node)}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                  padding: '6px 12px',
-                  borderRadius: '8px',
-                  border: '1px solid #fde68a',
-                  background: '#fef3c7',
-                  color: '#b45309',
-                  fontSize: '12px',
-                  fontWeight: '700',
-                  cursor: 'pointer',
-                  transition: 'all 0.15s ease',
-                  boxShadow: '0 1px 2px rgba(0,0,0,0.04)'
-                }}
-                title="Chỉnh sửa tên, mã hoặc trạng thái tổ chức"
+                className="px-2.5 py-1.5 rounded-xl border border-amber-200 bg-amber-50 hover:bg-amber-100 text-amber-800 text-xs font-bold flex items-center gap-1 cursor-pointer transition-all"
+                title="Sửa"
               >
                 <Edit size={14} /> Sửa
               </button>
 
               <button
                 onClick={() => handleDeleteOrg(node)}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                  padding: '6px 12px',
-                  borderRadius: '8px',
-                  border: '1px solid #fca5a5',
-                  background: '#fee2e2',
-                  color: '#b91c1c',
-                  fontSize: '12px',
-                  fontWeight: '700',
-                  cursor: 'pointer',
-                  transition: 'all 0.15s ease',
-                  boxShadow: '0 1px 2px rgba(0,0,0,0.04)'
-                }}
-                title="Xóa tổ chức khỏi hệ thống"
+                className="px-2.5 py-1.5 rounded-xl border border-red-200 bg-red-50 hover:bg-red-100 text-red-700 text-xs font-bold flex items-center gap-1 cursor-pointer transition-all"
+                title="Xóa"
               >
                 <Trash2 size={14} /> Xóa
               </button>
-
             </div>
-
           </div>
+
+          {/* Row 2: Manager Info & Manager Approval Actions Bar */}
+          {(node.managerEmail || node.status === 'PENDING_APPROVAL' || node.status === 'REJECTED_BY_MANAGER') && (
+            <div className="pt-2.5 border-t border-slate-100 flex items-center justify-between flex-wrap gap-2 text-xs">
+              <div className="flex items-center gap-2 text-slate-600 font-medium min-w-0">
+                {node.managerEmail && (
+                  <span className="px-2.5 py-1 rounded-lg bg-slate-100/80 border border-slate-200 text-slate-700 text-[11.5px] font-semibold truncate">
+                    Quản Lý Chi Nhánh: <strong className="text-slate-900">{node.managerName || 'Chưa đặt tên'}</strong> ({node.managerEmail})
+                  </span>
+                )}
+                {hasChildren ? (
+                  <span className="text-sky-700 font-bold">• {node.children.length} chi nhánh trực thuộc</span>
+                ) : (
+                  <span className="text-slate-400">• Chi nhánh độc lập</span>
+                )}
+              </div>
+
+              {/* Approval Actions */}
+              <div className="flex items-center gap-2 shrink-0">
+                {node.status === 'PENDING_APPROVAL' && (
+                  <>
+                    <button
+                      onClick={() => handleApproveOrg(node)}
+                      className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black shadow-2xs cursor-pointer transition-all flex items-center gap-1"
+                    >
+                      <CheckCircle2 size={14} /> Xác Nhận & Kích Hoạt
+                    </button>
+                    <button
+                      onClick={() => handleRejectOrg(node)}
+                      className="px-2.5 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold cursor-pointer transition-all flex items-center gap-1"
+                    >
+                      <UserX size={14} /> Từ Chối
+                    </button>
+                  </>
+                )}
+
+                {node.status === 'REJECTED_BY_MANAGER' && (
+                  <button
+                    onClick={() => handleOpenEdit(node)}
+                    className="px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-extrabold shadow-2xs cursor-pointer transition-all flex items-center gap-1"
+                  >
+                    <UserCheck size={14} /> Gửi Cho Quản Lý Mới
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
 
         </div>
 
-        {/* Render Children Recursively with Tree Connector Line */}
+        {/* Render Children Recursively with Connector */}
         {hasChildren && isExpanded && (
-          <div style={{
-            borderLeft: '2px dashed #94a3b8',
-            marginLeft: '26px',
-            paddingLeft: '16px',
-            marginTop: '4px'
-          }}>
+          <div className="border-l-2 border-dashed border-slate-300 ml-6 pl-4 mt-1">
             {node.children.map(child => (
               <TreeNodeCard key={child._id} node={child} />
             ))}
@@ -749,11 +662,87 @@ export const OrganizationsPage = () => {
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
             {allOrgsList.filter(o => o.status === 'PENDING_APPROVAL').map(org => (
+              <div key={org._id} style={{ display: 'flex', gap: '6px' }}>
+                <button
+                  onClick={() => handleApproveOrg(org)}
+                  style={{
+                    background: '#d97706',
+                    color: '#ffffff',
+                    border: 'none',
+                    padding: '8px 14px',
+                    borderRadius: '10px',
+                    fontSize: '12px',
+                    fontWeight: '800',
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    boxShadow: '0 2px 6px rgba(217, 119, 6, 0.25)',
+                    transition: 'all 0.15s ease'
+                  }}
+                >
+                  <CheckCircle2 size={15} /> Chấp Nhận: {org.name}
+                </button>
+                <button
+                  onClick={() => handleRejectOrg(org)}
+                  style={{
+                    background: '#ffffff',
+                    color: '#b45309',
+                    border: '1px solid #fde68a',
+                    padding: '8px 12px',
+                    borderRadius: '10px',
+                    fontSize: '12px',
+                    fontWeight: '700',
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    transition: 'all 0.15s ease'
+                  }}
+                >
+                  <UserX size={14} /> Từ Chối
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Header Notification Card for Manager Rejections */}
+      {allOrgsList.filter(o => o.status === 'REJECTED_BY_MANAGER').length > 0 && (
+        <div style={{
+          background: 'linear-gradient(135deg, #fef2f2 0%, #ffe4e6 100%)',
+          border: '1px solid #fecdd3',
+          borderRadius: '16px',
+          padding: '16px 20px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: '14px',
+          boxShadow: '0 4px 12px rgba(225, 29, 72, 0.08)'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+            <div style={{ width: '42px', height: '42px', borderRadius: '12px', background: '#e11d48', color: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <XCircle size={22} />
+            </div>
+            <div>
+              <h4 style={{ fontSize: '14px', fontWeight: '800', color: '#9f1239', margin: 0 }}>
+                Có {allOrgsList.filter(o => o.status === 'REJECTED_BY_MANAGER').length} chi nhánh bị Người Quản Lý TỪ CHỐI tiếp nhận
+              </h4>
+              <p style={{ fontSize: '12px', color: '#be123c', margin: '2px 0 0 0' }}>
+                Người được phân quyền quản lý đã từ chối. Vui lòng bấm bên dưới để gán cho người quản lý mới.
+              </p>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+            {allOrgsList.filter(o => o.status === 'REJECTED_BY_MANAGER').map(org => (
               <button
                 key={org._id}
-                onClick={() => handleApproveOrg(org)}
+                onClick={() => handleOpenEdit(org)}
                 style={{
-                  background: '#d97706',
+                  background: '#e11d48',
                   color: '#ffffff',
                   border: 'none',
                   padding: '8px 16px',
@@ -764,11 +753,11 @@ export const OrganizationsPage = () => {
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: '6px',
-                  boxShadow: '0 2px 6px rgba(217, 119, 6, 0.25)',
+                  boxShadow: '0 2px 6px rgba(225, 29, 72, 0.25)',
                   transition: 'all 0.15s ease'
                 }}
               >
-                <CheckCircle2 size={15} /> Chấp Nhận Quản Lý: {org.name}
+                <UserCheck size={15} /> Gửi Cho Quản Lý Mới: {org.name}
               </button>
             ))}
           </div>
@@ -1441,6 +1430,49 @@ export const OrganizationsPage = () => {
                 </select>
               </div>
 
+              {/* Manager Assignment Fields */}
+              <div className="p-4 bg-slate-50/90 rounded-2xl border border-slate-200/90 space-y-3">
+                <div className="flex items-center gap-2 text-slate-800 font-extrabold text-xs">
+                  <ShieldCheck size={16} className="text-amber-600" />
+                  <span>Phân Quyền Người Quản Lý Chi Nhánh</span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                      Họ & Tên Người Quản Lý
+                    </label>
+                    <input
+                      type="text"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-900 bg-white focus:outline-none focus:border-amber-500"
+                      placeholder="Phùng Văn Huy"
+                      value={editForm.managerName}
+                      onChange={(e) => setEditForm({ ...editForm, managerName: e.target.value })}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                      Email Nhận Quyền Quản Lý
+                    </label>
+                    <input
+                      type="email"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-900 bg-white focus:outline-none focus:border-amber-500"
+                      placeholder="manager@chinhanh.com"
+                      value={editForm.managerEmail}
+                      onChange={(e) => setEditForm({ ...editForm, managerEmail: e.target.value })}
+                    />
+                  </div>
+                </div>
+
+                {editForm.status === 'REJECTED_BY_MANAGER' && (
+                  <div className="p-2.5 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs font-bold flex items-center gap-2">
+                    <XCircle size={15} className="shrink-0" />
+                    <span>Chi nhánh từng bị quản lý cũ từ chối. Nhập thông tin người quản lý mới và bấm "Lưu Thay Đổi" để gửi lại yêu cầu xác nhận.</span>
+                  </div>
+                )}
+              </div>
+
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">
                   Trạng Thái Hoạt Động
@@ -1451,6 +1483,8 @@ export const OrganizationsPage = () => {
                   onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}
                 >
                   <option value="ACTIVE">HOẠT ĐỘNG (ACTIVE)</option>
+                  <option value="PENDING_APPROVAL">CHỜ QUẢN LÝ XÁC NHẬN (PENDING)</option>
+                  <option value="REJECTED_BY_MANAGER">QUẢN LÝ TỪ CHỐI (REJECTED)</option>
                   <option value="INACTIVE">TẠM KHÓA (INACTIVE)</option>
                 </select>
               </div>

@@ -1,3 +1,4 @@
+import { Organization } from '../models/organization.model.js';
 import { organizationRepository } from '../repositories/organization.repository.js';
 import { userRepository } from '../repositories/user.repository.js';
 import { PermissionGrant } from '../models/permission-grant.model.js';
@@ -5,6 +6,16 @@ import { AppError } from '../utils/app-error.js';
 import bcrypt from 'bcryptjs';
 
 export class OrganizationService {
+  async getMyPendingInvitations(userEmail) {
+    if (!userEmail) return [];
+    const normalizedEmail = userEmail.toLowerCase().trim();
+    return await Organization.find({
+      managerEmail: normalizedEmail,
+      status: 'PENDING_APPROVAL',
+      deletedAt: null
+    }).populate('parentOrganizationId', 'name code');
+  }
+
   async createOrganization(data, parentId = null, tenantContext = null) {
     const existing = await organizationRepository.findByCode(data.code);
     if (existing) {
@@ -48,10 +59,20 @@ export class OrganizationService {
     return await organizationRepository.create(data, tenantContext);
   }
 
-  async approveOrganization(orgId, tenantContext = null) {
-    const org = await organizationRepository.findById(orgId, tenantContext);
-    if (!org) {
-      throw new AppError('Tổ chức không tồn tại hoặc bạn không có quyền duyệt.', 404);
+  async approveOrganization(orgId, currentUser = null) {
+    const org = await Organization.findById(orgId);
+    if (!org || org.deletedAt) {
+      throw new AppError('Tổ chức không tồn tại.', 404);
+    }
+
+    // Authorization check: Must be assigned manager, or SUPER_ADMIN / ORGANIZATION_ADMIN
+    const userEmail = currentUser?.email?.toLowerCase()?.trim();
+    const isTargetManager = userEmail && org.managerEmail && (userEmail === org.managerEmail.toLowerCase().trim());
+    const isSuperAdmin = currentUser?.role === 'SUPER_ADMIN';
+    const isOrgAdmin = currentUser?.role === 'ORGANIZATION_ADMIN';
+
+    if (!isTargetManager && !isSuperAdmin && !isOrgAdmin) {
+      throw new AppError('Bạn không có quyền xác nhận chấp nhận quyền quản lý chi nhánh này.', 403);
     }
 
     if (org.status === 'ACTIVE') {
@@ -60,9 +81,13 @@ export class OrganizationService {
 
     org.status = 'ACTIVE';
 
-    // Auto setup manager account if user doesn't exist
+    // Auto setup manager account or promote current assigned user
     if (org.managerEmail) {
       let managerUser = await userRepository.findByEmail(org.managerEmail);
+      if (!managerUser && currentUser && currentUser.email?.toLowerCase() === org.managerEmail.toLowerCase()) {
+        managerUser = currentUser;
+      }
+
       if (!managerUser) {
         const hashedPassword = await bcrypt.hash('123456', 10);
         managerUser = await userRepository.create({
@@ -86,10 +111,37 @@ export class OrganizationService {
     return org;
   }
 
+  async rejectOrganization(orgId, reason = '', currentUser = null) {
+    const org = await Organization.findById(orgId);
+    if (!org || org.deletedAt) {
+      throw new AppError('Tổ chức không tồn tại.', 404);
+    }
+
+    const userEmail = currentUser?.email?.toLowerCase()?.trim();
+    const isTargetManager = userEmail && org.managerEmail && (userEmail === org.managerEmail.toLowerCase().trim());
+    const isSuperAdmin = currentUser?.role === 'SUPER_ADMIN';
+    const isOrgAdmin = currentUser?.role === 'ORGANIZATION_ADMIN';
+
+    if (!isTargetManager && !isSuperAdmin && !isOrgAdmin) {
+      throw new AppError('Bạn không có quyền từ chối chi nhánh này.', 403);
+    }
+
+    org.status = 'REJECTED_BY_MANAGER';
+    org.rejectionReason = reason || 'Người quản lý từ chối nhận quyền quản lý chi nhánh.';
+    await org.save();
+    return org;
+  }
+
   async updateOrganization(orgId, updateData, tenantContext = null) {
     const org = await organizationRepository.findById(orgId, tenantContext);
     if (!org) {
       throw new AppError('Tổ chức không tồn tại hoặc bạn không có quyền cập nhật.', 404);
+    }
+
+    // Nếu vừa được đổi người quản lý mới hoặc gửi lại yêu cầu khi đang bị từ chối
+    if (org.status === 'REJECTED_BY_MANAGER' && (updateData.managerEmail || updateData.managerName)) {
+      updateData.status = 'PENDING_APPROVAL';
+      updateData.rejectionReason = '';
     }
 
     // Nếu đổi parentOrganizationId, chạy thuật toán kiểm tra chống vòng lặp (Cycle Detection BR-006, BR-007)

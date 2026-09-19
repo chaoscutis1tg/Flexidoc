@@ -359,8 +359,8 @@ export const ContractsPage = () => {
 
   const renderModalContent = () => (
     <div className="modal-overlay">
-      <div className={`modal-content animate-fade-in w-full p-0 rounded-3xl overflow-hidden shadow-2xl border border-slate-200 bg-white transition-all ${
-        wizardStep === 2 ? 'max-w-5xl' : 'max-w-2xl'
+      <div className={`modal-content animate-fade-in w-full p-0 rounded-3xl overflow-hidden shadow-2xl border border-slate-200 bg-white transition-all flex flex-col max-h-[92vh] ${
+        wizardStep === 2 ? 'max-w-[1240px] w-[95vw]' : 'max-w-3xl w-[90vw]'
       }`}>
 
         {/* Floating Toast Notification */}
@@ -371,8 +371,8 @@ export const ContractsPage = () => {
           </div>
         )}
 
-        {/* Clean Corporate Header */}
-        <div className="p-6 border-b border-slate-100 bg-slate-50/50">
+        {/* Clean Corporate Header & Stepper (Fixed Top) */}
+        <div className="p-6 border-b border-slate-100 bg-slate-50/50 shrink-0">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="w-11 h-11 rounded-2xl bg-sky-50 text-sky-600 border border-sky-200 flex items-center justify-center shrink-0 shadow-sm">
@@ -397,7 +397,7 @@ export const ContractsPage = () => {
           </div>
 
           {/* Clean Stepper Tabs */}
-          <div className="grid grid-cols-3 gap-2 mt-5 bg-slate-200/60 p-1.5 rounded-2xl">
+          <div className="grid grid-cols-3 gap-2 mt-4 bg-slate-200/60 p-1.5 rounded-2xl">
             <div className={`flex items-center justify-center gap-2 py-2 px-3 rounded-xl transition-all ${wizardStep === 1
               ? 'bg-white text-sky-700 font-black shadow-sm'
               : wizardStep > 1
@@ -429,7 +429,7 @@ export const ContractsPage = () => {
                 }`}>
                 {wizardStep > 2 ? <Check size={12} /> : '2'}
               </div>
-              <span className="text-xs truncate"> Điền Dữ Liệu</span>
+              <span className="text-xs truncate">Điền Dữ Liệu</span>
             </div>
 
             <div className={`flex items-center justify-center gap-2 py-2 px-3 rounded-xl transition-all ${wizardStep === 3
@@ -447,8 +447,8 @@ export const ContractsPage = () => {
           </div>
         </div>
 
-        {/* Modal Body Content */}
-        <div className="p-6 space-y-5">
+        {/* Modal Body Content (Scrollable Center Area) */}
+        <div className="p-6 space-y-5 overflow-y-auto flex-1 min-h-0">
 
           {/* STEP 1: Select Template */}
           {wizardStep === 1 && (
@@ -481,7 +481,7 @@ export const ContractsPage = () => {
                   </button>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[340px] overflow-y-auto pr-1">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[420px] overflow-y-auto pr-1">
                   {templates.map(tpl => {
                     const isSelected = selectedTemplate?.template?._id === tpl._id;
                     return (
@@ -514,20 +514,6 @@ export const ContractsPage = () => {
                   })}
                 </div>
               )}
-
-              <div className="flex justify-end pt-3 border-t border-slate-100">
-                <button
-                  type="button"
-                  disabled={!selectedTemplate}
-                  onClick={() => setWizardStep(2)}
-                  className={`px-5 py-2.5 rounded-xl font-extrabold text-xs md:text-sm transition-all flex items-center gap-2 ${selectedTemplate
-                    ? 'bg-sky-600 hover:bg-sky-700 text-white shadow-sm cursor-pointer'
-                    : 'bg-slate-100 text-slate-400 cursor-not-allowed'
-                    }`}
-                >
-                  Nhập Thông Tin <ArrowRight size={16} />
-                </button>
-              </div>
             </div>
           )}
 
@@ -576,7 +562,7 @@ export const ContractsPage = () => {
                   </div>
 
                   {/* Dynamic Fields Form */}
-                  <div className="bg-white border border-slate-200 rounded-2xl p-4 max-h-[360px] overflow-y-auto space-y-3">
+                  <div className="bg-white border border-slate-200 rounded-2xl p-4 overflow-y-auto max-h-[460px] min-h-[320px] space-y-3">
                     <h4 className="text-xs font-bold text-slate-900 flex items-center gap-1.5 pb-2 border-b border-slate-100">
                       <Sliders size={14} className="text-sky-600" /> Các trường thông tin thay đổi tự động:
                     </h4>
@@ -609,7 +595,7 @@ export const ContractsPage = () => {
                 </div>
 
                 {/* RIGHT COLUMN: Master Data Reference & Quick Copy Panel (5 cols) */}
-                <div className="lg:col-span-5 bg-slate-50 border border-slate-200 rounded-2xl p-3.5 flex flex-col h-[450px]">
+                <div className="lg:col-span-5 bg-slate-50 border border-slate-200 rounded-2xl p-3.5 flex flex-col h-[460px]">
                   <div className="flex items-center justify-between mb-2">
                     <h4 className="text-xs font-black text-slate-900 flex items-center gap-1.5">
                       <Database size={15} className="text-sky-600" /> Tra Cứu & Sao Chép Master Data
@@ -664,7 +650,7 @@ export const ContractsPage = () => {
                   </div>
 
                   {/* Records List */}
-                  <div className="flex-1 overflow-y-auto space-y-2 pr-1">
+                  <div className="flex-1 overflow-y-auto space-y-2 pr-1 min-h-0">
                     {mdLoading ? (
                       <p className="text-[11px] text-slate-400 text-center py-8">Đang tải Master Data...</p>
                     ) : mdItems.length === 0 ? (
@@ -749,24 +735,6 @@ export const ContractsPage = () => {
                 </div>
 
               </div>
-
-              {/* Wizard Step Navigation Footer */}
-              <div className="flex justify-between items-center pt-3 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => setWizardStep(1)}
-                  className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition-all cursor-pointer flex items-center gap-1.5"
-                >
-                  <ArrowLeft size={16} /> Quay Lại
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setWizardStep(3)}
-                  className="px-5 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-extrabold text-xs md:text-sm transition-all cursor-pointer flex items-center gap-2 shadow-sm"
-                >
-                  Xem Trước & Sinh Hợp Đồng <ArrowRight size={16} />
-                </button>
-              </div>
             </div>
           )}
 
@@ -789,7 +757,7 @@ export const ContractsPage = () => {
 
               <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4">
                 <h4 className="text-xs font-bold text-slate-900 mb-2">Dữ liệu đã điền vào mẫu:</h4>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[220px] overflow-y-auto">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[280px] overflow-y-auto">
                   {Object.entries(formData.inputData).map(([key, val]) => (
                     <div key={key} className="text-xs p-2.5 bg-white border border-slate-200 rounded-xl flex items-center justify-between">
                       <span className="font-bold text-slate-600">{key}:</span>
@@ -798,27 +766,69 @@ export const ContractsPage = () => {
                   ))}
                 </div>
               </div>
-
-              <div className="flex justify-between items-center pt-3 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => setWizardStep(2)}
-                  className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition-all cursor-pointer flex items-center gap-1.5"
-                >
-                  <ArrowLeft size={16} /> Chỉnh Sửa Dữ Liệu
-                </button>
-                <button
-                  type="button"
-                  onClick={handleCreateContract}
-                  className="px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs md:text-sm transition-all cursor-pointer flex items-center gap-2 shadow-md shadow-emerald-200"
-                >
-                  <CheckCircle2 size={18} /> Khởi Tạo Hợp Đồng Ngay
-                </button>
-              </div>
             </div>
           )}
 
         </div>
+
+        {/* Fixed Modal Footer Navigation */}
+        <div className="px-6 py-4 border-t border-slate-100 bg-slate-50/80 shrink-0 flex items-center justify-between">
+          {wizardStep === 1 && (
+            <>
+              <div></div>
+              <button
+                type="button"
+                disabled={!selectedTemplate}
+                onClick={() => setWizardStep(2)}
+                className={`px-5 py-2.5 rounded-xl font-extrabold text-xs md:text-sm transition-all flex items-center gap-2 ${selectedTemplate
+                  ? 'bg-sky-600 hover:bg-sky-700 text-white shadow-sm cursor-pointer'
+                  : 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                  }`}
+              >
+                Nhập Thông Tin <ArrowRight size={16} />
+              </button>
+            </>
+          )}
+
+          {wizardStep === 2 && (
+            <>
+              <button
+                type="button"
+                onClick={() => setWizardStep(1)}
+                className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition-all cursor-pointer flex items-center gap-1.5"
+              >
+                <ArrowLeft size={16} /> Quay Lại
+              </button>
+              <button
+                type="button"
+                onClick={() => setWizardStep(3)}
+                className="px-5 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-extrabold text-xs md:text-sm transition-all cursor-pointer flex items-center gap-2 shadow-sm"
+              >
+                Xem Trước & Sinh Hợp Đồng <ArrowRight size={16} />
+              </button>
+            </>
+          )}
+
+          {wizardStep === 3 && (
+            <>
+              <button
+                type="button"
+                onClick={() => setWizardStep(2)}
+                className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition-all cursor-pointer flex items-center gap-1.5"
+              >
+                <ArrowLeft size={16} /> Chỉnh Sửa Dữ Liệu
+              </button>
+              <button
+                type="button"
+                onClick={handleCreateContract}
+                className="px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs md:text-sm transition-all cursor-pointer flex items-center gap-2 shadow-md shadow-emerald-200"
+              >
+                <CheckCircle2 size={18} /> Khởi Tạo Hợp Đồng Ngay
+              </button>
+            </>
+          )}
+        </div>
+
       </div>
     </div>
   );
