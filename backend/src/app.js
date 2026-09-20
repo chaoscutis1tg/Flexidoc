@@ -6,12 +6,22 @@ import { config } from './config/env.js';
 import routes from './routes/index.js';
 import { errorHandler } from './middlewares/error.middleware.js';
 
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const frontendDistPath = path.resolve(__dirname, '../../../frontend/dist');
+
 const app = express();
 
 // 1. Security Middlewares
-app.use(helmet());
+app.use(helmet({
+  contentSecurityPolicy: false,
+  crossOriginResourcePolicy: false,
+}));
 app.use(cors({
-  origin: config.corsOrigin,
+  origin: config.corsOrigin === '*' ? true : (config.corsOrigin?.includes(',') ? config.corsOrigin.split(',') : config.corsOrigin),
   credentials: true,
 }));
 
@@ -30,7 +40,20 @@ app.get('/health', (req, res) => {
   res.status(200).json({ status: 'OK', system: 'MT-CTMS API Server', version: '1.0.0' });
 });
 
-// 5. Global Error Handler
+// 5. Serve Frontend Static Files & SPA Routing Fallback
+app.use(express.static(frontendDistPath));
+
+app.use((req, res, next) => {
+  if (req.method === 'GET' && !req.originalUrl.startsWith('/api')) {
+    if (req.originalUrl.match(/\.(js|css|map|png|jpg|jpeg|gif|svg|ico|woff|woff2|ttf|eot)$/i)) {
+      return res.status(404).send('Not Found');
+    }
+    return res.sendFile(path.join(frontendDistPath, 'index.html'));
+  }
+  next();
+});
+
+// 6. Global Error Handler
 app.use(errorHandler);
 
 export default app;

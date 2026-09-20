@@ -1,0 +1,36 @@
+version: '3.8'
+
+services:
+  # App chính (Backend Node.js tích hợp Frontend React)
+  webhopdong_app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: webhopdong_app
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    environment:
+      - NODE_ENV=production
+      - PORT=5000
+      - CORS_ORIGIN=https://chaosin3d.io.vn,http://chaosin3d.io.vn,https://www.chaosin3d.io.vn,http://www.chaosin3d.io.vn,http://localhost:5000
+      - MONGODB_URI=mongodb://webhopdong_mongodb:27017/mt_ctms
+      - JWT_SECRET=mt_ctms_super_secret_jwt_key_2026_change_in_production
+      - JWT_EXPIRES_IN=1d
+      - SERVER_BASE_URL=https://chaosin3d.io.vn
+      - SEPAY_WEBHOOK_PATH=/api/v1/payments/sepay-webhook
+    depends_on:
+      - webhopdong_mongodb
+
+  # Database MongoDB
+  webhopdong_mongodb:
+    image: mongo:6.0
+    container_name: webhopdong_mongodb
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - webhopdong_mongo_data:/data/db
+
+volumes:
+  webhopdong_mongo_data:

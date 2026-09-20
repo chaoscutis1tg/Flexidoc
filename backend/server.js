@@ -4,8 +4,9 @@ import { config } from './src/config/env.js';
 
 const startServer = async () => {
   await connectDB();
-  app.listen(config.port, () => {
-    console.log(`[MT-CTMS Server] Running on http://localhost:${config.port}`);
+  app.listen(config.port, '0.0.0.0', () => {
+    console.log(`[MT-CTMS Server] Running on port ${config.port} (0.0.0.0)`);
+    console.log(`🌍 Local / Internal: http://localhost:${config.port}`);
   });
 };
 

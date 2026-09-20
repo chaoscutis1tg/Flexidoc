@@ -1,0 +1,17 @@
+{
+  "name": "webhopdong-monorepo",
+  "version": "1.0.0",
+  "description": "MT-CTMS Web Hợp Đồng Unified Application",
+  "private": true,
+  "scripts": {
+    "build": "npm run build:frontend",
+    "build:frontend": "cd frontend && npm install && npm run build",
+    "start": "cd backend && npm start",
+    "dev": "cd backend && npm run dev",
+    "docker:up": "docker-compose up -d --build",
+    "docker:down": "docker-compose down",
+    "docker:logs": "docker-compose logs -f"
+  },
+  "author": "",
+  "license": "ISC"
+}
