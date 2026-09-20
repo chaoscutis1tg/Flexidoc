@@ -6,24 +6,50 @@ import { config } from './config/env.js';
 import routes from './routes/index.js';
 import { errorHandler } from './middlewares/error.middleware.js';
 
+import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const frontendDistPath = path.resolve(__dirname, '../../../frontend/dist');
+
+const possibleDistPaths = [
+  path.resolve(__dirname, '../../frontend/dist'),
+  path.resolve(process.cwd(), '../frontend/dist'),
+  path.resolve(process.cwd(), 'frontend/dist'),
+  path.resolve('/app/frontend/dist')
+];
+const frontendDistPath = possibleDistPaths.find(p => fs.existsSync(p)) || possibleDistPaths[0];
+console.log(`[MT-CTMS] Serving Frontend Dist from: ${frontendDistPath}`);
 
 const app = express();
+app.set('trust proxy', 1);
 
 // 1. Security Middlewares
 app.use(helmet({
   contentSecurityPolicy: false,
   crossOriginResourcePolicy: false,
 }));
+
+// Clean & Sanitize CORS Origins
+const allowedOrigins = (config.corsOrigin || '*')
+  .split(',')
+  .map(o => o.trim().replace(/^["']|["']$/g, ''))
+  .filter(Boolean);
+
 app.use(cors({
-  origin: config.corsOrigin === '*' ? true : (config.corsOrigin?.includes(',') ? config.corsOrigin.split(',') : config.corsOrigin),
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes('*') || allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    return callback(null, true);
+  },
   credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
 }));
+
+app.options('*', cors());
 
 // 2. Body Parser
 app.use(express.json({ limit: '10mb' }));
