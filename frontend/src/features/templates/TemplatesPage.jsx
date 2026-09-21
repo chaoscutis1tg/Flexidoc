@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import api from '../../services/api';
 import { useAuth } from '../../app/AuthContext';
+import { useConfirm } from '../../app/ConfirmContext';
 import mammoth from 'mammoth';
 import {
   FilePlus,
@@ -31,6 +32,7 @@ import {
 
 export const TemplatesPage = () => {
   const { user } = useAuth();
+  const { confirm } = useConfirm();
   const isAdmin = user?.role === 'ORGANIZATION_ADMIN' || user?.role === 'SUPER_ADMIN';
   const [templates, setTemplates] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -597,9 +599,15 @@ export const TemplatesPage = () => {
   };
 
   const handleDeleteTemplate = async (id, name) => {
-    if (!window.confirm(`Bạn có chắc chắn muốn xóa vĩnh viễn Mẫu Hợp Đồng "${name}" khỏi hệ thống không? Thao tác này không thể hoàn tác.`)) {
-      return;
-    }
+    const isConfirmed = await confirm({
+      title: 'Xóa Vĩnh Viễn Mẫu Hợp Đồng',
+      message: `Bạn có chắc chắn muốn xóa vĩnh viễn Mẫu Hợp Đồng "${name}" khỏi hệ thống không?`,
+      subMessage: 'Thao tác này không thể hoàn tác.',
+      confirmText: 'Xóa Vĩnh Viễn',
+      cancelText: 'Hủy Bỏ',
+      type: 'danger'
+    });
+    if (!isConfirmed) return;
     try {
       await api.delete(`/templates/${id}`);
       fetchTemplates();

@@ -12,7 +12,7 @@ const PLAN_PRICES = {
 };
 
 export class OrderService {
-  async createOrder({ plan, durationMonths = 1, user }) {
+  async createOrder({ plan, durationMonths = 1, targetOrgId, user }) {
     if (!['BASIC', 'PRO', 'VIP'].includes(plan)) {
       throw new AppError('Gói dịch vụ không hợp lệ.', 400);
     }
@@ -20,9 +20,9 @@ export class OrderService {
     const unitPrice = PLAN_PRICES[plan] || 199000;
     const amount = unitPrice * months;
 
-    const orgId = user.organizationId ? (user.organizationId._id || user.organizationId) : null;
+    const orgId = targetOrgId || (user.organizationId ? (user.organizationId._id || user.organizationId) : null);
     if (!orgId) {
-      throw new AppError('Không tìm thấy thông tin tổ chức của người dùng.', 400);
+      throw new AppError('Không tìm thấy thông tin tổ chức cần gia hạn.', 400);
     }
 
     // Generate unique order code (e.g. DH88910)

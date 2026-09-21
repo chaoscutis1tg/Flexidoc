@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import api from '../../services/api';
+import { useConfirm } from '../../app/ConfirmContext';
 import {
   Users,
   UserPlus,
@@ -23,6 +24,7 @@ import {
 import { getRoleInfo } from '../../utils/roleFormatter';
 
 export const UsersPage = () => {
+  const { confirm } = useConfirm();
   const [users, setUsers] = useState([]);
   const [orgsList, setOrgsList] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -155,9 +157,15 @@ export const UsersPage = () => {
       }
     }
 
-    if (!window.confirm(`Bạn có chắc chắn muốn xóa tài khoản '${u.fullName}' (${u.email})?`)) {
-      return;
-    }
+    const isConfirmed = await confirm({
+      title: 'Xóa Tài Khoản Nhân Sự',
+      message: `Bạn có chắc chắn muốn xóa tài khoản '${u.fullName}' (${u.email}) khỏi tổ chức?`,
+      subMessage: 'Tài khoản sau khi xóa sẽ không thể đăng nhập vào hệ thống.',
+      confirmText: 'Xóa Tài Khoản',
+      cancelText: 'Hủy Bỏ',
+      type: 'danger'
+    });
+    if (!isConfirmed) return;
     try {
       await api.delete(`/users/${u._id}`);
       fetchUsersAndOrgs();

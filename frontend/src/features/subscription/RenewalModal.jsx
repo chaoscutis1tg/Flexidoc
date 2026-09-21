@@ -19,7 +19,7 @@ import {
   Clock
 } from 'lucide-react';
 
-export const RenewalModal = ({ isOpen, onClose }) => {
+export const RenewalModal = ({ isOpen, onClose, targetOrg = null }) => {
   const { user, refreshUser } = useAuth();
   const [plans, setPlans] = useState(DEFAULT_PLANS_DATA);
   const [selectedPlan, setSelectedPlan] = useState('PRO');
@@ -77,7 +77,7 @@ export const RenewalModal = ({ isOpen, onClose }) => {
   // Polling order status if createdOrder is PENDING
   useEffect(() => {
     let timer;
-    if (step === 'PAYMENT_QR' && createdOrder && createdOrder.status === 'PENDING') {
+    if ((step === 'PAYMENT_QR' || step === 'SELECT_PLAN') && createdOrder && createdOrder.status === 'PENDING') {
       timer = setInterval(async () => {
         try {
           const res = await api.get(`/orders/${createdOrder._id}`);
@@ -85,6 +85,7 @@ export const RenewalModal = ({ isOpen, onClose }) => {
             if (res.data.status === 'SUCCESS') {
               setCreatedOrder(res.data);
               setSuccessMsg(`Thanh toán thành công! Gói ${res.data.plan} đã được kích hoạt tự động.`);
+              setStep('SUCCESS');
               await refreshUser();
               clearInterval(timer);
             }
@@ -99,7 +100,7 @@ export const RenewalModal = ({ isOpen, onClose }) => {
 
   if (!isOpen) return null;
 
-  const currentOrg = user?.organizationId || {};
+  const currentOrg = targetOrg || user?.organizationId || {};
   const currentPlanObj = plans.find((p) => p.code === selectedPlan) || plans[0];
   const unitPrice = currentPlanObj ? (currentPlanObj.price || 199000) : 199000;
   const totalPrice = unitPrice * durationMonths;
@@ -112,6 +113,7 @@ export const RenewalModal = ({ isOpen, onClose }) => {
       const res = await api.post('/orders', {
         plan: selectedPlan,
         durationMonths,
+        targetOrgId: targetOrg ? targetOrg._id : undefined,
       });
 
       if (res.success && res.data) {
@@ -196,8 +198,59 @@ export const RenewalModal = ({ isOpen, onClose }) => {
           </div>
         )}
 
-        {/* STEP 1: SELECT PLAN & DURATION */}
-        {step === 'SELECT_PLAN' ? (
+        {/* STEP 3: INSTANT SUCCESS CELEBRATION SCREEN */}
+        {step === 'SUCCESS' ? (
+          <div className="py-8 px-4 flex flex-col items-center justify-center text-center animate-fade-in">
+            <div className="w-20 h-20 rounded-full bg-emerald-100 border-4 border-emerald-500/20 flex items-center justify-center text-emerald-600 mb-5 shadow-lg shadow-emerald-500/20 animate-bounce">
+              <CheckCircle2 size={48} />
+            </div>
+
+            <span className="text-xs font-black text-emerald-600 uppercase tracking-widest bg-emerald-50 px-3 py-1 rounded-full border border-emerald-200 mb-2">
+              SePay Webhook 24/7 • Đã Xác Nhận Thanh Toán
+            </span>
+
+            <h3 className="text-2xl md:text-3xl font-black text-slate-900 mb-2">
+              🎉 Kích Hoạt Gói {createdOrder?.plan || selectedPlan} Thành Công!
+            </h3>
+
+            <p className="text-xs md:text-sm text-slate-600 font-medium max-w-lg mb-6 leading-relaxed">
+              Hệ thống đã nhận được tiền chuyển khoản cho đơn hàng <strong className="font-mono text-slate-900">{createdOrder?.orderCode}</strong>. Gói dịch vụ đã được tự động kích hoạt & cộng dồn thời hạn cho tổ chức <strong className="text-sky-700">{currentOrg.name}</strong>.
+            </p>
+
+            {/* Receipt Card */}
+            <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 w-full max-w-md text-xs space-y-3 mb-6 shadow-sm">
+              <div className="flex justify-between items-center pb-2 border-b border-slate-200">
+                <span className="text-slate-500 font-bold">Tổ chức nâng cấp:</span>
+                <strong className="text-slate-900 font-black">{currentOrg.name} ({currentOrg.code})</strong>
+              </div>
+              <div className="flex justify-between items-center pb-2 border-b border-slate-200">
+                <span className="text-slate-500 font-bold">Gói cước đã chọn:</span>
+                <span className="font-black text-sky-700 bg-sky-100 px-2.5 py-0.5 rounded-md border border-sky-200">
+                  Gói {createdOrder?.plan || selectedPlan}
+                </span>
+              </div>
+              <div className="flex justify-between items-center pb-2 border-b border-slate-200">
+                <span className="text-slate-500 font-bold">Thời gian cộng dồn:</span>
+                <strong className="text-emerald-700 font-black">+{createdOrder?.durationMonths || durationMonths} Tháng</strong>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-slate-500 font-bold">Số tiền đã thanh toán:</span>
+                <strong className="text-slate-900 font-black text-sm">{(createdOrder?.amount || totalPrice).toLocaleString('vi-VN')} VNĐ</strong>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                onClose();
+                refreshUser();
+              }}
+              className="px-8 py-3.5 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-black text-sm md:text-base shadow-xl shadow-emerald-600/30 hover:shadow-emerald-600/40 hover:-translate-y-0.5 active:scale-95 transition-all cursor-pointer flex items-center gap-2"
+            >
+              <Sparkles size={18} /> Bắt Đầu Sử Dụng Ngay
+            </button>
+          </div>
+        ) : step === 'SELECT_PLAN' ? (
           <div>
             {/* Plan Selector Grid */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
@@ -209,13 +262,12 @@ export const RenewalModal = ({ isOpen, onClose }) => {
                   <div
                     key={p.code}
                     onClick={() => setSelectedPlan(p.code)}
-                    className={`rounded-2xl p-5 cursor-pointer relative border transition-all flex flex-col justify-between ${
-                      isSelected
-                        ? isVip
-                          ? 'bg-purple-50/60 border-purple-500 shadow-md shadow-purple-500/10'
-                          : 'bg-sky-50/60 border-sky-500 shadow-md shadow-sky-500/10'
-                        : 'bg-white border-slate-200 hover:border-slate-300'
-                    }`}
+                    className={`rounded-2xl p-5 cursor-pointer relative border transition-all flex flex-col justify-between ${isSelected
+                      ? isVip
+                        ? 'bg-purple-50/60 border-purple-500 shadow-md shadow-purple-500/10'
+                        : 'bg-sky-50/60 border-sky-500 shadow-md shadow-sky-500/10'
+                      : 'bg-white border-slate-200 hover:border-slate-300'
+                      }`}
                   >
                     {p.popular && (
                       <div className="absolute -top-2.5 right-4 bg-sky-600 text-white text-[9.5px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider shadow-2xs">
@@ -265,11 +317,10 @@ export const RenewalModal = ({ isOpen, onClose }) => {
                     key={opt.months}
                     type="button"
                     onClick={() => setDurationMonths(opt.months)}
-                    className={`py-2 px-3 rounded-xl text-xs font-extrabold transition-all cursor-pointer border ${
-                      durationMonths === opt.months
-                        ? 'bg-sky-600 text-white border-sky-600 shadow-sm'
-                        : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300'
-                    }`}
+                    className={`py-2 px-3 rounded-xl text-xs font-extrabold transition-all cursor-pointer border ${durationMonths === opt.months
+                      ? 'bg-sky-600 text-white border-sky-600 shadow-sm'
+                      : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300'
+                      }`}
                   >
                     {opt.label}
                   </button>
@@ -341,8 +392,7 @@ export const RenewalModal = ({ isOpen, onClose }) => {
                   <Clock size={18} />
                 </div>
                 <div className="flex-1">
-                  <strong className="font-bold text-amber-950 block text-xs">Hệ thống đang tự động kiểm tra giao dịch (SePay Webhook 24/7)...</strong>
-                  <span className="text-slate-600">Sau khi hoàn tất chuyển khoản trên App ngân hàng, bạn hãy nhấn nút <strong>"Tôi Đã Chuyển Khoản Thành Công"</strong> bên dưới.</span>
+                  <strong className="font-bold text-amber-950 block text-xs">Hệ thống đang tự động kiểm tra giao dịch...</strong>
                 </div>
               </div>
             )}
@@ -364,10 +414,6 @@ export const RenewalModal = ({ isOpen, onClose }) => {
                     className="w-52 h-52 object-contain rounded-lg"
                   />
                 </div>
-
-                <p className="text-[11px] text-slate-500 font-medium mt-2 leading-tight">
-                  Mở ứng dụng Ngân hàng (MB, Vietcombank, Techcombank...) để quét QR tự động điền số tiền & nội dung.
-                </p>
               </div>
 
               {/* Right Column: Bank Details (7 cols) */}

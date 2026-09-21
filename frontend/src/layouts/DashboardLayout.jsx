@@ -334,7 +334,7 @@ export const DashboardLayout = () => {
             </div>
           </div>
 
-          {/* Right: Clickable Plan Status Badge & Upgrade Action */}
+          {/* Right: Subscription Package Badge with Expiration & Gia Hạn Action */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
             {user?.role !== 'SUPER_ADMIN' && (
               <button
@@ -350,7 +350,7 @@ export const DashboardLayout = () => {
                       : 'linear-gradient(135deg, #faf5ff 0%, #f3e8ff 100%)',
                   color: isExpired ? '#991b1b' : plan === 'FREE' ? '#0f172a' : '#581c87',
                   padding: '5px 6px 5px 14px',
-                  borderRadius: '30px',
+                  borderRadius: '28px',
                   fontSize: '12.5px',
                   fontWeight: '700',
                   border: isExpired
@@ -359,55 +359,55 @@ export const DashboardLayout = () => {
                       ? '1px solid #7dd3fc'
                       : '1px solid #d8b4fe',
                   cursor: 'pointer',
-                  boxShadow: '0 2px 10px rgba(2, 132, 199, 0.1)',
-                  transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)',
+                  transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = 'translateY(-1px) scale(1.02)';
-                  e.currentTarget.style.boxShadow = '0 6px 18px rgba(2, 132, 199, 0.2)';
+                  e.currentTarget.style.transform = 'translateY(-1px)';
+                  e.currentTarget.style.boxShadow = '0 4px 14px rgba(2, 132, 199, 0.15)';
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = 'translateY(0) scale(1)';
-                  e.currentTarget.style.boxShadow = '0 2px 10px rgba(2, 132, 199, 0.1)';
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.04)';
                 }}
-                title={`Bấm để mở khóa các tính năng cao cấp cho tổ chức '${user?.organizationId?.name || 'hiện tại'}'`}
+                title={`Quản lý / gia hạn gói dịch vụ cho tổ chức '${user?.organizationId?.name || 'hiện tại'}'`}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                   {isExpired ? (
-                    <AlertTriangle size={16} color="#dc2626" />
+                    <AlertTriangle size={15} color="#dc2626" />
                   ) : (
-                    <Crown size={16} color={plan === 'FREE' ? '#0284c7' : '#9333ea'} />
+                    <Crown size={15} color={plan === 'FREE' ? '#0284c7' : '#9333ea'} />
                   )}
                   <span>
                     Gói: <strong style={{ fontWeight: '800', color: plan === 'FREE' ? '#0284c7' : '#9333ea' }}>{plan}</strong>
-                    {isExpired ? ' (Hết hạn)' : daysRemaining > 0 ? ` (${daysRemaining} ngày)` : ''}
+                    {isExpired ? (
+                      <span style={{ color: '#dc2626', fontWeight: '800', marginLeft: '4px' }}>(Hết hạn)</span>
+                    ) : plan !== 'FREE' && daysRemaining > 0 ? (
+                      <span style={{ color: '#64748b', fontWeight: '600', marginLeft: '4px' }}>(Còn {daysRemaining} ngày)</span>
+                    ) : ''}
                   </span>
                 </div>
 
-                {/* High-Converting Action Chip (No 'Nâng Cấp') */}
+                {/* Compact Action Chip: "Gia Hạn" / "Nâng Cấp" */}
                 <span style={{
                   fontSize: '11px',
                   fontWeight: '800',
                   background: isExpired
                     ? 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)'
                     : plan === 'FREE'
-                      ? 'linear-gradient(135deg, #0284c7 0%, #2563eb 100%)'
+                      ? 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)'
                       : 'linear-gradient(135deg, #9333ea 0%, #7e22ce 100%)',
                   color: '#ffffff',
-                  padding: '5px 12px',
-                  borderRadius: '20px',
+                  padding: '4px 10px',
+                  borderRadius: '16px',
                   display: 'inline-flex',
                   alignItems: 'center',
-                  gap: '5px',
-                  boxShadow: isExpired
-                    ? '0 3px 10px rgba(220, 38, 38, 0.35)'
-                    : plan === 'FREE'
-                      ? '0 3px 10px rgba(37, 99, 235, 0.35)'
-                      : '0 3px 10px rgba(147, 51, 234, 0.35)',
+                  gap: '4px',
+                  boxShadow: '0 2px 6px rgba(0, 0, 0, 0.12)',
                   letterSpacing: '0.01em'
                 }}>
-                  <Sparkles size={12} color="#ffffff" />
-                  {isExpired ? 'Gia Hạn Ngay ⚡' : plan === 'FREE' ? 'Mở Khóa PRO ⚡' : 'Đang Hoạt Động 💎'}
+                  <Sparkles size={11} color="#ffffff" />
+                  {isExpired ? 'Gia Hạn Ngay' : plan === 'FREE' ? 'Nâng Cấp' : 'Gia Hạn'}
                 </span>
               </button>
             )}

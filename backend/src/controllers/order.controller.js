@@ -6,6 +6,7 @@ export const createOrder = async (req, res, next) => {
     const result = await orderService.createOrder({
       plan: req.body.plan,
       durationMonths: req.body.durationMonths,
+      targetOrgId: req.body.targetOrgId,
       user: req.user,
     });
     return sendSuccess(res, 201, 'Tạo đơn hàng thành công', result);

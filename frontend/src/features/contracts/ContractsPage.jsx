@@ -46,6 +46,7 @@ export const ContractsPage = () => {
   const [showModal, setShowModal] = useState(false);
   const [wizardStep, setWizardStep] = useState(1);
   const [viewingContract, setViewingContract] = useState(null);
+  const [modalError, setModalError] = useState('');
 
   const [selectedTemplate, setSelectedTemplate] = useState(null);
   const [formData, setFormData] = useState({
