@@ -70,7 +70,7 @@ export const RenewalModal = ({ isOpen, onClose }) => {
             setPaymentConfig(res.data);
           }
         })
-        .catch(() => {});
+        .catch(() => { });
     }
   }, [isOpen]);
 
@@ -163,9 +163,9 @@ export const RenewalModal = ({ isOpen, onClose }) => {
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="bg-white rounded-3xl p-6 sm:p-8 max-w-3xl w-[95vw] max-h-[92vh] overflow-y-auto shadow-2xl border border-slate-200 animate-modal-pop text-slate-900 relative z-10"
+        className="bg-white rounded-3xl p-6 sm:p-8 max-w-4xl w-[95vw] max-h-[92vh] overflow-y-auto shadow-2xl border border-slate-200 animate-modal-pop text-slate-900 relative z-10"
       >
-        
+
         {/* Header */}
         <div className="flex items-center justify-between pb-4 border-b border-slate-200 mb-5">
           <div>
@@ -175,7 +175,7 @@ export const RenewalModal = ({ isOpen, onClose }) => {
             </h2>
             <div className="flex items-center gap-2 mt-1 text-xs text-slate-500 font-medium">
               <span>Đơn vị:</span>
-              <span className="font-extrabold text-sky-700 bg-sky-50 px-2 py-0.5 rounded border border-sky-200 flex items-center gap-1">
+              <span className="font-extrabold text-sky-700 bg-sky-50 px-2.5 py-0.5 rounded-md border border-sky-200 flex items-center gap-1">
                 <Building size={13} /> {currentOrg.name || 'Tổ chức của tôi'} ({currentOrg.code || 'MAIN'})
               </span>
             </div>
@@ -191,7 +191,7 @@ export const RenewalModal = ({ isOpen, onClose }) => {
 
         {/* Global Messages */}
         {errorMsg && (
-          <div className="bg-red-50 border border-red-200 p-3 rounded-xl text-xs text-red-800 font-bold mb-4 flex items-center gap-2">
+          <div className="bg-red-50 border border-red-200 p-3.5 rounded-xl text-xs text-red-800 font-bold mb-4 flex items-center gap-2">
             <AlertCircle size={16} className="shrink-0" /> {errorMsg}
           </div>
         )}
@@ -286,16 +286,16 @@ export const RenewalModal = ({ isOpen, onClose }) => {
             </div>
 
             {/* Actions */}
-            <div className="flex items-center justify-between pt-2 border-t border-slate-100">
-              <span className="text-xs text-slate-500 font-medium flex items-center gap-1">
-                <ShieldCheck size={16} className="text-emerald-500" /> Tự động duyệt qua SePay Webhook 24/7
+            <div className="flex items-center justify-between pt-3 border-t border-slate-200">
+              <span className="text-xs text-slate-500 font-medium flex items-center gap-1.5">
+                <ShieldCheck size={18} className="text-emerald-500 shrink-0" /> Kích hoạt tự động 24/7 qua SePay Webhook
               </span>
 
               <div className="flex items-center gap-3">
                 <button
                   type="button"
                   onClick={onClose}
-                  className="px-5 py-2.5 rounded-full border border-slate-300 text-slate-700 font-bold text-xs hover:bg-slate-100 transition-all cursor-pointer"
+                  className="px-5 py-2.5 rounded-xl border border-slate-300 text-slate-700 font-bold text-xs hover:bg-slate-100 transition-all cursor-pointer"
                 >
                   Hủy Bỏ
                 </button>
@@ -303,7 +303,7 @@ export const RenewalModal = ({ isOpen, onClose }) => {
                   type="button"
                   disabled={loading}
                   onClick={handleCreateOrder}
-                  className="px-6 py-2.5 rounded-full bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-extrabold text-xs md:text-sm flex items-center gap-2 shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40 hover:-translate-y-0.5 active:scale-95 transition-all cursor-pointer"
+                  className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-extrabold text-xs md:text-sm flex items-center gap-2 shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40 hover:-translate-y-0.5 active:scale-95 transition-all cursor-pointer"
                 >
                   {loading ? <Loader2 size={16} className="animate-spin" /> : <QrCode size={16} />}
                   Thanh Toán Ngay ({totalPrice.toLocaleString('vi-VN')}đ)
@@ -313,7 +313,7 @@ export const RenewalModal = ({ isOpen, onClose }) => {
           </div>
         ) : (
           /* STEP 2: VIETQR PAYMENT MODAL */
-          <div className="animate-fade-in space-y-5">
+          <div className="space-y-5 animate-fade-in">
             {successMsg && (
               <div className="bg-emerald-50 border border-emerald-300 p-4 rounded-2xl text-xs text-emerald-900 font-bold flex items-center gap-3">
                 <CheckCircle2 size={24} className="text-emerald-600 shrink-0" />
@@ -325,133 +325,148 @@ export const RenewalModal = ({ isOpen, onClose }) => {
             )}
 
             {manualSubmitted && !successMsg && (
-              <div className="bg-sky-50 border border-sky-300 p-3.5 rounded-2xl text-xs text-sky-900 font-bold flex items-center gap-3 animate-fade-in">
-                <CheckCircle2 size={22} className="text-sky-600 shrink-0" />
+              <div className="bg-sky-50 border border-sky-300 p-4 rounded-2xl text-xs text-sky-900 font-bold flex items-center gap-3 animate-fade-in">
+                <CheckCircle2 size={24} className="text-sky-600 shrink-0" />
                 <div>
                   <div className="text-sm font-black text-sky-900">Đã Ghi Nhận Thông Báo Chuyển Khoản!</div>
-                  <div>Đơn hàng <span className="font-mono text-sky-700">{createdOrder?.orderCode}</span> đã hiển thị trên Danh Sách Đơn Hàng Dịch Vụ hệ thống (Trạng thái: <strong>Chờ thanh toán / xác nhận</strong>). Admin sẽ kiểm tra nội dung <code className="font-mono bg-sky-100 px-1 py-0.5 rounded text-sky-800">{createdOrder?.transferContent}</code> và xác nhận cho bạn.</div>
+                  <div>Đơn hàng <span className="font-mono text-sky-700">{createdOrder?.orderCode}</span> đã hiển thị trên Danh Sách Đơn Hàng Dịch Vụ (Trạng thái: <strong>Chờ thanh toán / xác nhận</strong>). Admin sẽ kiểm tra nội dung <code className="font-mono bg-sky-100 px-1 py-0.5 rounded text-sky-800">{createdOrder?.transferContent}</code> và xác nhận cho bạn.</div>
                 </div>
               </div>
             )}
 
+            {/* Notification Banner */}
             {!successMsg && !manualSubmitted && (
-              <div className="bg-amber-50 border border-amber-200 p-3 rounded-2xl text-xs text-amber-800 font-bold flex items-center gap-2 animate-pulse">
-                <Clock size={16} className="shrink-0 text-amber-600" />
-                <span>Hệ thống đang tự động kiểm tra giao dịch qua SePay Webhook... Sau khi chuyển khoản xong, bạn có thể nhấn nút "Tôi đã chuyển khoản thành công" bên dưới.</span>
+              <div className="bg-amber-50/90 border border-amber-200/90 p-3.5 rounded-2xl text-xs text-amber-900 font-medium flex items-center gap-3 shadow-2xs">
+                <div className="w-8 h-8 rounded-full bg-amber-500/10 flex items-center justify-center shrink-0 text-amber-600">
+                  <Clock size={18} />
+                </div>
+                <div className="flex-1">
+                  <strong className="font-bold text-amber-950 block text-xs">Hệ thống đang tự động kiểm tra giao dịch (SePay Webhook 24/7)...</strong>
+                  <span className="text-slate-600">Sau khi hoàn tất chuyển khoản trên App ngân hàng, bạn hãy nhấn nút <strong>"Tôi Đã Chuyển Khoản Thành Công"</strong> bên dưới.</span>
+                </div>
               </div>
             )}
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-slate-50 p-5 rounded-2xl border border-slate-200">
-              
-              {/* Left Column: VietQR Image */}
-              <div className="flex flex-col items-center justify-center bg-white p-4 rounded-xl border border-slate-200 shadow-sm text-center">
+            {/* Grid Container for VietQR & Bank Info */}
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-6 bg-slate-50/80 p-5 rounded-2xl border border-slate-200">
+
+              {/* Left Column: VietQR Image (5 cols) */}
+              <div className="md:col-span-5 flex flex-col items-center justify-center bg-white p-4 rounded-2xl border border-slate-200 shadow-sm text-center">
                 <div className="text-xs font-black text-slate-800 mb-2 flex items-center gap-1.5">
                   <QrCode size={18} className="text-sky-600" />
-                  Mã VietQR Quét Nhanh Ngân Hàng
+                  <span>Mã VietQR Quét Nhanh Ngân Hàng</span>
                 </div>
 
-                <img
-                  src={vietQrUrl}
-                  alt="VietQR Payment"
-                  className="w-56 h-56 object-contain rounded-lg border border-slate-100 shadow-xs my-2"
-                />
+                <div className="bg-white p-2 rounded-xl border border-slate-200 shadow-inner my-1">
+                  <img
+                    src={vietQrUrl}
+                    alt="VietQR Payment"
+                    className="w-52 h-52 object-contain rounded-lg"
+                  />
+                </div>
 
-                <span className="text-[11px] text-slate-500 font-medium">
+                <p className="text-[11px] text-slate-500 font-medium mt-2 leading-tight">
                   Mở ứng dụng Ngân hàng (MB, Vietcombank, Techcombank...) để quét QR tự động điền số tiền & nội dung.
-                </span>
+                </p>
               </div>
 
-              {/* Right Column: Bank Details */}
-              <div className="flex flex-col justify-between space-y-3">
-                <div>
-                  <span className="text-xs font-black text-sky-600 uppercase tracking-wider block mb-2">
-                    Thông Tin Chuyển Khoản Thủ Công
-                  </span>
+              {/* Right Column: Bank Details (7 cols) */}
+              <div className="md:col-span-7 flex flex-col justify-between space-y-3">
+                <span className="text-xs font-black text-sky-700 uppercase tracking-wider block">
+                  Thông Tin Chuyển Khoản Thủ Công
+                </span>
 
-                  <div className="space-y-3 text-xs">
+                <div className="space-y-2.5 text-xs">
+                  <div className="grid grid-cols-2 gap-2.5">
                     <div className="bg-white p-3 rounded-xl border border-slate-200">
                       <span className="text-slate-400 block text-[10.5px] font-bold">Ngân Hàng:</span>
                       <strong className="text-slate-900 font-black text-sm">{paymentConfig.bankName}</strong>
-                    </div>
-
-                    <div className="bg-white p-3 rounded-xl border border-slate-200 flex items-center justify-between">
-                      <div>
-                        <span className="text-slate-400 block text-[10.5px] font-bold">Số Tài Khoản:</span>
-                        <strong className="text-sky-700 font-mono font-black text-base">{paymentConfig.accountNumber}</strong>
-                      </div>
-                      <button
-                        onClick={handleCopyAcc}
-                        className="px-2.5 py-1 rounded-lg bg-sky-50 hover:bg-sky-100 text-sky-700 font-bold text-[11px] flex items-center gap-1 border border-sky-200 cursor-pointer"
-                      >
-                        {copiedAcc ? <Check size={13} className="text-emerald-600" /> : <Copy size={13} />}
-                        {copiedAcc ? 'Đã chép' : 'Sao chép'}
-                      </button>
                     </div>
 
                     <div className="bg-white p-3 rounded-xl border border-slate-200">
                       <span className="text-slate-400 block text-[10.5px] font-bold">Chủ Tài Khoản:</span>
                       <strong className="text-slate-900 font-black text-sm uppercase">{paymentConfig.accountName}</strong>
                     </div>
-
-                    <div className="bg-white p-3 rounded-xl border border-slate-200 flex items-center justify-between">
-                      <div>
-                        <span className="text-slate-400 block text-[10.5px] font-bold">Số Tiền Cần Chuyển:</span>
-                        <strong className="text-emerald-700 font-black text-base">{createdOrder?.amount?.toLocaleString('vi-VN')} VNĐ</strong>
-                      </div>
-                    </div>
-
-                    {/* Important Transfer Content */}
-                    <div className="bg-amber-100/70 p-3.5 rounded-xl border border-amber-300">
-                      <span className="text-amber-900 block text-[11px] font-black uppercase mb-1">
-                        ⚠️ Nội Dung Chuyển Khoản (Bắt buộc):
-                      </span>
-                      <div className="flex items-center justify-between bg-white p-2 rounded-lg border border-amber-300 font-mono text-sm font-black text-red-600">
-                        <span>{createdOrder?.transferContent}</span>
-                        <button
-                          onClick={handleCopyContent}
-                          className="px-2.5 py-1 rounded-md bg-amber-600 hover:bg-amber-700 text-white font-bold text-[11px] flex items-center gap-1 cursor-pointer shadow-xs"
-                        >
-                          {copiedCode ? <Check size={13} /> : <Copy size={13} />}
-                          {copiedCode ? 'Đã chép' : 'Sao chép nội dung'}
-                        </button>
-                      </div>
-                    </div>
-
                   </div>
-                </div>
 
-                <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t border-slate-200">
-                  <button
-                    type="button"
-                    onClick={() => setStep('SELECT_PLAN')}
-                    className="text-xs font-bold text-slate-500 hover:text-slate-900 flex items-center gap-1 cursor-pointer"
-                  >
-                    <ArrowLeft size={14} /> Chọn lại gói cước
-                  </button>
-
-                  <div className="flex items-center gap-2">
-                    {!manualSubmitted && !successMsg && (
-                      <button
-                        type="button"
-                        onClick={handleManualSubmittedClick}
-                        className="px-4 py-2.5 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs flex items-center gap-1.5 shadow-md shadow-emerald-600/20 cursor-pointer transition-all active:scale-95"
-                      >
-                        <CheckCircle2 size={15} /> Tôi Đã Chuyển Khoản Thành Công
-                      </button>
-                    )}
+                  <div className="bg-white p-3 rounded-xl border border-slate-200 flex items-center justify-between">
+                    <div>
+                      <span className="text-slate-400 block text-[10.5px] font-bold">Số Tài Khoản:</span>
+                      <strong className="text-sky-700 font-mono font-black text-base">{paymentConfig.accountNumber}</strong>
+                    </div>
                     <button
                       type="button"
-                      onClick={onClose}
-                      className="px-5 py-2.5 rounded-full bg-slate-900 hover:bg-slate-800 text-white font-extrabold text-xs shadow-md cursor-pointer"
+                      onClick={handleCopyAcc}
+                      className="px-3 py-1.5 rounded-lg bg-sky-50 hover:bg-sky-100 text-sky-700 font-bold text-xs flex items-center gap-1 border border-sky-200 cursor-pointer transition-all active:scale-95"
                     >
-                      Đóng Modal
+                      {copiedAcc ? <Check size={14} className="text-emerald-600" /> : <Copy size={14} />}
+                      {copiedAcc ? 'Đã sao chép' : 'Sao chép STK'}
                     </button>
                   </div>
-                </div>
 
+                  <div className="bg-white p-3 rounded-xl border border-slate-200 flex items-center justify-between">
+                    <div>
+                      <span className="text-slate-400 block text-[10.5px] font-bold">Số Tiền Cần Chuyển:</span>
+                      <strong className="text-emerald-700 font-black text-base">{createdOrder?.amount?.toLocaleString('vi-VN')} VNĐ</strong>
+                    </div>
+                  </div>
+
+                  {/* Important Transfer Content */}
+                  <div className="bg-amber-100/80 p-3.5 rounded-xl border border-amber-300 shadow-2xs">
+                    <span className="text-amber-900 block text-[11px] font-black uppercase mb-1 flex items-center gap-1">
+                      <AlertCircle size={14} className="text-amber-600" /> Nội Dung Chuyển Khoản (Bắt buộc):
+                    </span>
+                    <div className="flex items-center justify-between bg-white p-2.5 rounded-lg border border-amber-300">
+                      <span className="font-mono text-base font-black text-red-600 tracking-wider">
+                        {createdOrder?.transferContent}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={handleCopyContent}
+                        className="px-3 py-1.5 rounded-md bg-amber-600 hover:bg-amber-700 text-white font-extrabold text-xs flex items-center gap-1.5 cursor-pointer shadow-xs transition-all active:scale-95 whitespace-nowrap"
+                      >
+                        {copiedCode ? <Check size={14} /> : <Copy size={14} />}
+                        {copiedCode ? 'Đã sao chép' : 'Sao chép nội dung'}
+                      </button>
+                    </div>
+                  </div>
+
+                </div>
               </div>
 
             </div>
+
+            {/* FULL WIDTH BOTTOM ACTION BUTTONS */}
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 border-t border-slate-200">
+              <button
+                type="button"
+                onClick={() => setStep('SELECT_PLAN')}
+                className="px-4 py-2.5 rounded-xl border border-slate-300 hover:bg-slate-100 text-slate-700 font-bold text-xs flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap"
+              >
+                <ArrowLeft size={16} /> Chọn lại gói cước
+              </button>
+
+              <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
+                {!manualSubmitted && !successMsg && (
+                  <button
+                    type="button"
+                    onClick={handleManualSubmittedClick}
+                    className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-extrabold text-xs md:text-sm flex items-center justify-center gap-2 shadow-md shadow-emerald-600/25 hover:shadow-emerald-600/40 hover:-translate-y-0.5 active:scale-95 transition-all cursor-pointer whitespace-nowrap"
+                  >
+                    <CheckCircle2 size={18} /> Tôi Đã Chuyển Khoản Thành Công
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs md:text-sm shadow-sm cursor-pointer whitespace-nowrap"
+                >
+                  Đóng
+                </button>
+              </div>
+            </div>
+
           </div>
         )}
 
