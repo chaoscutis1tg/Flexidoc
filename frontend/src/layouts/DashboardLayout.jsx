@@ -267,10 +267,13 @@ export const DashboardLayout = () => {
       <div style={{ marginLeft: '260px', flex: 1, display: 'flex', flexDirection: 'column' }}>
 
         {/* Sleek High-End Top Header Bar */}
+        {/* Sleek High-End Top Header Bar */}
         <header style={{
-          height: '64px',
-          background: '#ffffff',
-          borderBottom: '1px solid #e2e8f0',
+          height: '68px',
+          background: 'rgba(255, 255, 255, 0.85)',
+          backdropFilter: 'blur(16px)',
+          WebkitBackdropFilter: 'blur(16px)',
+          borderBottom: '1px solid rgba(226, 232, 240, 0.8)',
           padding: '0 28px',
           display: 'flex',
           alignItems: 'center',
@@ -278,17 +281,60 @@ export const DashboardLayout = () => {
           position: 'sticky',
           top: 0,
           zIndex: 90,
-          boxShadow: '0 1px 4px rgba(0,0,0,0.03)'
+          boxShadow: '0 4px 20px -2px rgba(15, 23, 42, 0.04)'
         }}>
-          {/* Left: Active System Status Indicator */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <div style={{ width: '9px', height: '9px', borderRadius: '50%', background: '#10b981', boxShadow: '0 0 0 4px rgba(16, 185, 129, 0.2)' }} />
-            <span style={{ fontSize: '14px', fontWeight: '800', color: '#0f172a', letterSpacing: '-0.01em' }}>
-              Hệ Thống Quản Lý & Số Hóa Hợp Đồng (MT-CTMS)
-            </span>
+          {/* Left: Active System Branding & Operational Status */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '7px',
+              padding: '4px 10px',
+              background: '#ecfdf5',
+              borderRadius: '20px',
+              border: '1px solid #a7f3d0'
+            }}>
+              <span style={{
+                width: '8px',
+                height: '8px',
+                borderRadius: '50%',
+                background: '#10b981',
+                boxShadow: '0 0 0 3px rgba(16, 185, 129, 0.25)'
+              }} />
+              <span style={{ fontSize: '11px', fontWeight: '700', color: '#047857', letterSpacing: '0.02em' }}>
+                Hệ thống sẵn sàng
+              </span>
+            </div>
+
+            <div style={{ width: '1px', height: '18px', background: '#cbd5e1' }} />
+
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              <span style={{
+                fontSize: '14.5px',
+                fontWeight: '800',
+                color: '#0f172a',
+                letterSpacing: '-0.01em',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px'
+              }}>
+                Hệ Thống Quản Lý & Số Hóa Hợp Đồng
+                <span style={{
+                  fontSize: '11px',
+                  fontWeight: '700',
+                  color: '#0284c7',
+                  background: '#e0f2fe',
+                  padding: '1.5px 7px',
+                  borderRadius: '6px',
+                  border: '1px solid #bae6fd'
+                }}>
+                  MT-CTMS
+                </span>
+              </span>
+            </div>
           </div>
 
-          {/* Right: Clickable Plan Status Badge & Role Info */}
+          {/* Right: Clickable Plan Status Badge & Upgrade Action */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
             {user?.role !== 'SUPER_ADMIN' && (
               <button
@@ -296,23 +342,31 @@ export const DashboardLayout = () => {
                 style={{
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '8px',
+                  gap: '9px',
                   background: isExpired
-                    ? 'linear-gradient(135deg, #fee2e2 0%, #fef2f2 100%)'
+                    ? 'linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%)'
                     : plan === 'FREE'
                       ? 'linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)'
                       : 'linear-gradient(135deg, #faf5ff 0%, #f3e8ff 100%)',
-                  color: isExpired ? '#991b1b' : plan === 'FREE' ? '#0369a1' : '#9333ea',
+                  color: isExpired ? '#991b1b' : plan === 'FREE' ? '#0369a1' : '#7e22ce',
                   padding: '7px 16px',
                   borderRadius: '24px',
                   fontSize: '12.5px',
-                  fontWeight: '800',
-                  border: isExpired ? '1px solid #fca5a5' : plan === 'FREE' ? '1px solid #7dd3fc' : '1px solid #d8b4fe',
+                  fontWeight: '700',
+                  border: isExpired ? '1px solid #fca5a5' : plan === 'FREE' ? '1px solid #bae6fd' : '1px solid #e9d5ff',
                   cursor: 'pointer',
-                  boxShadow: '0 2px 6px rgba(2,132,199,0.08)',
-                  transition: 'all 0.2s ease',
+                  boxShadow: '0 2px 8px rgba(2, 132, 199, 0.08)',
+                  transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
                 }}
-                title={`Nâng cấp / Gia hạn gói dịch vụ cho chính tổ chức '${user?.organizationId?.name || 'hiện tại'}'`}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-1px)';
+                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(2, 132, 199, 0.16)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = '0 2px 8px rgba(2, 132, 199, 0.08)';
+                }}
+                title={`Nâng cấp / Gia hạn gói dịch vụ cho tổ chức '${user?.organizationId?.name || 'hiện tại'}'`}
               >
                 {isExpired ? (
                   <AlertTriangle size={15} color="#dc2626" />
@@ -320,42 +374,25 @@ export const DashboardLayout = () => {
                   <Crown size={15} color={plan === 'FREE' ? '#0284c7' : '#9333ea'} />
                 )}
                 <span>
-                  Gói: <strong>{plan}</strong> {isExpired ? '(HẾT HẠN - Bấm để Gia Hạn)' : daysRemaining > 0 ? `(Còn ${daysRemaining} ngày)` : ''}
+                  Gói: <strong style={{ fontWeight: '800' }}>{plan}</strong> {isExpired ? '(HẾT HẠN)' : daysRemaining > 0 ? `(${daysRemaining} ngày)` : ''}
                 </span>
                 <span style={{
-                  fontSize: '10px',
+                  fontSize: '10.5px',
                   fontWeight: '800',
-                  background: plan === 'FREE' ? '#0284c7' : '#9333ea',
+                  background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)',
                   color: '#ffffff',
-                  padding: '2px 8px',
-                  borderRadius: '10px',
-                  marginLeft: '4px',
+                  padding: '3px 9px',
+                  borderRadius: '12px',
+                  marginLeft: '2px',
                   display: 'inline-flex',
                   alignItems: 'center',
-                  gap: '3px'
+                  gap: '4px',
+                  boxShadow: '0 2px 5px rgba(2, 132, 199, 0.3)'
                 }}>
                   <Sparkles size={11} /> Nâng Cấp
                 </span>
               </button>
             )}
-
-            {/* Friendly Vietnamese Role Badge */}
-            <div style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              background: roleInfo.badgeBg,
-              color: roleInfo.badgeColor,
-              padding: '7px 15px',
-              borderRadius: '20px',
-              fontSize: '12px',
-              fontWeight: '800',
-              border: `1px solid ${roleInfo.border}`,
-              boxShadow: '0 1px 3px rgba(0,0,0,0.02)'
-            }}>
-              <RoleIcon size={15} color={roleInfo.badgeColor} />
-              <span>{roleInfo.label}</span>
-            </div>
           </div>
         </header>
 
