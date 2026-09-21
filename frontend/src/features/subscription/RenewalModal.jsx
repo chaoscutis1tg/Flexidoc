@@ -16,7 +16,10 @@ import {
   Loader2,
   QrCode,
   ArrowLeft,
-  Clock
+  Clock,
+  Sparkles,
+  Briefcase,
+  Star
 } from 'lucide-react';
 
 export const RenewalModal = ({ isOpen, onClose, targetOrg = null }) => {
@@ -98,12 +101,24 @@ export const RenewalModal = ({ isOpen, onClose, targetOrg = null }) => {
     return () => clearInterval(timer);
   }, [step, createdOrder]);
 
+  const DURATION_OPTIONS = [
+    { months: 1, label: '1 Tháng', discountPercent: 0, tag: null },
+    { months: 3, label: '3 Tháng', discountPercent: 5, tag: 'Giảm 5%' },
+    { months: 6, label: '6 Tháng', discountPercent: 10, tag: 'Giảm 10%' },
+    { months: 12, label: '12 Tháng', discountPercent: 20, tag: 'Giảm 20%' },
+  ];
+
   if (!isOpen) return null;
 
   const currentOrg = targetOrg || user?.organizationId || {};
   const currentPlanObj = plans.find((p) => p.code === selectedPlan) || plans[0];
   const unitPrice = currentPlanObj ? (currentPlanObj.price || 199000) : 199000;
-  const totalPrice = unitPrice * durationMonths;
+
+  const selectedDurationOpt = DURATION_OPTIONS.find((d) => d.months === durationMonths) || DURATION_OPTIONS[0];
+  const discountPercent = selectedDurationOpt.discountPercent || 0;
+  const rawTotalPrice = unitPrice * durationMonths;
+  const totalPrice = Math.round(rawTotalPrice * (1 - discountPercent / 100));
+  const totalSaved = rawTotalPrice - totalPrice;
 
   const handleCreateOrder = async () => {
     setLoading(true);
@@ -158,24 +173,83 @@ export const RenewalModal = ({ isOpen, onClose, targetOrg = null }) => {
     ? `https://img.vietqr.io/image/${paymentConfig.bankCode || 'MB'}-${paymentConfig.accountNumber || '5408092006'}-compact2.png?amount=${createdOrder.amount}&addInfo=${encodeURIComponent(createdOrder.transferContent || `${paymentConfig.orderPrefix} ${createdOrder.orderCode}`)}&accountName=${encodeURIComponent(paymentConfig.accountName || 'DO VAN KHOA')}`
     : '';
 
+  // Helper theme for each package tier
+  const getPlanTheme = (code) => {
+    switch (code) {
+      case 'BASIC':
+        return {
+          cardSelected: 'bg-gradient-to-b from-sky-50 via-cyan-50/30 to-white border-sky-500 ring-2 ring-sky-400/25 shadow-xl shadow-sky-500/15',
+          cardUnselected: 'bg-white border-slate-200 hover:border-sky-300 hover:shadow-lg hover:shadow-sky-500/5',
+          badgeClass: 'bg-sky-600 text-white shadow-sm shadow-sky-500/30',
+          badgeText: 'Doanh Nghiệp Nhỏ',
+          iconBg: 'bg-sky-100 text-sky-600 border border-sky-200',
+          priceColor: 'text-sky-600 font-black',
+          checkBg: 'bg-sky-100 text-sky-600',
+          topAccent: 'from-sky-500 via-cyan-500 to-teal-400',
+          titleColor: 'text-slate-900',
+          Icon: Briefcase
+        };
+      case 'PRO':
+        return {
+          cardSelected: 'bg-gradient-to-b from-indigo-50 via-blue-50/30 to-white border-indigo-500 ring-2 ring-indigo-400/25 shadow-xl shadow-indigo-500/20',
+          cardUnselected: 'bg-white border-slate-200 hover:border-indigo-300 hover:shadow-lg hover:shadow-indigo-500/5',
+          badgeClass: 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/30',
+          badgeText: 'Phổ Biến Nhất',
+          iconBg: 'bg-indigo-100 text-indigo-600 border border-indigo-200',
+          priceColor: 'text-indigo-600 font-black',
+          checkBg: 'bg-indigo-100 text-indigo-600',
+          topAccent: 'from-blue-600 via-indigo-600 to-purple-600',
+          titleColor: 'text-slate-900',
+          Icon: Zap
+        };
+      case 'VIP':
+      case 'VIP_UNLIMITED':
+        return {
+          cardSelected: 'bg-gradient-to-b from-purple-50 via-amber-50/20 to-white border-purple-500 ring-2 ring-purple-400/30 shadow-2xl shadow-purple-500/25',
+          cardUnselected: 'bg-white border-purple-200 hover:border-purple-300 hover:shadow-xl hover:shadow-purple-500/10',
+          badgeClass: 'bg-gradient-to-r from-purple-600 via-pink-600 to-amber-500 text-white shadow-md shadow-purple-500/30',
+          badgeText: 'Đẳng Cấp Nhất',
+          iconBg: 'bg-gradient-to-br from-purple-100 to-amber-100 text-purple-700 border border-purple-300',
+          priceColor: 'text-purple-700 font-black',
+          checkBg: 'bg-purple-100 text-purple-700',
+          topAccent: 'from-purple-600 via-pink-600 to-amber-500',
+          titleColor: 'text-slate-900',
+          Icon: Crown
+        };
+      default:
+        return {
+          cardSelected: 'bg-sky-50 border-sky-500 shadow-md',
+          cardUnselected: 'bg-white border-slate-200',
+          badgeClass: 'bg-sky-600 text-white',
+          badgeText: 'Nổi Bật',
+          iconBg: 'bg-sky-100 text-sky-600',
+          priceColor: 'text-sky-600 font-black',
+          checkBg: 'bg-emerald-100 text-emerald-600',
+          topAccent: 'from-sky-500 to-blue-600',
+          titleColor: 'text-slate-900',
+          Icon: Star
+        };
+    }
+  };
+
   return createPortal(
     <div
       onClick={onClose}
-      className="fixed inset-0 z-[99999] bg-slate-950/80 backdrop-blur-md p-4 flex items-center justify-center animate-backdrop select-none"
+      className="fixed inset-0 z-[99999] bg-slate-950/80 backdrop-blur-md p-3 sm:p-4 flex items-center justify-center animate-backdrop select-none"
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="bg-white rounded-3xl p-6 sm:p-8 max-w-4xl w-[95vw] max-h-[92vh] overflow-y-auto shadow-2xl border border-slate-200 animate-modal-pop text-slate-900 relative z-10"
+        className="bg-white rounded-3xl p-5 sm:p-7 max-w-5xl w-[96vw] max-h-[92vh] overflow-y-auto shadow-2xl border border-slate-200 animate-modal-pop text-slate-900 relative z-10"
       >
 
         {/* Header */}
-        <div className="flex items-center justify-between pb-4 border-b border-slate-200 mb-5">
+        <div className="flex items-center justify-between pb-3.5 border-b border-slate-200 mb-4">
           <div>
-            <h2 className="text-xl font-black text-slate-900 flex items-center gap-2">
-              <Crown className="text-sky-600 shrink-0" size={24} />
+            <h2 className="text-lg sm:text-xl font-black text-slate-900 flex items-center gap-2">
+              <Crown className="text-purple-600 shrink-0" size={22} />
               <span>Nâng Cấp Gói Dịch Vụ Cho Tổ Chức</span>
             </h2>
-            <div className="flex items-center gap-2 mt-1 text-xs text-slate-500 font-medium">
+            <div className="flex items-center gap-2 mt-0.5 text-xs text-slate-500 font-medium">
               <span>Đơn vị:</span>
               <span className="font-extrabold text-sky-700 bg-sky-50 px-2.5 py-0.5 rounded-md border border-sky-200 flex items-center gap-1">
                 <Building size={13} /> {currentOrg.name || 'Tổ chức của tôi'} ({currentOrg.code || 'MAIN'})
@@ -253,46 +327,70 @@ export const RenewalModal = ({ isOpen, onClose, targetOrg = null }) => {
         ) : step === 'SELECT_PLAN' ? (
           <div>
             {/* Plan Selector Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-5">
               {plans.map((p) => {
                 const isSelected = selectedPlan === p.code;
-                const isVip = p.code === 'VIP';
+                const theme = getPlanTheme(p.code);
+                const PlanIcon = theme.Icon;
 
                 return (
                   <div
                     key={p.code}
                     onClick={() => setSelectedPlan(p.code)}
-                    className={`rounded-2xl p-5 cursor-pointer relative border transition-all flex flex-col justify-between ${isSelected
-                      ? isVip
-                        ? 'bg-purple-50/60 border-purple-500 shadow-md shadow-purple-500/10'
-                        : 'bg-sky-50/60 border-sky-500 shadow-md shadow-sky-500/10'
-                      : 'bg-white border-slate-200 hover:border-slate-300'
-                      }`}
+                    className={`rounded-2xl p-4 sm:p-5 cursor-pointer relative border transition-all duration-300 flex flex-col justify-between group ${
+                      isSelected ? theme.cardSelected : theme.cardUnselected
+                    }`}
                   >
-                    {p.popular && (
-                      <div className="absolute -top-2.5 right-4 bg-sky-600 text-white text-[9.5px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider shadow-2xs">
-                        Phổ biến nhất
-                      </div>
+                    {/* Top Accent Gradient Bar when Selected */}
+                    {isSelected && (
+                      <div className={`absolute top-0 left-0 right-0 h-1.5 rounded-t-2xl bg-gradient-to-r ${theme.topAccent}`} />
                     )}
 
                     <div>
-                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">
-                        {p.subtitle || p.badge}
-                      </span>
-                      <h3 className="text-xl font-black text-slate-900 mt-0.5">{p.title}</h3>
-                      <div className="my-3 flex items-baseline gap-1">
-                        <span className="text-2xl font-black text-sky-600">
+                      {/* Header Icon + Subtitle + Badge */}
+                      <div className="flex items-center justify-between gap-2 mb-2 mt-0.5">
+                        <div className="flex items-center gap-2">
+                          <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${theme.iconBg} shadow-2xs`}>
+                            <PlanIcon size={15} />
+                          </div>
+                          <span className="text-[10px] sm:text-[10.5px] font-extrabold text-slate-400 uppercase tracking-wider block">
+                            {p.subtitle || p.badge}
+                          </span>
+                        </div>
+
+                        {(p.popular || p.code === 'PRO' || p.code === 'VIP') && (
+                          <span className={`${theme.badgeClass} text-[9.5px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider whitespace-nowrap`}>
+                            {p.code === 'PRO' ? 'Phổ Biến Nhất' : p.code === 'VIP' ? 'Đẳng Cấp Nhất' : theme.badgeText}
+                          </span>
+                        )}
+                      </div>
+
+                      <h3 className={`text-lg sm:text-xl font-black ${theme.titleColor} mt-1 mb-2 flex items-center justify-between`}>
+                        <span>{p.title}</span>
+                        {isSelected && (
+                          <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200 flex items-center gap-1 whitespace-nowrap">
+                            <CheckCircle2 size={11} /> Đã Chọn
+                          </span>
+                        )}
+                      </h3>
+
+                      {/* Pricing Box */}
+                      <div className="my-2.5 py-2 px-3 rounded-xl bg-slate-50/90 border border-slate-200/80 flex items-baseline gap-1">
+                        <span className={`text-xl sm:text-2xl ${theme.priceColor}`}>
                           {p.formattedPrice}
                         </span>
                         <span className="text-xs text-slate-500 font-bold">{p.billingCycle}</span>
                       </div>
                     </div>
 
-                    <ul className="space-y-2 pt-3 border-t border-slate-100 text-xs text-slate-600 font-medium">
+                    {/* Features List */}
+                    <ul className="space-y-2 pt-3 border-t border-slate-200/60 text-xs text-slate-700 font-medium">
                       {p.features?.map((feat, idx) => (
-                        <li key={idx} className="flex items-start gap-1.5">
-                          <Check size={15} className="text-emerald-500 shrink-0 mt-0.5" />
-                          <span>{feat}</span>
+                        <li key={idx} className="flex items-start gap-2">
+                          <div className={`w-4 h-4 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${theme.checkBg}`}>
+                            <Check size={10} strokeWidth={3} />
+                          </div>
+                          <span className="leading-snug font-medium text-slate-700">{feat}</span>
                         </li>
                       ))}
                     </ul>
@@ -302,44 +400,73 @@ export const RenewalModal = ({ isOpen, onClose, targetOrg = null }) => {
             </div>
 
             {/* Duration Selector */}
-            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 mb-6">
-              <label className="text-xs font-bold text-slate-700 block mb-2">
-                Chọn Thời Gian Gia Hạn / Đăng Ký:
-              </label>
-              <div className="grid grid-cols-4 gap-2">
-                {[
-                  { months: 1, label: '1 Tháng' },
-                  { months: 3, label: '3 Tháng' },
-                  { months: 6, label: '6 Tháng' },
-                  { months: 12, label: '12 Tháng' },
-                ].map((opt) => (
-                  <button
-                    key={opt.months}
-                    type="button"
-                    onClick={() => setDurationMonths(opt.months)}
-                    className={`py-2 px-3 rounded-xl text-xs font-extrabold transition-all cursor-pointer border ${durationMonths === opt.months
-                      ? 'bg-sky-600 text-white border-sky-600 shadow-sm'
-                      : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300'
+            <div className="bg-gradient-to-r from-slate-50 to-slate-100/70 p-4 rounded-2xl border border-slate-200 mb-5 shadow-2xs">
+              <div className="flex items-center justify-between mb-3">
+                <label className="text-xs font-extrabold text-slate-800 flex items-center gap-1.5">
+                  <Clock size={15} className="text-sky-600" />
+                  <span>Chọn Thời Gian Gia Hạn / Đăng Ký:</span>
+                </label>
+                <span className="text-[11px] text-slate-500 font-semibold hidden sm:inline">
+                  Đăng ký nhiều tháng để nhận chiết khấu tiết kiệm
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                {DURATION_OPTIONS.map((opt) => {
+                  const isSelected = durationMonths === opt.months;
+
+                  return (
+                    <button
+                      key={opt.months}
+                      type="button"
+                      onClick={() => setDurationMonths(opt.months)}
+                      className={`py-2.5 px-3 rounded-xl text-xs font-black transition-all cursor-pointer border flex items-center justify-between relative ${
+                        isSelected
+                          ? 'bg-gradient-to-r from-sky-600 to-indigo-600 text-white border-transparent shadow-md shadow-sky-600/25 scale-[1.01]'
+                          : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300 hover:bg-slate-50'
                       }`}
-                  >
-                    {opt.label}
-                  </button>
-                ))}
+                    >
+                      <span>{opt.label}</span>
+                      {opt.tag && (
+                        <span className={`text-[9.5px] font-black px-1.5 py-0.5 rounded-full uppercase tracking-wider ${
+                          isSelected ? 'bg-amber-400 text-slate-950 shadow-2xs' : 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                        }`}>
+                          {opt.tag}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
               </div>
 
               {/* Total Calculation */}
-              <div className="mt-4 pt-3 border-t border-slate-200 flex items-center justify-between text-xs font-extrabold text-slate-800">
-                <span>Tổng Tiền Thanh Toán ({durationMonths} tháng):</span>
-                <span className="text-lg font-black text-sky-700">
-                  {totalPrice.toLocaleString('vi-VN')} VNĐ
-                </span>
+              <div className="mt-3.5 pt-3 border-t border-slate-200/80 flex flex-wrap items-center justify-between gap-2 text-xs font-extrabold text-slate-800">
+                <div className="flex items-center gap-2">
+                  <span className="text-slate-600">Tổng Tiền Thanh Toán ({durationMonths} tháng):</span>
+                  {discountPercent > 0 && (
+                    <span className="text-[11px] text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                      Tiết kiệm {totalSaved.toLocaleString('vi-VN')}đ (-{discountPercent}%)
+                    </span>
+                  )}
+                </div>
+
+                <div className="flex items-baseline gap-2">
+                  {discountPercent > 0 && (
+                    <span className="text-xs line-through text-slate-400 font-bold">
+                      {rawTotalPrice.toLocaleString('vi-VN')}đ
+                    </span>
+                  )}
+                  <span className="text-lg sm:text-xl font-black text-transparent bg-clip-text bg-gradient-to-r from-emerald-600 to-teal-700">
+                    {totalPrice.toLocaleString('vi-VN')} VNĐ
+                  </span>
+                </div>
               </div>
             </div>
 
             {/* Actions */}
             <div className="flex items-center justify-between pt-3 border-t border-slate-200">
-              <span className="text-xs text-slate-500 font-medium flex items-center gap-1.5">
-                <ShieldCheck size={18} className="text-emerald-500 shrink-0" /> Kích hoạt tự động 24/7 qua SePay Webhook
+              <span className="text-xs text-slate-600 font-medium flex items-center gap-2 bg-emerald-50 text-emerald-800 px-3 py-1.5 rounded-xl border border-emerald-200/80">
+                <ShieldCheck size={18} className="text-emerald-600 shrink-0" /> Kích hoạt tự động 24/7 qua SePay Webhook
               </span>
 
               <div className="flex items-center gap-3">
@@ -354,9 +481,9 @@ export const RenewalModal = ({ isOpen, onClose, targetOrg = null }) => {
                   type="button"
                   disabled={loading}
                   onClick={handleCreateOrder}
-                  className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-extrabold text-xs md:text-sm flex items-center gap-2 shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40 hover:-translate-y-0.5 active:scale-95 transition-all cursor-pointer"
+                  className="px-6 py-3 rounded-xl bg-gradient-to-r from-emerald-500 via-teal-600 to-emerald-600 text-white font-extrabold text-xs md:text-sm flex items-center gap-2 shadow-lg shadow-emerald-500/30 hover:shadow-emerald-500/45 hover:-translate-y-0.5 active:scale-95 transition-all cursor-pointer"
                 >
-                  {loading ? <Loader2 size={16} className="animate-spin" /> : <QrCode size={16} />}
+                  {loading ? <Loader2 size={16} className="animate-spin" /> : <QrCode size={18} />}
                   Thanh Toán Ngay ({totalPrice.toLocaleString('vi-VN')}đ)
                 </button>
               </div>

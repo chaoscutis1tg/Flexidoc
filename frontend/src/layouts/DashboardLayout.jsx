@@ -19,7 +19,8 @@ import {
   Copy,
   Check,
   AlertTriangle,
-  Settings
+  Settings,
+  Clock
 } from 'lucide-react';
 import { getRoleInfo } from '../utils/roleFormatter';
 
@@ -344,69 +345,132 @@ export const DashboardLayout = () => {
                   alignItems: 'center',
                   gap: '10px',
                   background: isExpired
-                    ? 'linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%)'
+                    ? 'linear-gradient(135deg, #fff1f2 0%, #ffe4e6 100%)'
                     : plan === 'FREE'
                       ? 'linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)'
-                      : 'linear-gradient(135deg, #faf5ff 0%, #f3e8ff 100%)',
-                  color: isExpired ? '#991b1b' : plan === 'FREE' ? '#0f172a' : '#581c87',
-                  padding: '5px 6px 5px 14px',
-                  borderRadius: '28px',
+                      : 'linear-gradient(135deg, #fbf7ff 0%, #f3e8ff 100%)',
+                  color: isExpired ? '#9f1239' : plan === 'FREE' ? '#0369a1' : '#6b21a8',
+                  padding: '4px 6px 4px 12px',
+                  borderRadius: '30px',
                   fontSize: '12.5px',
-                  fontWeight: '700',
+                  fontWeight: '600',
                   border: isExpired
-                    ? '1px solid #fca5a5'
+                    ? '1px solid #fecdd3'
                     : plan === 'FREE'
-                      ? '1px solid #7dd3fc'
-                      : '1px solid #d8b4fe',
+                      ? '1px solid #bae6fd'
+                      : '1px solid #e9d5ff',
                   cursor: 'pointer',
-                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)',
-                  transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                  boxShadow: '0 2px 10px rgba(0, 0, 0, 0.04)',
+                  backdropFilter: 'blur(8px)',
+                  transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = 'translateY(-1px)';
-                  e.currentTarget.style.boxShadow = '0 4px 14px rgba(2, 132, 199, 0.15)';
+                  e.currentTarget.style.transform = 'translateY(-1.5px)';
+                  e.currentTarget.style.boxShadow = isExpired
+                    ? '0 6px 18px rgba(225, 29, 72, 0.18)'
+                    : plan === 'FREE'
+                      ? '0 6px 18px rgba(2, 132, 199, 0.18)'
+                      : '0 6px 18px rgba(147, 51, 234, 0.18)';
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.transform = 'translateY(0)';
-                  e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.04)';
+                  e.currentTarget.style.boxShadow = '0 2px 10px rgba(0, 0, 0, 0.04)';
                 }}
                 title={`Quản lý / gia hạn gói dịch vụ cho tổ chức '${user?.organizationId?.name || 'hiện tại'}'`}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                {/* Icon Container */}
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  width: '26px',
+                  height: '26px',
+                  borderRadius: '50%',
+                  background: isExpired
+                    ? '#ffe4e6'
+                    : plan === 'FREE'
+                      ? '#e0f2fe'
+                      : '#ede9fe',
+                  flexShrink: 0
+                }}>
                   {isExpired ? (
-                    <AlertTriangle size={15} color="#dc2626" />
+                    <AlertTriangle size={14} color="#e11d48" />
                   ) : (
-                    <Crown size={15} color={plan === 'FREE' ? '#0284c7' : '#9333ea'} />
+                    <Crown size={14} color={plan === 'FREE' ? '#0284c7' : '#8b5cf6'} />
                   )}
-                  <span>
-                    Gói: <strong style={{ fontWeight: '800', color: plan === 'FREE' ? '#0284c7' : '#9333ea' }}>{plan}</strong>
-                    {isExpired ? (
-                      <span style={{ color: '#dc2626', fontWeight: '800', marginLeft: '4px' }}>(Hết hạn)</span>
-                    ) : plan !== 'FREE' && daysRemaining > 0 ? (
-                      <span style={{ color: '#64748b', fontWeight: '600', marginLeft: '4px' }}>(Còn {daysRemaining} ngày)</span>
-                    ) : ''}
-                  </span>
                 </div>
 
-                {/* Compact Action Chip: "Gia Hạn" / "Nâng Cấp" */}
+                {/* Main Content */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '7px' }}>
+                  <span style={{ fontSize: '12px', color: '#64748b', fontWeight: '500' }}>Gói:</span>
+                  <span style={{
+                    fontWeight: '800',
+                    fontSize: '13px',
+                    letterSpacing: '0.03em',
+                    color: isExpired ? '#be123c' : plan === 'FREE' ? '#0284c7' : '#7e22ce'
+                  }}>
+                    {plan}
+                  </span>
+
+                  {/* Remaining Days Pill */}
+                  {isExpired ? (
+                    <span style={{
+                      background: '#ffe4e6',
+                      color: '#e11d48',
+                      padding: '2px 8px',
+                      borderRadius: '12px',
+                      fontSize: '11px',
+                      fontWeight: '700',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '3px'
+                    }}>
+                      Hết hạn
+                    </span>
+                  ) : plan !== 'FREE' && daysRemaining > 0 ? (
+                    <span style={{
+                      background: 'rgba(255, 255, 255, 0.85)',
+                      color: '#475569',
+                      border: '1px solid rgba(203, 213, 225, 0.6)',
+                      padding: '2px 9px',
+                      borderRadius: '12px',
+                      fontSize: '11px',
+                      fontWeight: '600',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      boxShadow: '0 1px 2px rgba(0,0,0,0.03)'
+                    }}>
+                      <Clock size={11} color="#64748b" />
+                      Còn {daysRemaining} ngày
+                    </span>
+                  ) : null}
+                </div>
+
+                {/* Compact Gradient Action Chip: "Gia Hạn" / "Nâng Cấp" */}
                 <span style={{
-                  fontSize: '11px',
-                  fontWeight: '800',
+                  fontSize: '11.5px',
+                  fontWeight: '700',
                   background: isExpired
-                    ? 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)'
+                    ? 'linear-gradient(135deg, #f43f5e 0%, #e11d48 100%)'
                     : plan === 'FREE'
-                      ? 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)'
-                      : 'linear-gradient(135deg, #9333ea 0%, #7e22ce 100%)',
+                      ? 'linear-gradient(135deg, #0ea5e9 0%, #0369a1 100%)'
+                      : 'linear-gradient(135deg, #a855f7 0%, #7e22ce 100%)',
                   color: '#ffffff',
-                  padding: '4px 10px',
-                  borderRadius: '16px',
+                  padding: '5px 12px',
+                  borderRadius: '20px',
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: '4px',
-                  boxShadow: '0 2px 6px rgba(0, 0, 0, 0.12)',
-                  letterSpacing: '0.01em'
+                  boxShadow: isExpired
+                    ? '0 2px 8px rgba(225, 29, 72, 0.35)'
+                    : plan === 'FREE'
+                      ? '0 2px 8px rgba(2, 132, 199, 0.35)'
+                      : '0 2px 8px rgba(126, 34, 206, 0.35)',
+                  letterSpacing: '0.01em',
+                  marginLeft: '2px'
                 }}>
-                  <Sparkles size={11} color="#ffffff" />
+                  <Sparkles size={12} color="#ffffff" />
                   {isExpired ? 'Gia Hạn Ngay' : plan === 'FREE' ? 'Nâng Cấp' : 'Gia Hạn'}
                 </span>
               </button>

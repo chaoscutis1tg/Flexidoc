@@ -11,6 +11,13 @@ const PLAN_PRICES = {
   VIP: 999000,
 };
 
+const DURATION_DISCOUNTS = {
+  1: 0,
+  3: 5,   // 5% discount
+  6: 10,  // 10% discount
+  12: 20, // 20% discount
+};
+
 export class OrderService {
   async createOrder({ plan, durationMonths = 1, targetOrgId, user }) {
     if (!['BASIC', 'PRO', 'VIP'].includes(plan)) {
@@ -18,7 +25,9 @@ export class OrderService {
     }
     const months = Math.max(1, parseInt(durationMonths) || 1);
     const unitPrice = PLAN_PRICES[plan] || 199000;
-    const amount = unitPrice * months;
+    const rawAmount = unitPrice * months;
+    const discountPercent = DURATION_DISCOUNTS[months] || 0;
+    const amount = Math.round(rawAmount * (1 - discountPercent / 100));
 
     const orgId = targetOrgId || (user.organizationId ? (user.organizationId._id || user.organizationId) : null);
     if (!orgId) {
