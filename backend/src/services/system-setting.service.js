@@ -6,8 +6,8 @@ export const DEFAULT_PAYMENT_CONFIG = {
   bankCode: 'MB',
   accountNumber: '5408092006',
   accountName: 'DO VAN KHOA',
-  orderPrefix: 'MTCTMS',
-  sepayApiKey: 'sepay_secret_key_mtctms_2026',
+  orderPrefix: 'FDDH',
+  sepayApiKey: 'sepay_secret_key_flexidoc_2026',
   serverBaseUrl: process.env.SERVER_BASE_URL || 'http://localhost:5000',
   sepayWebhookPath: process.env.SEPAY_WEBHOOK_PATH || '/api/v1/payments/sepay-webhook',
 };

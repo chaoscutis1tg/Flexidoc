@@ -31,7 +31,8 @@ import {
   Mail,
   MapPin,
   Calendar,
-  CreditCard
+  CreditCard,
+  Loader2
 } from 'lucide-react';
 
 export const ContractsPage = () => {
@@ -851,10 +852,10 @@ export const ContractsPage = () => {
   );
 
   return (
-    <div className="animate-fade-in space-y-6">
+    <div className="animate-fade-in flex-1 flex flex-col space-y-5 min-h-[calc(100vh-140px)]">
 
       {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200 shadow-xs shrink-0">
         <div>
           <div className="flex items-center gap-2 mb-1">
             <div className="w-8 h-8 rounded-xl bg-sky-50 border border-sky-200 flex items-center justify-center text-sky-600">
@@ -878,31 +879,46 @@ export const ContractsPage = () => {
         </button>
       </div>
 
-      {/* Contracts Table List */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+      {/* Contracts Table List Container (Full Height Flex) */}
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden flex-1 flex flex-col min-h-[450px]">
         {loading ? (
-          <div className="p-8 text-center text-xs font-bold text-slate-400">
-            Đang tải danh sách hợp đồng...
+          <div className="flex-1 flex flex-col items-center justify-center p-8 text-center text-xs font-bold text-slate-400">
+            <Loader2 size={26} className="animate-spin text-sky-600 mb-2" />
+            <span>Đang tải danh sách hợp đồng...</span>
           </div>
         ) : contracts.length === 0 ? (
-          <div className="p-12 text-center text-xs font-bold text-slate-400 space-y-2">
-            <FileText size={32} className="mx-auto text-slate-300" />
-            <p>Chưa có hợp đồng nào được khởi tạo.</p>
+          <div className="flex-1 flex flex-col items-center justify-center p-12 text-center text-xs font-bold text-slate-400 space-y-3">
+            <div className="w-16 h-16 rounded-full bg-slate-50 border border-slate-200 flex items-center justify-center text-slate-300 mb-1 shadow-2xs">
+              <FileText size={32} />
+            </div>
+            <h3 className="text-sm font-black text-slate-700">Chưa có hợp đồng nào được khởi tạo</h3>
+            <p className="text-xs text-slate-500 font-normal max-w-sm leading-relaxed">
+              Bạn có thể dễ dàng khởi tạo hợp đồng tự động đầu tiên bằng cách sử dụng các mẫu văn bản đã tạo sẵn.
+            </p>
+            <button
+              onClick={() => {
+                setShowModal(true);
+                setWizardStep(1);
+              }}
+              className="mt-2 inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs shadow-md shadow-sky-200 transition-all cursor-pointer"
+            >
+              <Plus size={15} /> Tạo Hợp Đồng Mới Ngay
+            </button>
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto flex-1">
             <table className="w-full text-left text-xs">
-              <thead className="bg-slate-50 border-b border-slate-200 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+              <thead className="bg-slate-50 border-b border-slate-200 text-[11px] font-bold text-slate-500 uppercase tracking-wider sticky top-0 z-10">
                 <tr>
-                  <th className="py-3 px-4">Mã Hợp Đồng</th>
-                  <th className="py-3 px-4">Tiêu Đề / Tên</th>
-                  <th className="py-3 px-4">Tổ Chức</th>
-                  <th className="py-3 px-4">Người Tạo</th>
-                  <th className="py-3 px-4">Mẫu Số Hóa</th>
-                  <th className="py-3 px-4">Phiên Bản</th>
-                  <th className="py-3 px-4">Trạng Thái</th>
-                  <th className="py-3 px-4">Ngày Tạo</th>
-                  <th className="py-3 px-4 text-center">Thao Tác</th>
+                  <th className="py-3.5 px-4">Mã Hợp Đồng</th>
+                  <th className="py-3.5 px-4">Tiêu Đề / Tên</th>
+                  <th className="py-3.5 px-4">Tổ Chức</th>
+                  <th className="py-3.5 px-4">Người Tạo</th>
+                  <th className="py-3.5 px-4">Mẫu Số Hóa</th>
+                  <th className="py-3.5 px-4">Phiên Bản</th>
+                  <th className="py-3.5 px-4">Trạng Thái</th>
+                  <th className="py-3.5 px-4">Ngày Tạo</th>
+                  <th className="py-3.5 px-4 text-center">Thao Tác</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">

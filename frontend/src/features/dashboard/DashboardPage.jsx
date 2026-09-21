@@ -181,7 +181,7 @@ export const DashboardPage = () => {
 
               <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight flex items-center gap-3">
                 <Building2 size={32} className="text-sky-400" />
-                <span>Bảng Điều Khiển Hệ Thống MT-CTMS</span>
+                <span>Bảng Điều Khiển Hệ Thống FlexiDoc</span>
               </h1>
               <p className="text-xs sm:text-sm text-slate-300 mt-2 max-w-2xl leading-relaxed">
                 Quản trị toàn bộ tổ chức, kiểm soát đơn hàng & doanh thu gói cước, phân quyền người dùng và theo dõi tất cả hợp đồng được sinh ra trên toàn hệ thống.

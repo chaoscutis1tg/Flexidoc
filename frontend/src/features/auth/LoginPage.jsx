@@ -62,7 +62,7 @@ export const LoginPage = () => {
           }}>
             <Briefcase size={30} color="#fff" />
           </div>
-          <h1 style={{ fontSize: '26px', fontWeight: '800', color: '#0f172a' }}>Hệ Thống MT-CTMS</h1>
+          <h1 style={{ fontSize: '26px', fontWeight: '800', color: '#0f172a' }}>Hệ Thống FlexiDoc</h1>
           <p style={{ color: 'var(--text-muted)', fontSize: '14px', marginTop: '4px' }}>
             Quản Lý & Sinh Hợp Đồng Theo Mẫu Đa Tổ Chức
           </p>

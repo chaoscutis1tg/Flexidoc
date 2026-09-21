@@ -135,7 +135,7 @@ export const DashboardLayout = () => {
           </div>
           <div>
             <h2 style={{ fontSize: '17px', fontWeight: '800', color: '#0f172a' }}>
-              MT-CTMS
+              FlexiDoc
             </h2>
             <span style={{ fontSize: '11px', color: '#64748b', display: 'block', fontWeight: '500' }}>
               Quản Lý Hợp Đồng
@@ -329,7 +329,7 @@ export const DashboardLayout = () => {
                   borderRadius: '6px',
                   border: '1px solid #bae6fd'
                 }}>
-                  MT-CTMS
+                  FlexiDoc
                 </span>
               </span>
             </div>

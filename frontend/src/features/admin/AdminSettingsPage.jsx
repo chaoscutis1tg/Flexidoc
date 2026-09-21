@@ -58,8 +58,8 @@ export const AdminSettingsPage = () => {
     bankCode: 'MB',
     accountNumber: '5408092006',
     accountName: 'DO VAN KHOA',
-    orderPrefix: 'MTCTMS',
-    sepayApiKey: 'sepay_secret_key_mtctms_2026',
+    orderPrefix: 'FDDH',
+    sepayApiKey: 'sepay_secret_key_flexidoc_2026',
     serverBaseUrl: 'http://localhost:5000',
     sepayWebhookPath: '/api/v1/payments/sepay-webhook',
   });
@@ -400,12 +400,12 @@ export const AdminSettingsPage = () => {
                   <input
                     type="text"
                     required
-                    placeholder="MTCTMS"
+                    placeholder="FDDH"
                     value={paymentConfig.orderPrefix}
                     onChange={(e) => setPaymentConfig({ ...paymentConfig, orderPrefix: e.target.value.toUpperCase() })}
                     className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm font-mono font-bold focus:ring-2 focus:ring-sky-500 outline-none uppercase"
                   />
-                  <span className="text-[10.5px] text-slate-400 mt-1 block">Nội dung CK ví dụ: <code>{paymentConfig.orderPrefix || 'MTCTMS'} DH16780</code></span>
+                  <span className="text-[10.5px] text-slate-400 mt-1 block">Nội dung CK ví dụ: <code>{paymentConfig.orderPrefix || 'FDDH'} DH16780</code></span>
                 </div>
 
                 <div>

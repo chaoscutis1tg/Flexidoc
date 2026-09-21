@@ -38,7 +38,7 @@ export const RenewalModal = ({ isOpen, onClose, targetOrg = null }) => {
     bankCode: 'MB',
     accountNumber: '5408092006',
     accountName: 'DO VAN KHOA',
-    orderPrefix: 'MTCTMS',
+    orderPrefix: 'FDDH',
   });
 
   const [loading, setLoading] = useState(false);

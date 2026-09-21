@@ -188,6 +188,17 @@ export class OrderService {
       };
     }
 
+    // 2.5. Verify Amount Integrity (Kế thừa tính toàn vẹn dữ liệu)
+    const paidAmount = Number(transferAmount) || 0;
+    const requiredAmount = Number(order.amount) || 0;
+
+    if (paidAmount < requiredAmount) {
+      return {
+        success: false,
+        message: `Số tiền chuyển khoản (${paidAmount.toLocaleString('vi-VN')} VNĐ) ít hơn số tiền đơn hàng (${requiredAmount.toLocaleString('vi-VN')} VNĐ). Đơn hàng chưa được kích hoạt tự động.`,
+      };
+    }
+
     // 3. Mark Order SUCCESS with full SePay payment details stored
     const updatedOrder = await orderRepository.updateById(order._id, {
       status: 'SUCCESS',

@@ -61,8 +61,8 @@ export const AdminOrdersRevenuePage = () => {
     bankCode: 'MB',
     accountNumber: '5408092006',
     accountName: 'DO VAN KHOA',
-    orderPrefix: 'MTCTMS',
-    sepayApiKey: 'sepay_secret_key_mtctms_2026',
+    orderPrefix: 'FDDH',
+    sepayApiKey: 'sepay_secret_key_flexidoc_2026',
   });
   const [configMessage, setConfigMessage] = useState({ type: '', text: '' });
 
@@ -698,12 +698,12 @@ export const AdminOrdersRevenuePage = () => {
                   <input
                     type="text"
                     required
-                    placeholder="MTCTMS"
+                    placeholder="FDDH"
                     value={paymentConfig.orderPrefix}
                     onChange={(e) => setPaymentConfig({ ...paymentConfig, orderPrefix: e.target.value.toUpperCase() })}
                     className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm font-mono font-bold focus:ring-2 focus:ring-sky-500 outline-none uppercase"
                   />
-                  <span className="text-[10.5px] text-slate-400 mt-1 block">Khách hàng sẽ chuyển với nội dung: <code>MTCTMS DH88910</code></span>
+                  <span className="text-[10.5px] text-slate-400 mt-1 block">Khách hàng sẽ chuyển với nội dung: <code>FDDH DH88910</code></span>
                 </div>
 
                 <div>
@@ -845,10 +845,10 @@ export const AdminOrdersRevenuePage = () => {
               </span>
               <div className="flex items-center justify-between bg-white p-3 rounded-xl border border-amber-300 shadow-2xs">
                 <span className="font-mono text-lg font-black text-red-600 tracking-wider">
-                  {paymentConfig.orderPrefix || 'MTCTMS'} {selectedOrderDetails.orderCode}
+                  {paymentConfig.orderPrefix || 'FDDH'} {selectedOrderDetails.orderCode}
                 </span>
                 <button
-                  onClick={() => handleCopyTransferCode(`${paymentConfig.orderPrefix || 'MTCTMS'} ${selectedOrderDetails.orderCode}`)}
+                  onClick={() => handleCopyTransferCode(`${paymentConfig.orderPrefix || 'FDDH'} ${selectedOrderDetails.orderCode}`)}
                   className="px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-black text-xs flex items-center gap-1.5 shadow-xs cursor-pointer transition-all active:scale-95"
                 >
                   {copiedTransferCode ? <Check size={14} /> : <Copy size={14} />}

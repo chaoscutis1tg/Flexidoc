@@ -299,7 +299,7 @@ export const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
             </div>
             <div>
               <h2 className="text-xl font-black text-white tracking-wider leading-tight">
-                MT-CTMS
+                FlexiDoc
               </h2>
               <span className="text-[11px] text-sky-300 font-bold uppercase tracking-widest">
                 Hệ Thống Số Hóa Hợp Đồng

@@ -20,7 +20,7 @@ const possibleDistPaths = [
   path.resolve('/app/frontend/dist')
 ];
 const frontendDistPath = possibleDistPaths.find(p => fs.existsSync(p)) || possibleDistPaths[0];
-console.log(`[MT-CTMS] Serving Frontend Dist from: ${frontendDistPath}`);
+console.log(`[FlexiDoc] Serving Frontend Dist from: ${frontendDistPath}`);
 
 const app = express();
 app.set('trust proxy', 1);
@@ -63,7 +63,7 @@ app.use('/api/v1', routes);
 
 // Health check endpoint
 app.get('/health', (req, res) => {
-  res.status(200).json({ status: 'OK', system: 'MT-CTMS API Server', version: '1.0.0' });
+  res.status(200).json({ status: 'OK', system: 'FlexiDoc API Server', version: '1.0.0' });
 });
 
 // 5. Serve Frontend Static Files & SPA Routing Fallback
