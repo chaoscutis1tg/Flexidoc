@@ -443,5 +443,54 @@ h1, h2, h3, h4, h5, h6 {
   text-align: justify !important;
 }
 
+/* Modal Slide & Tab Switch Animations */
+@keyframes slideNextIn {
+  0% { opacity: 0; transform: scale(0.96) translateX(24px); }
+  100% { opacity: 1; transform: scale(1) translateX(0); }
+}
+
+@keyframes slidePrevIn {
+  0% { opacity: 0; transform: scale(0.96) translateX(-24px); }
+  100% { opacity: 1; transform: scale(1) translateX(0); }
+}
+
+@keyframes bgFadeZoom {
+  0% { opacity: 0.3; transform: scale(1.06); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+@keyframes tabSwitchFade {
+  0% { opacity: 0; transform: translateY(10px) scale(0.99); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.animate-slide-next {
+  animation: slideNextIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-slide-prev {
+  animation: slidePrevIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-bg-zoom {
+  animation: bgFadeZoom 0.6s ease-out forwards;
+}
+
+.animate-tab-switch {
+  animation: tabSwitchFade 0.32s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Global Uniform Input Placeholder Styling */
+input::placeholder,
+textarea::placeholder {
+  font-size: 12px !important;
+  font-weight: 400 !important;
+  text-transform: none !important;
+  letter-spacing: normal !important;
+  color: #94a3b8 !important;
+}
+
+
+
 
 

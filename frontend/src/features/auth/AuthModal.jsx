@@ -35,25 +35,31 @@ const GoogleIcon = () => (
 
 const showcaseSlides = [
   {
+    badge: "Số Hóa Hợp Đồng Word",
     title: "Số Hóa Hợp Đồng Word Thông Minh",
     desc: "Giữ nguyên 100% định dạng Word gốc, tự động trích xuất biến thông minh & xuất file PDF A4 chuẩn sắc nét.",
     authorName: "FlexiDoc AI Engine",
     authorRole: "Giải Pháp Số Hóa Hợp Đồng",
     avatar: "/logo_fxd.png",
+    bgImage: "/auth_illustration.png",
   },
   {
+    badge: "Phân Quyền Doanh Nghiệp",
     title: "Phân Quyền & Quản Lý Tổ Chức",
     desc: "Dễ dàng phân quyền Quản trị viên, quản lý danh sách nhân sự và tạo mã gia nhập nhóm làm việc tiện lợi.",
     authorName: "FlexiDoc Enterprise",
     authorRole: "Quản Trị Doanh Nghiệp Multi-tenant",
     avatar: "/logo.png",
+    bgImage: "/auth_illustration_2.png",
   },
   {
+    badge: "Bảo Mật Chuẩn Đám Mây",
     title: "Bảo Mật & Lưu Trữ Tập Trung",
     desc: "Lưu trữ dữ liệu hợp đồng tập trung mã hóa, bảo mật tối đa và tra cứu lịch sử thay đổi 24/7.",
     authorName: "FlexiDoc Cloud",
     authorRole: "Nền Tảng Đám Mây An Toàn",
     avatar: "/logo_fxd.png",
+    bgImage: "/auth_illustration_3.png",
   }
 ];
 
@@ -66,6 +72,7 @@ export const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [lang, setLang] = useState('VI'); // 'VI' | 'EN'
   const [currentSlide, setCurrentSlide] = useState(0);
+  const [slideAnimClass, setSlideAnimClass] = useState('animate-slide-next');
   const [forgotModalOpen, setForgotModalOpen] = useState(false);
 
   // Google User Onboarding Setup State
@@ -150,10 +157,12 @@ export const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
   }, [isOpen]);
 
   const handleNextSlide = () => {
+    setSlideAnimClass('animate-slide-next');
     setCurrentSlide((prev) => (prev + 1) % showcaseSlides.length);
   };
 
   const handlePrevSlide = () => {
+    setSlideAnimClass('animate-slide-prev');
     setCurrentSlide((prev) => (prev - 1 + showcaseSlides.length) % showcaseSlides.length);
   };
 
@@ -401,9 +410,10 @@ export const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
 
         {/* LEFT COLUMN: Contract Management Branding Banner */}
         <div
-          className="relative min-h-[300px] md:min-h-[580px] p-6 md:p-8 flex flex-col justify-between text-white overflow-hidden rounded-[26px] m-2.5 shadow-inner"
+          key={`slide-bg-${currentSlide}`}
+          className="relative min-h-[300px] md:min-h-[580px] p-6 md:p-8 flex flex-col justify-between text-white overflow-hidden rounded-[26px] m-2.5 shadow-inner transition-all duration-500 animate-bg-zoom"
           style={{
-            background: 'linear-gradient(180deg, rgba(15, 23, 42, 0.45) 0%, rgba(15, 23, 42, 0.92) 100%), url("/auth_illustration.png")',
+            background: `linear-gradient(180deg, rgba(15, 23, 42, 0.45) 0%, rgba(15, 23, 42, 0.92) 100%), url("${currentSlideData.bgImage}")`,
             backgroundSize: 'cover',
             backgroundPosition: 'center',
           }}
@@ -417,7 +427,7 @@ export const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
           </div>
 
           {/* Center Dynamic Content */}
-          <div className="my-auto py-6 z-10">
+          <div key={`slide-content-${currentSlide}`} className={`my-auto py-6 z-10 ${slideAnimClass}`}>
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/15 backdrop-blur-md text-sky-200 text-[11px] font-bold mb-3 border border-white/20">
               <Sparkles size={13} className="text-amber-300" /> {currentSlideData.badge}
             </div>
@@ -431,7 +441,7 @@ export const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
 
           {/* Bottom Showcase Footer */}
           <div className="flex items-center justify-between pt-4 border-t border-white/15 z-10">
-            <div className="flex items-center gap-3">
+            <div key={`slide-author-${currentSlide}`} className={`flex items-center gap-3 ${slideAnimClass}`}>
               <img
                 src={currentSlideData.avatar}
                 alt="Avatar"
@@ -554,23 +564,23 @@ export const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
                         <input
                           type="text"
                           required
-                          placeholder="VD: Công Ty TNHH May Vina"
+                          placeholder="Tên Công Ty / Tổ Chức Mới "
                           value={googleOrgName}
                           onChange={(e) => setGoogleOrgName(e.target.value)}
-                          className="w-full px-4 py-2.5 rounded-2xl border border-slate-200 text-sm focus:border-red-500 focus:ring-4 focus:ring-red-500/10 outline-none transition-all font-medium"
+                          className="w-full px-4 py-2.5 rounded-2xl border border-slate-200 text-xs md:text-sm focus:border-red-500 focus:ring-4 focus:ring-red-500/10 outline-none transition-all font-medium placeholder:text-xs placeholder:font-normal placeholder:normal-case placeholder:tracking-normal placeholder:text-slate-400"
                         />
                       </div>
 
                       <div>
                         <label className="text-xs font-bold text-slate-700 block mb-1">
-                          Mã Tổ Chức <span className="text-slate-400 font-normal">(Tùy chọn, VD: MAYVINA)</span>:
+                          Mã Tổ Chức <span className="text-slate-400 font-normal">(Tùy chọn)</span>:
                         </label>
                         <input
                           type="text"
-                          placeholder="VD: MAYVINA"
+                          placeholder="Mã Tổ Chức"
                           value={googleOrgCode}
                           onChange={(e) => setGoogleOrgCode(e.target.value.toUpperCase())}
-                          className={`w-full px-4 py-2.5 rounded-2xl border text-sm font-bold tracking-wider outline-none transition-all uppercase ${googleOrgCodeCheck.exists === true
+                          className={`w-full px-4 py-2.5 rounded-2xl border text-xs md:text-sm font-bold tracking-wider outline-none transition-all uppercase placeholder:text-xs placeholder:font-normal placeholder:normal-case placeholder:tracking-normal placeholder:text-slate-400 ${googleOrgCodeCheck.exists === true
                             ? 'border-red-400 bg-red-50 text-red-700'
                             : googleOrgCodeCheck.exists === false && googleOrgCode.trim()
                               ? 'border-emerald-400 bg-emerald-50 text-emerald-800'
@@ -587,10 +597,10 @@ export const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
                       <input
                         type="text"
                         required
-                        placeholder="Nhập mã do Trưởng nhóm cấp"
+                        placeholder="Mã Tổ Chức (Bắt buộc)"
                         value={googleOrgCode}
                         onChange={(e) => setGoogleOrgCode(e.target.value.toUpperCase())}
-                        className={`w-full px-4 py-2.5 rounded-2xl border text-sm font-bold tracking-wider outline-none transition-all uppercase ${googleOrgCodeCheck.exists === false && googleOrgCode.trim()
+                        className={`w-full px-4 py-2.5 rounded-2xl border text-xs md:text-sm font-bold tracking-wider outline-none transition-all uppercase placeholder:text-xs placeholder:font-normal placeholder:normal-case placeholder:tracking-normal placeholder:text-slate-400 ${googleOrgCodeCheck.exists === false && googleOrgCode.trim()
                           ? 'border-red-400 bg-red-50 text-red-700'
                           : googleOrgCodeCheck.exists === true
                             ? 'border-emerald-400 bg-emerald-50 text-emerald-800'
@@ -646,7 +656,7 @@ export const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
 
                 {/* LOGIN FORM */}
                 {activeTab === 'login' && (
-                  <form onSubmit={handleLoginSubmit} className="flex flex-col gap-4">
+                  <form key="login" onSubmit={handleLoginSubmit} className="animate-tab-switch flex flex-col gap-4">
                     <div>
                       <input
                         type="email"
@@ -654,7 +664,7 @@ export const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
                         placeholder={lang === 'VI' ? 'Email đăng nhập' : 'Email'}
                         value={loginEmail}
                         onChange={(e) => setLoginEmail(e.target.value)}
-                        className="w-full px-4 py-3 rounded-2xl border border-slate-200 text-sm font-medium placeholder:text-slate-400 focus:border-red-500 focus:ring-4 focus:ring-red-500/10 outline-none transition-all bg-white"
+                        className="w-full px-4 py-3 rounded-2xl border border-slate-200 text-xs md:text-sm font-medium placeholder:text-xs placeholder:font-normal placeholder:normal-case placeholder:tracking-normal placeholder:text-slate-400 focus:border-red-500 focus:ring-4 focus:ring-red-500/10 outline-none transition-all bg-white"
                       />
                     </div>
 
@@ -666,7 +676,7 @@ export const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
                           placeholder={lang === 'VI' ? 'Mật khẩu' : 'Password'}
                           value={loginPassword}
                           onChange={(e) => setLoginPassword(e.target.value)}
-                          className="w-full px-4 py-3 pr-11 rounded-2xl border border-slate-200 text-sm font-medium placeholder:text-slate-400 focus:border-red-500 focus:ring-4 focus:ring-red-500/10 outline-none transition-all bg-white"
+                          className="w-full px-4 py-3 pr-11 rounded-2xl border border-slate-200 text-xs md:text-sm font-medium placeholder:text-xs placeholder:font-normal placeholder:normal-case placeholder:tracking-normal placeholder:text-slate-400 focus:border-red-500 focus:ring-4 focus:ring-red-500/10 outline-none transition-all bg-white"
                         />
                         <button
                           type="button"
@@ -721,7 +731,7 @@ export const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
 
                 {/* REGISTER FORM */}
                 {activeTab === 'register' && (
-                  <form onSubmit={handleRegisterSubmit} className="flex flex-col gap-3">
+                  <form key="register" onSubmit={handleRegisterSubmit} className="animate-tab-switch flex flex-col gap-3">
                     {/* Organization Mode Selection */}
                     <div className="grid grid-cols-2 gap-2 mb-1">
                       <div
@@ -751,7 +761,7 @@ export const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
                       placeholder={lang === 'VI' ? 'Họ và tên người đại diện' : 'Full Name'}
                       value={regFullName}
                       onChange={(e) => setRegFullName(e.target.value)}
-                      className="w-full px-4 py-2.5 rounded-2xl border border-slate-200 text-sm font-medium focus:border-red-500 focus:ring-4 focus:ring-red-500/10 outline-none transition-all"
+                      className="w-full px-4 py-2.5 rounded-2xl border border-slate-200 text-xs md:text-sm font-medium placeholder:text-xs placeholder:font-normal placeholder:normal-case placeholder:tracking-normal placeholder:text-slate-400 focus:border-red-500 focus:ring-4 focus:ring-red-500/10 outline-none transition-all"
                     />
 
                     <input
@@ -760,7 +770,7 @@ export const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
                       placeholder={lang === 'VI' ? 'Email công việc / cá nhân' : 'Email'}
                       value={regEmail}
                       onChange={(e) => setRegEmail(e.target.value)}
-                      className="w-full px-4 py-2.5 rounded-2xl border border-slate-200 text-sm font-medium focus:border-red-500 focus:ring-4 focus:ring-red-500/10 outline-none transition-all"
+                      className="w-full px-4 py-2.5 rounded-2xl border border-slate-200 text-xs md:text-sm font-medium placeholder:text-xs placeholder:font-normal placeholder:normal-case placeholder:tracking-normal placeholder:text-slate-400 focus:border-red-500 focus:ring-4 focus:ring-red-500/10 outline-none transition-all"
                     />
 
                     <div className="relative">
@@ -770,7 +780,7 @@ export const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
                         placeholder={lang === 'VI' ? 'Mật khẩu bảo mật' : 'Password'}
                         value={regPassword}
                         onChange={(e) => setRegPassword(e.target.value)}
-                        className="w-full px-4 py-2.5 pr-11 rounded-2xl border border-slate-200 text-sm font-medium focus:border-red-500 focus:ring-4 focus:ring-red-500/10 outline-none transition-all"
+                        className="w-full px-4 py-2.5 pr-11 rounded-2xl border border-slate-200 text-xs md:text-sm font-medium placeholder:text-xs placeholder:font-normal placeholder:normal-case placeholder:tracking-normal placeholder:text-slate-400 focus:border-red-500 focus:ring-4 focus:ring-red-500/10 outline-none transition-all"
                       />
                       <button
                         type="button"
@@ -789,14 +799,14 @@ export const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
                           placeholder={lang === 'VI' ? 'Tên Công Ty / Tổ Chức (VD: Công Ty TNHH May Vina)' : 'Organization Name'}
                           value={regOrgName}
                           onChange={(e) => setRegOrgName(e.target.value)}
-                          className="w-full px-4 py-2.5 rounded-2xl border border-slate-200 text-sm font-medium focus:border-red-500 focus:ring-4 focus:ring-red-500/10 outline-none transition-all"
+                          className="w-full px-4 py-2.5 rounded-2xl border border-slate-200 text-xs md:text-sm font-medium placeholder:text-xs placeholder:font-normal placeholder:normal-case placeholder:tracking-normal placeholder:text-slate-400 focus:border-red-500 focus:ring-4 focus:ring-red-500/10 outline-none transition-all"
                         />
                         <input
                           type="text"
                           placeholder={lang === 'VI' ? 'Mã Tổ Chức (Tùy chọn, VD: MAYVINA)' : 'Org Code (Optional)'}
                           value={regOrgCode}
                           onChange={(e) => setRegOrgCode(e.target.value.toUpperCase())}
-                          className="w-full px-4 py-2.5 rounded-2xl border border-slate-200 text-sm font-bold uppercase tracking-wider focus:border-red-500 focus:ring-4 focus:ring-red-500/10 outline-none transition-all"
+                          className="w-full px-4 py-2.5 rounded-2xl border border-slate-200 text-xs md:text-sm font-bold uppercase tracking-wider placeholder:text-xs placeholder:font-normal placeholder:normal-case placeholder:tracking-normal placeholder:text-slate-400 focus:border-red-500 focus:ring-4 focus:ring-red-500/10 outline-none transition-all"
                         />
                       </div>
                     ) : (
@@ -806,7 +816,7 @@ export const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
                         placeholder={lang === 'VI' ? 'Mã Tổ Chức (Bắt buộc do Admin cấp)' : 'Required Org Code'}
                         value={regOrgCode}
                         onChange={(e) => setRegOrgCode(e.target.value.toUpperCase())}
-                        className="w-full px-4 py-2.5 rounded-2xl border border-slate-200 text-sm font-bold uppercase tracking-wider focus:border-red-500 focus:ring-4 focus:ring-red-500/10 outline-none transition-all"
+                        className="w-full px-4 py-2.5 rounded-2xl border border-slate-200 text-xs md:text-sm font-bold uppercase tracking-wider placeholder:text-xs placeholder:font-normal placeholder:normal-case placeholder:tracking-normal placeholder:text-slate-400 focus:border-red-500 focus:ring-4 focus:ring-red-500/10 outline-none transition-all"
                       />
                     )}
 
@@ -876,7 +886,7 @@ export const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
                 </div>
                 <h4 className="text-lg font-black text-slate-900 mb-2">Khôi Phục Mật Khẩu</h4>
                 <p className="text-xs text-slate-600 leading-relaxed max-w-xs mx-auto mb-4">
-                  Để đảm bảo an toàn cho dữ liệu hợp đồng doanh nghiệp, vui lòng liên hệ trực tiếp với <strong>Quản trị viên (Admin)</strong> tổ chức của bạn để cài lại mật khẩu, hoặc gửi email tới <strong>support@flexidoc.io.vn</strong>.
+                  Để đảm bảo an toàn cho dữ liệu hợp đồng doanh nghiệp, vui lòng liên hệ trực tiếp với <strong>Quản trị viên (Admin)</strong> tổ chức của bạn để cài lại mật khẩu, hoặc gửi email tới <strong>dovankhoa091@gmail.com</strong>.
                 </p>
                 <button
                   type="button"
