@@ -4,29 +4,35 @@ import { systemSettingService } from './system-setting.service.js';
 import { auditLogService } from './audit-log.service.js';
 import { AppError } from '../utils/app-error.js';
 
-const PLAN_PRICES = {
-  FREE: 0,
-  BASIC: 199000,
-  PRO: 499000,
-  VIP: 999000,
-};
-
-const DURATION_DISCOUNTS = {
-  1: 0,
-  3: 5,   // 5% discount
-  6: 10,  // 10% discount
-  12: 20, // 20% discount
-};
-
 export class OrderService {
   async createOrder({ plan, durationMonths = 1, targetOrgId, user }) {
     if (!['BASIC', 'PRO', 'VIP'].includes(plan)) {
       throw new AppError('Gói dịch vụ không hợp lệ.', 400);
     }
     const months = Math.max(1, parseInt(durationMonths) || 1);
-    const unitPrice = PLAN_PRICES[plan] || 199000;
+
+    // Dynamically calculate price & discount on Backend (Never trust Frontend)
+    const pricingConfig = await systemSettingService.getPricingConfig();
+
+    let unitPrice = 199000;
+    if (plan === 'PRO') {
+      unitPrice = pricingConfig.proMonthlyPrice ?? 299000;
+    } else if (plan === 'VIP') {
+      unitPrice = pricingConfig.vipMonthlyPrice ?? 999000;
+    } else if (plan === 'BASIC') {
+      unitPrice = pricingConfig.starterPrice || 199000;
+    }
+
+    let discountPercent = 0;
+    if (months === 3) {
+      discountPercent = pricingConfig.discount3MonthsPercent ?? 5;
+    } else if (months === 6) {
+      discountPercent = pricingConfig.discount6MonthsPercent ?? 10;
+    } else if (months >= 12) {
+      discountPercent = pricingConfig.yearlyDiscountPercent ?? 20;
+    }
+
     const rawAmount = unitPrice * months;
-    const discountPercent = DURATION_DISCOUNTS[months] || 0;
     const amount = Math.round(rawAmount * (1 - discountPercent / 100));
 
     const orgId = targetOrgId || (user.organizationId ? (user.organizationId._id || user.organizationId) : null);
