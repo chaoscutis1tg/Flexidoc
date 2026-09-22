@@ -1,4 +1,5 @@
 import { SubscriptionPlan } from '../models/subscription-plan.model.js';
+import { systemSettingRepository } from '../repositories/system-setting.repository.js';
 
 export const DEFAULT_PLANS = [
   {
@@ -43,8 +44,8 @@ export const DEFAULT_PLANS = [
     code: 'PRO',
     title: 'PRO',
     subtitle: 'Doanh nghiệp phát triển nhanh',
-    price: 499000,
-    formattedPrice: '499.000đ',
+    price: 299000,
+    formattedPrice: '299.000đ',
     billingCycle: '/ tháng',
     badge: 'Gói Doanh Nghiệp Vừa',
     popular: true,
@@ -91,6 +92,26 @@ export class SubscriptionPlanService {
 
   async getAllPlans() {
     await this.ensureSeedPlans();
+    try {
+      const pricingSetting = await systemSettingRepository.getByKey('PRICING_CONFIG');
+      if (pricingSetting && pricingSetting.value) {
+        const { proMonthlyPrice, vipMonthlyPrice } = pricingSetting.value;
+        if (proMonthlyPrice !== undefined) {
+          await SubscriptionPlan.updateOne(
+            { code: 'PRO' },
+            { price: proMonthlyPrice, formattedPrice: new Intl.NumberFormat('vi-VN').format(proMonthlyPrice) + 'đ' }
+          );
+        }
+        if (vipMonthlyPrice !== undefined) {
+          await SubscriptionPlan.updateOne(
+            { code: 'VIP' },
+            { price: vipMonthlyPrice, formattedPrice: new Intl.NumberFormat('vi-VN').format(vipMonthlyPrice) + 'đ' }
+          );
+        }
+      }
+    } catch (e) {
+      // Ignore if database setting not ready
+    }
     return await SubscriptionPlan.find().sort({ sortOrder: 1 });
   }
 

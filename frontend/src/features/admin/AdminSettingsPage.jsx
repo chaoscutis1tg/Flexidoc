@@ -19,7 +19,9 @@ import {
   Radio,
   ExternalLink,
   Info,
-  RefreshCw
+  RefreshCw,
+  DollarSign,
+  Tag
 } from 'lucide-react';
 
 export const VIETNAM_BANKS = [
@@ -83,9 +85,20 @@ export const AdminSettingsPage = () => {
     defaultFreeContractLimit: 10,
   });
 
+  // Dynamic Package Pricing & Discount State
+  const [pricingSettings, setPricingSettings] = useState({
+    starterPrice: 0,
+    proMonthlyPrice: 299000,
+    vipMonthlyPrice: 999000,
+    yearlyDiscountPercent: 20,
+    promoCode: 'FLEXI2026',
+    promoDiscountPercent: 15,
+  });
+
   const [loading, setLoading] = useState(true);
   const [savingPayment, setSavingPayment] = useState(false);
   const [savingSecurity, setSavingSecurity] = useState(false);
+  const [savingPricing, setSavingPricing] = useState(false);
   const [copiedWebhook, setCopiedWebhook] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
 
@@ -96,6 +109,7 @@ export const AdminSettingsPage = () => {
       if (res.success && res.data) {
         if (res.data.payment) setPaymentConfig(prev => ({ ...prev, ...res.data.payment }));
         if (res.data.system) setSecuritySettings(prev => ({ ...prev, ...res.data.system }));
+        if (res.data.pricing) setPricingSettings(prev => ({ ...prev, ...res.data.pricing }));
       }
     } catch (err) {
       console.error('Lỗi khi tải cài đặt hệ thống:', err);
@@ -139,6 +153,23 @@ export const AdminSettingsPage = () => {
       setMessage({ type: 'error', text: err.message || 'Cập nhật cấu hình bảo mật thất bại.' });
     } finally {
       setSavingSecurity(false);
+    }
+  };
+
+  const handleSavePricingSettings = async (e) => {
+    e.preventDefault();
+    setSavingPricing(true);
+    setMessage({ type: '', text: '' });
+    try {
+      const res = await api.put('/system-settings/pricing', pricingSettings);
+      if (res.success) {
+        setMessage({ type: 'success', text: 'Cập nhật Cấu hình Bảng Giá & Chiết Khấu thành công!' });
+        if (res.data) setPricingSettings(prev => ({ ...prev, ...res.data }));
+      }
+    } catch (err) {
+      setMessage({ type: 'error', text: err.message || 'Cập nhật cấu hình bảng giá thất bại.' });
+    } finally {
+      setSavingPricing(false);
     }
   };
 
@@ -215,6 +246,16 @@ export const AdminSettingsPage = () => {
             }`}
           >
             <Zap size={15} className="text-amber-500" /> Thanh Toán & Webhook Endpoint
+          </button>
+          <button
+            onClick={() => { setActiveTab('pricing'); setMessage({ type: '', text: '' }); }}
+            className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all cursor-pointer flex items-center gap-1.5 ${
+              activeTab === 'pricing'
+                ? 'bg-white text-emerald-700 shadow-sm'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <DollarSign size={15} className="text-emerald-500" /> Bảng Giá & Chiết Khấu
           </button>
           <button
             onClick={() => { setActiveTab('security'); setMessage({ type: '', text: '' }); }}
@@ -655,6 +696,156 @@ export const AdminSettingsPage = () => {
                 Lưu Cấu Hình Hệ Thống
               </button>
             </div>
+          </form>
+        </div>
+      )}
+
+      {/* TAB 4: DYNAMIC PRICING & DISCOUNTS */}
+      {activeTab === 'pricing' && (
+        <div className="bg-white rounded-3xl p-7 border border-slate-200 shadow-sm max-w-4xl space-y-6">
+          <div className="border-b border-slate-100 pb-4">
+            <h3 className="text-lg font-black text-slate-900 flex items-center gap-2">
+              <DollarSign size={20} className="text-emerald-600" /> Quản Lý Giá Gói Dịch Vụ & Chiết Khấu Ưu Đãi
+            </h3>
+            <p className="text-xs text-slate-500 mt-1">
+              Điều chỉnh linh hoạt giá các gói dịch vụ (Starter, Pro, VIP), phần trăm chiết khấu theo năm và mã giảm giá khuyến mãi.
+            </p>
+          </div>
+
+          <form onSubmit={handleSavePricingSettings} className="space-y-6">
+            
+            {/* Package Pricing Section */}
+            <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200 space-y-4">
+              <h4 className="text-xs font-black text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                <Tag size={15} className="text-emerald-600" /> Giá Tiền Các Gói Dịch Vụ (VNĐ / Tháng):
+              </h4>
+              
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">
+                    Gói Miễn Phí (Starter / Free):
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      min={0}
+                      value={pricingSettings.starterPrice}
+                      onChange={(e) => setPricingSettings({ ...pricingSettings, starterPrice: parseInt(e.target.value) || 0 })}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm font-bold text-slate-800 focus:ring-2 focus:ring-emerald-500 outline-none bg-white"
+                    />
+                    <span className="absolute right-3 top-2.5 text-xs font-bold text-slate-400">VNĐ</span>
+                  </div>
+                  <span className="text-[10.5px] text-slate-400 mt-1 block">Mặc định 0đ (Gói dùng thử).</span>
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">
+                    Gói Chuyên Nghiệp (PRO):
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      min={0}
+                      step={1000}
+                      value={pricingSettings.proMonthlyPrice}
+                      onChange={(e) => setPricingSettings({ ...pricingSettings, proMonthlyPrice: parseInt(e.target.value) || 0 })}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm font-bold text-sky-700 focus:ring-2 focus:ring-sky-500 outline-none bg-white"
+                    />
+                    <span className="absolute right-3 top-2.5 text-xs font-bold text-slate-400">VNĐ/Tháng</span>
+                  </div>
+                  <span className="text-[10.5px] text-slate-400 mt-1 block">Giá hiện tại: {pricingSettings.proMonthlyPrice?.toLocaleString('vi-VN')} đ</span>
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">
+                    Gói VIP Doanh Nghiệp (VIP):
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      min={0}
+                      step={1000}
+                      value={pricingSettings.vipMonthlyPrice}
+                      onChange={(e) => setPricingSettings({ ...pricingSettings, vipMonthlyPrice: parseInt(e.target.value) || 0 })}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm font-bold text-purple-700 focus:ring-2 focus:ring-purple-500 outline-none bg-white"
+                    />
+                    <span className="absolute right-3 top-2.5 text-xs font-bold text-slate-400">VNĐ/Tháng</span>
+                  </div>
+                  <span className="text-[10.5px] text-slate-400 mt-1 block">Giá hiện tại: {pricingSettings.vipMonthlyPrice?.toLocaleString('vi-VN')} đ</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Discount & Promo Section */}
+            <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200 space-y-4">
+              <h4 className="text-xs font-black text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                <Zap size={15} className="text-amber-500" /> Chiết Khấu Theo Thời Hạn & Mã Giảm Giá:
+              </h4>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">
+                    % Chiết Khấu Thanh Toán Theo Năm (12 Tháng):
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      min={0}
+                      max={100}
+                      value={pricingSettings.yearlyDiscountPercent}
+                      onChange={(e) => setPricingSettings({ ...pricingSettings, yearlyDiscountPercent: parseInt(e.target.value) || 0 })}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm font-bold text-emerald-700 focus:ring-2 focus:ring-emerald-500 outline-none bg-white"
+                    />
+                    <span className="absolute right-3 top-2.5 text-xs font-bold text-slate-400">%</span>
+                  </div>
+                  <span className="text-[10.5px] text-slate-400 mt-1 block">Áp dụng giảm khi khách hàng mua gói 1 năm.</span>
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">
+                    Mã Giảm Giá Khuyến Mãi (Promo Code):
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="VD: FLEXI2026"
+                    value={pricingSettings.promoCode}
+                    onChange={(e) => setPricingSettings({ ...pricingSettings, promoCode: e.target.value.toUpperCase() })}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm font-mono font-bold text-amber-700 focus:ring-2 focus:ring-amber-500 outline-none bg-white uppercase"
+                  />
+                  <span className="text-[10.5px] text-slate-400 mt-1 block">Mã khuyến mãi áp dụng trên trang thanh toán.</span>
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">
+                    % Giảm Giá Mã Khuyến Mãi:
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      min={0}
+                      max={100}
+                      value={pricingSettings.promoDiscountPercent}
+                      onChange={(e) => setPricingSettings({ ...pricingSettings, promoDiscountPercent: parseInt(e.target.value) || 0 })}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm font-bold text-amber-700 focus:ring-2 focus:ring-amber-500 outline-none bg-white"
+                    />
+                    <span className="absolute right-3 top-2.5 text-xs font-bold text-slate-400">%</span>
+                  </div>
+                  <span className="text-[10.5px] text-slate-400 mt-1 block">Giảm thêm % khi nhập mã promo.</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="pt-2 flex items-center justify-end">
+              <button
+                type="submit"
+                disabled={savingPricing}
+                className="px-6 py-3 rounded-full bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-extrabold text-sm flex items-center gap-2 shadow-md shadow-emerald-600/25 hover:shadow-emerald-600/40 hover:-translate-y-0.5 transition-all cursor-pointer"
+              >
+                {savingPricing ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                Lưu Cấu Hình Bảng Giá & Chiết Khấu
+              </button>
+            </div>
+
           </form>
         </div>
       )}

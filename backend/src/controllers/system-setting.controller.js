@@ -37,6 +37,24 @@ export const updateSystemConfig = async (req, res, next) => {
   }
 };
 
+export const getPricingConfig = async (req, res, next) => {
+  try {
+    const config = await systemSettingService.getPricingConfig();
+    return sendSuccess(res, 200, 'Lấy cấu hình bảng giá thành công', config);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const updatePricingConfig = async (req, res, next) => {
+  try {
+    const updated = await systemSettingService.updatePricingConfig(req.body, req.user);
+    return sendSuccess(res, 200, 'Cập nhật cấu hình bảng giá & chiết khấu thành công', updated);
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const getAllSettings = async (req, res, next) => {
   try {
     const all = await systemSettingService.getAllSettings();

@@ -20,6 +20,15 @@ export const DEFAULT_SYSTEM_CONFIG = {
   defaultFreeContractLimit: 10,
 };
 
+export const DEFAULT_PRICING_CONFIG = {
+  starterPrice: 0,
+  proMonthlyPrice: 299000,
+  vipMonthlyPrice: 999000,
+  yearlyDiscountPercent: 20,
+  promoCode: 'FLEXI2026',
+  promoDiscountPercent: 15,
+};
+
 export class SystemSettingService {
   async getPaymentConfig() {
     const setting = await systemSettingRepository.getByKey('PAYMENT_CONFIG');
@@ -96,12 +105,53 @@ export class SystemSettingService {
     return updatedValue;
   }
 
+  async getPricingConfig() {
+    const setting = await systemSettingRepository.getByKey('PRICING_CONFIG');
+    if (!setting || !setting.value) {
+      return DEFAULT_PRICING_CONFIG;
+    }
+    return {
+      ...DEFAULT_PRICING_CONFIG,
+      ...setting.value,
+    };
+  }
+
+  async updatePricingConfig(newConfig, adminUser) {
+    const current = await this.getPricingConfig();
+    const updatedValue = {
+      ...current,
+      ...newConfig,
+      starterPrice: Number(newConfig.starterPrice ?? current.starterPrice),
+      proMonthlyPrice: Number(newConfig.proMonthlyPrice ?? current.proMonthlyPrice),
+      vipMonthlyPrice: Number(newConfig.vipMonthlyPrice ?? current.vipMonthlyPrice),
+      yearlyDiscountPercent: Number(newConfig.yearlyDiscountPercent ?? current.yearlyDiscountPercent),
+      promoCode: newConfig.promoCode ? String(newConfig.promoCode).trim().toUpperCase() : current.promoCode,
+      promoDiscountPercent: Number(newConfig.promoDiscountPercent ?? current.promoDiscountPercent),
+    };
+
+    const result = await systemSettingRepository.setKey('PRICING_CONFIG', updatedValue, adminUser?._id);
+
+    if (adminUser) {
+      const orgId = adminUser.organizationId ? (adminUser.organizationId._id || adminUser.organizationId) : null;
+      await auditLogService.logAction(
+        { user: adminUser, tenantContext: { organizationId: orgId } },
+        'PRICING_SETTING_UPDATED',
+        'systemSetting',
+        result._id
+      );
+    }
+
+    return updatedValue;
+  }
+
   async getAllSettings() {
     const payment = await this.getPaymentConfig();
     const system = await this.getSystemConfig();
+    const pricing = await this.getPricingConfig();
     return {
       payment,
       system,
+      pricing,
     };
   }
 }

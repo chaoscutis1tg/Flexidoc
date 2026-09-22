@@ -152,29 +152,39 @@ export class AuthService {
       user.lastLoginAt = new Date();
       user.authProvider = 'GOOGLE';
       if (googleId) user.googleId = googleId;
-      await user.save();
 
+      // If user does not have an organization yet, assign a personal default organization
       if (!user.organizationId) {
-        const userObj = user.toObject();
-        delete userObj.passwordHash;
-        return { token: null, user: userObj, requiresOrgSetup: true };
-      }
-    } else {
-      if (mode) {
         let organization = null;
-        let role = 'STAFF';
-
         if (mode === 'JOIN_ORG' && orgCode) {
           const upperCode = orgCode.trim().toUpperCase();
           organization = await organizationRepository.findByCode(upperCode);
-          if (!organization) {
-            throw new AppError(`Không tìm thấy Tổ chức với Mã '${upperCode}'. Vui lòng kiểm tra lại mã gia nhập!`, 404);
-          }
-          role = 'STAFF';
-        } else {
+        }
+        if (!organization) {
           const name = organizationName ? organizationName.trim() : `Tổ chức ${cleanName}`;
           const randomCode = 'ORG-' + Math.floor(10000 + Math.random() * 90000);
-          
+          organization = await organizationRepository.create({
+            name,
+            code: randomCode,
+            plan: 'FREE',
+            status: 'ACTIVE',
+          });
+          user.role = 'ORGANIZATION_ADMIN';
+        }
+        user.organizationId = organization._id;
+      }
+      await user.save();
+    } else {
+      // User is brand new: auto-create personal organization and log them in immediately!
+      let organization = null;
+      let role = 'STAFF';
+
+      if (mode === 'JOIN_ORG' && orgCode) {
+        const upperCode = orgCode.trim().toUpperCase();
+        organization = await organizationRepository.findByCode(upperCode);
+        if (!organization) {
+          const name = `Tổ chức ${cleanName}`;
+          const randomCode = 'ORG-' + Math.floor(10000 + Math.random() * 90000);
           organization = await organizationRepository.create({
             name,
             code: randomCode,
@@ -182,35 +192,32 @@ export class AuthService {
             status: 'ACTIVE',
           });
           role = 'ORGANIZATION_ADMIN';
+        } else {
+          role = 'STAFF';
         }
-
-        user = await userRepository.create({
-          email: cleanEmail,
-          passwordHash: 'GOOGLE_OAUTH_PWD_' + Math.random().toString(36).substring(2),
-          fullName: cleanName,
-          organizationId: organization._id,
-          role,
-          authProvider: 'GOOGLE',
-          status: 'ACTIVE',
-          googleId: googleId || 'GOOGLE_' + Date.now(),
-        });
       } else {
-        // Create initial Google user without Organization -> Trigger Onboarding Modal
-        user = await userRepository.create({
-          email: cleanEmail,
-          passwordHash: 'GOOGLE_OAUTH_PWD_' + Math.random().toString(36).substring(2),
-          fullName: cleanName,
-          organizationId: null,
-          role: 'STAFF',
-          authProvider: 'GOOGLE',
+        const name = organizationName ? organizationName.trim() : `Tổ chức ${cleanName}`;
+        const randomCode = 'ORG-' + Math.floor(10000 + Math.random() * 90000);
+        
+        organization = await organizationRepository.create({
+          name,
+          code: randomCode,
+          plan: 'FREE',
           status: 'ACTIVE',
-          googleId: googleId || 'GOOGLE_' + Date.now(),
         });
-
-        const userObj = user.toObject();
-        delete userObj.passwordHash;
-        return { token: null, user: userObj, requiresOrgSetup: true };
+        role = 'ORGANIZATION_ADMIN';
       }
+
+      user = await userRepository.create({
+        email: cleanEmail,
+        passwordHash: 'GOOGLE_OAUTH_PWD_' + Math.random().toString(36).substring(2),
+        fullName: cleanName,
+        organizationId: organization._id,
+        role,
+        authProvider: 'GOOGLE',
+        status: 'ACTIVE',
+        googleId: googleId || 'GOOGLE_' + Date.now(),
+      });
     }
 
     const populatedUser = await userRepository.findById(user._id, null, { populate: 'organizationId' });
