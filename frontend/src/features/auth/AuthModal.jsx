@@ -103,31 +103,31 @@ export const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
 
   // Initialize Official Google Identity Services SDK if Client ID is configured
   useEffect(() => {
-    if (isOpen && window.google?.accounts?.id && googleClientId) {
-      try {
-        window.google.accounts.id.initialize({
-          client_id: googleClientId,
-          callback: (response) => {
-            if (response.credential) {
-              try {
-                const base64Url = response.credential.split('.')[1];
-                const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-                const jsonPayload = decodeURIComponent(atob(base64).split('').map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join(''));
-                const payload = JSON.parse(jsonPayload);
-                if (payload && payload.email) {
-                  executeGoogleAuth(payload.email, payload.name || payload.given_name);
+    if ((isOpen || showGoogleModal) && googleClientId) {
+      const initGoogleGIS = () => {
+        if (!window.google?.accounts?.id) return;
+        try {
+          window.google.accounts.id.initialize({
+            client_id: googleClientId,
+            callback: (response) => {
+              if (response.credential) {
+                try {
+                  const base64Url = response.credential.split('.')[1];
+                  const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+                  const jsonPayload = decodeURIComponent(atob(base64).split('').map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join(''));
+                  const payload = JSON.parse(jsonPayload);
+                  if (payload && payload.email) {
+                    executeGoogleAuth(payload.email, payload.name || payload.given_name);
+                  }
+                } catch (e) {
+                  console.error("JWT parse error", e);
                 }
-              } catch (e) {
-                console.error("JWT parse error", e);
               }
             }
-          }
-        });
+          });
 
-        // Render official Google button inside container if slot exists
-        setTimeout(() => {
           const btnContainer = document.getElementById('official-google-btn-slot');
-          if (btnContainer && window.google?.accounts?.id) {
+          if (btnContainer) {
             btnContainer.innerHTML = '';
             window.google.accounts.id.renderButton(btnContainer, {
               theme: 'outline',
@@ -137,11 +137,14 @@ export const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
               locale: 'vi'
             });
           }
-        }, 100);
+        } catch (err) {
+          console.warn('Google GIS Notice:', err);
+        }
+      };
 
-      } catch (err) {
-        console.warn('Google GIS Notice:', err);
-      }
+      initGoogleGIS();
+      const timer = setTimeout(initGoogleGIS, 200);
+      return () => clearTimeout(timer);
     }
   }, [isOpen, showGoogleModal, googleClientId]);
 
