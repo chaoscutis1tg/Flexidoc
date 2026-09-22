@@ -49,6 +49,12 @@ export const RenewalModal = ({ isOpen, onClose, targetOrg = null }) => {
 
   const [manualSubmitted, setManualSubmitted] = useState(false);
 
+  const [pricingConfig, setPricingConfig] = useState({
+    discount3MonthsPercent: 5,
+    discount6MonthsPercent: 10,
+    yearlyDiscountPercent: 20,
+  });
+
   // Fetch commercial plans and payment config on modal open
   useEffect(() => {
     if (isOpen) {
@@ -71,6 +77,14 @@ export const RenewalModal = ({ isOpen, onClose, targetOrg = null }) => {
         .then((res) => {
           if (res.success && res.data) {
             setPaymentConfig(res.data);
+          }
+        })
+        .catch(() => { });
+
+      api.get('/system-settings/pricing')
+        .then((res) => {
+          if (res.success && res.data) {
+            setPricingConfig(res.data);
           }
         })
         .catch(() => { });
@@ -101,11 +115,15 @@ export const RenewalModal = ({ isOpen, onClose, targetOrg = null }) => {
     return () => clearInterval(timer);
   }, [step, createdOrder]);
 
+  const d3 = pricingConfig.discount3MonthsPercent ?? 5;
+  const d6 = pricingConfig.discount6MonthsPercent ?? 10;
+  const d12 = pricingConfig.yearlyDiscountPercent ?? 20;
+
   const DURATION_OPTIONS = [
     { months: 1, label: '1 Tháng', discountPercent: 0, tag: null },
-    { months: 3, label: '3 Tháng', discountPercent: 5, tag: 'Giảm 5%' },
-    { months: 6, label: '6 Tháng', discountPercent: 10, tag: 'Giảm 10%' },
-    { months: 12, label: '12 Tháng', discountPercent: 20, tag: 'Giảm 20%' },
+    { months: 3, label: '3 Tháng', discountPercent: d3, tag: d3 > 0 ? `Giảm ${d3}%` : null },
+    { months: 6, label: '6 Tháng', discountPercent: d6, tag: d6 > 0 ? `Giảm ${d6}%` : null },
+    { months: 12, label: '12 Tháng', discountPercent: d12, tag: d12 > 0 ? `Giảm ${d12}%` : null },
   ];
 
   if (!isOpen) return null;

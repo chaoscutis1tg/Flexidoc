@@ -24,9 +24,9 @@ export const DEFAULT_PRICING_CONFIG = {
   starterPrice: 0,
   proMonthlyPrice: 299000,
   vipMonthlyPrice: 999000,
+  discount3MonthsPercent: 5,
+  discount6MonthsPercent: 10,
   yearlyDiscountPercent: 20,
-  promoCode: 'FLEXI2026',
-  promoDiscountPercent: 15,
 };
 
 export class SystemSettingService {
@@ -124,9 +124,9 @@ export class SystemSettingService {
       starterPrice: Number(newConfig.starterPrice ?? current.starterPrice),
       proMonthlyPrice: Number(newConfig.proMonthlyPrice ?? current.proMonthlyPrice),
       vipMonthlyPrice: Number(newConfig.vipMonthlyPrice ?? current.vipMonthlyPrice),
-      yearlyDiscountPercent: Number(newConfig.yearlyDiscountPercent ?? current.yearlyDiscountPercent),
-      promoCode: newConfig.promoCode ? String(newConfig.promoCode).trim().toUpperCase() : current.promoCode,
-      promoDiscountPercent: Number(newConfig.promoDiscountPercent ?? current.promoDiscountPercent),
+      discount3MonthsPercent: Number(newConfig.discount3MonthsPercent ?? current.discount3MonthsPercent ?? 5),
+      discount6MonthsPercent: Number(newConfig.discount6MonthsPercent ?? current.discount6MonthsPercent ?? 10),
+      yearlyDiscountPercent: Number(newConfig.yearlyDiscountPercent ?? current.yearlyDiscountPercent ?? 20),
     };
 
     const result = await systemSettingRepository.setKey('PRICING_CONFIG', updatedValue, adminUser?._id);

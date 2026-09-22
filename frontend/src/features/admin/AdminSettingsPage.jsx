@@ -90,9 +90,9 @@ export const AdminSettingsPage = () => {
     starterPrice: 0,
     proMonthlyPrice: 299000,
     vipMonthlyPrice: 999000,
+    discount3MonthsPercent: 5,
+    discount6MonthsPercent: 10,
     yearlyDiscountPercent: 20,
-    promoCode: 'FLEXI2026',
-    promoDiscountPercent: 15,
   });
 
   const [loading, setLoading] = useState(true);
@@ -776,61 +776,65 @@ export const AdminSettingsPage = () => {
               </div>
             </div>
 
-            {/* Discount & Promo Section */}
+            {/* Discount Section */}
             <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200 space-y-4">
               <h4 className="text-xs font-black text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
-                <Zap size={15} className="text-amber-500" /> Chiết Khấu Theo Thời Hạn & Mã Giảm Giá:
+                <Zap size={15} className="text-amber-500" /> Tùy Chỉnh % Chiết Khấu Cho Các Kỳ Thanh Toán:
               </h4>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <label className="text-xs font-bold text-slate-700 block mb-1">
-                    % Chiết Khấu Thanh Toán Theo Năm (12 Tháng):
+                    % Giảm Giá Kỳ 3 Tháng:
                   </label>
                   <div className="relative">
                     <input
                       type="number"
                       min={0}
                       max={100}
-                      value={pricingSettings.yearlyDiscountPercent}
+                      value={pricingSettings.discount3MonthsPercent ?? 5}
+                      onChange={(e) => setPricingSettings({ ...pricingSettings, discount3MonthsPercent: parseInt(e.target.value) || 0 })}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm font-bold text-sky-700 focus:ring-2 focus:ring-sky-500 outline-none bg-white"
+                    />
+                    <span className="absolute right-3 top-2.5 text-xs font-bold text-slate-400">%</span>
+                  </div>
+                  <span className="text-[10.5px] text-slate-400 mt-1 block">Áp dụng khi chọn thanh toán 3 tháng.</span>
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">
+                    % Giảm Giá Kỳ 6 Tháng:
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      min={0}
+                      max={100}
+                      value={pricingSettings.discount6MonthsPercent ?? 10}
+                      onChange={(e) => setPricingSettings({ ...pricingSettings, discount6MonthsPercent: parseInt(e.target.value) || 0 })}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm font-bold text-blue-700 focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+                    />
+                    <span className="absolute right-3 top-2.5 text-xs font-bold text-slate-400">%</span>
+                  </div>
+                  <span className="text-[10.5px] text-slate-400 mt-1 block">Áp dụng khi chọn thanh toán 6 tháng.</span>
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">
+                    % Giảm Giá Kỳ 12 Tháng (Theo Năm):
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      min={0}
+                      max={100}
+                      value={pricingSettings.yearlyDiscountPercent ?? 20}
                       onChange={(e) => setPricingSettings({ ...pricingSettings, yearlyDiscountPercent: parseInt(e.target.value) || 0 })}
                       className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm font-bold text-emerald-700 focus:ring-2 focus:ring-emerald-500 outline-none bg-white"
                     />
                     <span className="absolute right-3 top-2.5 text-xs font-bold text-slate-400">%</span>
                   </div>
-                  <span className="text-[10.5px] text-slate-400 mt-1 block">Áp dụng giảm khi khách hàng mua gói 1 năm.</span>
-                </div>
-
-                <div>
-                  <label className="text-xs font-bold text-slate-700 block mb-1">
-                    Mã Giảm Giá Khuyến Mãi (Promo Code):
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="VD: FLEXI2026"
-                    value={pricingSettings.promoCode}
-                    onChange={(e) => setPricingSettings({ ...pricingSettings, promoCode: e.target.value.toUpperCase() })}
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm font-mono font-bold text-amber-700 focus:ring-2 focus:ring-amber-500 outline-none bg-white uppercase"
-                  />
-                  <span className="text-[10.5px] text-slate-400 mt-1 block">Mã khuyến mãi áp dụng trên trang thanh toán.</span>
-                </div>
-
-                <div>
-                  <label className="text-xs font-bold text-slate-700 block mb-1">
-                    % Giảm Giá Mã Khuyến Mãi:
-                  </label>
-                  <div className="relative">
-                    <input
-                      type="number"
-                      min={0}
-                      max={100}
-                      value={pricingSettings.promoDiscountPercent}
-                      onChange={(e) => setPricingSettings({ ...pricingSettings, promoDiscountPercent: parseInt(e.target.value) || 0 })}
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm font-bold text-amber-700 focus:ring-2 focus:ring-amber-500 outline-none bg-white"
-                    />
-                    <span className="absolute right-3 top-2.5 text-xs font-bold text-slate-400">%</span>
-                  </div>
-                  <span className="text-[10.5px] text-slate-400 mt-1 block">Giảm thêm % khi nhập mã promo.</span>
+                  <span className="text-[10.5px] text-slate-400 mt-1 block">Áp dụng khi chọn thanh toán 12 tháng.</span>
                 </div>
               </div>
             </div>
