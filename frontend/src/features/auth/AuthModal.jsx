@@ -149,8 +149,6 @@ export const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
     };
   }, [isOpen]);
 
-  if (!isOpen) return null;
-
   const handleNextSlide = () => {
     setCurrentSlide((prev) => (prev + 1) % showcaseSlides.length);
   };
@@ -206,20 +204,21 @@ export const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
     }
   };
 
-  const executeGoogleAuth = async (googleEmail, googleName, accessToken) => {
+  const executeGoogleAuth = async (googleEmail, googleName, accessToken, googleSub) => {
     setErrorMessage('');
     setLoading(true);
     try {
       const res = await loginWithGoogle({
         email: googleEmail || undefined,
-        fullName: googleName || (googleEmail ? googleEmail.split('@')[0] : 'Google User'),
-        googleId: 'GOOGLE_' + Math.random().toString(36).substring(2),
+        fullName: googleName || (googleEmail ? googleEmail.split('@')[0] : undefined),
+        googleId: googleSub || undefined,
         accessToken: accessToken || undefined,
       });
 
-      if (res.data && res.data.requiresOrgSetup) {
-        setGoogleOrgSetupUser(res.data.user);
-      } else if (res.data && (res.data.token || res.token)) {
+      const responseData = res?.data || res;
+      if (responseData && responseData.requiresOrgSetup) {
+        setGoogleOrgSetupUser(responseData.user);
+      } else if (responseData && (responseData.token || res?.token)) {
         onClose();
         navigate('/dashboard');
       } else {
@@ -233,82 +232,211 @@ export const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
     }
   };
 
-  // Modern Official Google OAuth2 Token Client (Fixes blank white gsi/transform popup)
+  // Check for access_token in URL hash (Redirect/Popup Flow Callback)
+  useEffect(() => {
+    const handleHashAuth = async () => {
+      if (window.location.hash && window.location.hash.includes('access_token=')) {
+        const hashParams = new URLSearchParams(window.location.hash.substring(1));
+        const accessToken = hashParams.get('access_token');
+        const state = hashParams.get('state');
+
+        const isPopup = state === 'is_popup_1' || Boolean(window.opener) || window.name === 'FlexiDocGoogleAuthPopup';
+
+        if (accessToken) {
+          window.history.replaceState(null, '', window.location.pathname);
+          
+          // Broadcast token to main window via BroadcastChannel
+          try {
+            const channel = new BroadcastChannel('flexidoc_oauth_channel');
+            channel.postMessage({ type: 'GOOGLE_OAUTH_TOKEN', accessToken });
+            channel.close();
+          } catch (e) {
+            console.warn('BroadcastChannel error:', e);
+          }
+
+          // Broadcast token to main window via window.opener
+          if (window.opener && window.opener !== window) {
+            try {
+              window.opener.postMessage({ type: 'GOOGLE_OAUTH_TOKEN', accessToken }, '*');
+            } catch (e) {}
+          }
+
+          // Broadcast token to main window via localStorage signal
+          localStorage.setItem('flexidoc_pending_google_token', accessToken);
+          localStorage.removeItem('flexidoc_pending_google_token');
+
+          // If running inside popup window, force close immediately!
+          if (isPopup) {
+            document.body.style.display = 'none';
+            window.close();
+            setTimeout(() => {
+              window.close();
+            }, 100);
+            return;
+          }
+
+          // Direct full-page redirect flow
+          await executeGoogleAuth(null, null, accessToken, null);
+        }
+      }
+    };
+    handleHashAuth();
+  }, []);
+
+  // Listen for Google Auth token from Popup via BroadcastChannel, postMessage & storage events
+  useEffect(() => {
+    let channel;
+
+    const processToken = async (token) => {
+      if (token) {
+        await executeGoogleAuth(null, null, token, null);
+      }
+    };
+
+    // 1. BroadcastChannel listener
+    try {
+      channel = new BroadcastChannel('flexidoc_oauth_channel');
+      channel.onmessage = (event) => {
+        if (event.data && event.data.type === 'GOOGLE_OAUTH_TOKEN' && event.data.accessToken) {
+          processToken(event.data.accessToken);
+        }
+      };
+    } catch (e) { }
+
+    // 2. postMessage listener
+    const handleMessage = (event) => {
+      if (event.data && event.data.type === 'GOOGLE_OAUTH_TOKEN' && event.data.accessToken) {
+        processToken(event.data.accessToken);
+      }
+    };
+    window.addEventListener('message', handleMessage);
+
+    // 3. Storage event listener
+    const handleStorage = (event) => {
+      if (event.key === 'flexidoc_pending_google_token' && event.newValue) {
+        processToken(event.newValue);
+      }
+    };
+    window.addEventListener('storage', handleStorage);
+
+    return () => {
+      if (channel) channel.close();
+      window.removeEventListener('message', handleMessage);
+      window.removeEventListener('storage', handleStorage);
+    };
+  }, []);
+
+  // Render official Google Identity Services buttons and token client fallback
+  useEffect(() => {
+    if (!isOpen || !googleClientId) return;
+
+    let isMounted = true;
+    let attempts = 0;
+
+    const handleGoogleCredentialResponse = async (response) => {
+      if (!response || !response.credential) {
+        setErrorMessage('Không nhận được thông tin xác thực từ Google.');
+        return;
+      }
+      setLoading(true);
+      setErrorMessage('');
+      try {
+        const base64Url = response.credential.split('.')[1];
+        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        const jsonPayload = decodeURIComponent(
+          atob(base64)
+            .split('')
+            .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+            .join('')
+        );
+        const payload = JSON.parse(jsonPayload);
+        if (payload && payload.email) {
+          await executeGoogleAuth(payload.email, payload.name || payload.given_name, null, payload.sub);
+        } else {
+          setErrorMessage('Không tìm thấy Email từ tài khoản Google.');
+        }
+      } catch (err) {
+        console.error('Google JWT parse error:', err);
+        setErrorMessage('Lỗi xử lý phản hồi xác thực Google.');
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    };
+
+    const setupGoogle = () => {
+      if (window.google?.accounts?.id) {
+        try {
+          window.google.accounts.id.initialize({
+            client_id: googleClientId,
+            callback: handleGoogleCredentialResponse,
+            auto_select: false,
+          });
+
+          const loginSlot = document.getElementById('google-btn-slot-login');
+          if (loginSlot) {
+            loginSlot.innerHTML = '';
+            window.google.accounts.id.renderButton(loginSlot, {
+              theme: 'outline',
+              size: 'large',
+              text: 'continue_with',
+              shape: 'pill',
+              logo_alignment: 'left',
+              width: 360,
+            });
+          }
+
+          const regSlot = document.getElementById('google-btn-slot-register');
+          if (regSlot) {
+            regSlot.innerHTML = '';
+            window.google.accounts.id.renderButton(regSlot, {
+              theme: 'outline',
+              size: 'large',
+              text: 'signup_with',
+              shape: 'pill',
+              logo_alignment: 'left',
+              width: 360,
+            });
+          }
+        } catch (e) {
+          console.warn('Google GSI renderButton notice:', e);
+        }
+      } else if (attempts < 15) {
+        attempts++;
+        setTimeout(setupGoogle, 200);
+      }
+    };
+
+    const timer = setTimeout(setupGoogle, 200);
+    return () => {
+      isMounted = false;
+      clearTimeout(timer);
+    };
+  }, [isOpen, activeTab, googleClientId]);
+
   const handleGoogleClick = () => {
     setErrorMessage('');
-    if (window.google?.accounts?.oauth2 && googleClientId) {
-      try {
-        const client = window.google.accounts.oauth2.initTokenClient({
-          client_id: googleClientId,
-          scope: 'email profile openid',
-          callback: async (tokenResponse) => {
-            if (tokenResponse && tokenResponse.access_token) {
-              setLoading(true);
-              try {
-                const userInfoRes = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
-                  headers: { Authorization: `Bearer ${tokenResponse.access_token}` }
-                });
-                const userInfo = await userInfoRes.json();
-                if (userInfo && userInfo.email) {
-                  await executeGoogleAuth(userInfo.email, userInfo.name || userInfo.given_name, tokenResponse.access_token);
-                } else {
-                  await executeGoogleAuth(null, null, tokenResponse.access_token);
-                }
-              } catch (err) {
-                console.warn("Frontend Google userinfo fetch notice, falling back to backend token exchange:", err);
-                await executeGoogleAuth(null, null, tokenResponse.access_token);
-              }
-            } else {
-              setLoading(false);
-            }
-          },
-          error_callback: (err) => {
-            console.warn("Google OAuth popup notice:", err);
-            setLoading(false);
-          }
-        });
-        client.requestAccessToken();
-      } catch (e) {
-        console.warn('Google Token Client init warning:', e);
-        fallbackGooglePrompt();
-      }
-    } else {
-      fallbackGooglePrompt();
+    if (!googleClientId) {
+      setErrorMessage('Chưa cấu hình Google Client ID.');
+      return;
     }
-  };
 
-  const fallbackGooglePrompt = () => {
-    if (window.google?.accounts?.id && googleClientId) {
-      try {
-        window.google.accounts.id.initialize({
-          client_id: googleClientId,
-          callback: (response) => {
-            if (response.credential) {
-              try {
-                const base64Url = response.credential.split('.')[1];
-                const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-                const jsonPayload = decodeURIComponent(
-                  atob(base64)
-                    .split('')
-                    .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
-                    .join('')
-                );
-                const payload = JSON.parse(jsonPayload);
-                if (payload && payload.email) {
-                  executeGoogleAuth(payload.email, payload.name || payload.given_name);
-                }
-              } catch (e) {
-                console.error('JWT parse error', e);
-              }
-            }
-          }
-        });
-        window.google.accounts.id.prompt();
-      } catch (e) {
-        setErrorMessage('SDK Google đang khởi tạo. Vui lòng bấm lại sau ít giây.');
-      }
-    } else {
-      setErrorMessage('SDK Google chưa sẵn sàng. Vui lòng tải lại trang.');
+    // Standard Google OAuth2 Endpoint (100% cross-browser popup & redirect compatibility)
+    const redirectUri = window.location.origin + '/login';
+    const googleAuthUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${googleClientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=token&scope=email%20profile&prompt=select_account&state=is_popup_1`;
+
+    const width = 520;
+    const height = 650;
+    const left = window.screenX + (window.outerWidth - width) / 2;
+    const top = window.screenY + (window.outerHeight - height) / 2;
+
+    const popup = window.open(
+      googleAuthUrl,
+      'FlexiDocGoogleAuthPopup',
+      `width=${width},height=${height},top=${top},left=${left},scrollbars=yes,status=1`
+    );
+
+    if (!popup || popup.closed || typeof popup.closed === 'undefined') {
+      window.location.href = googleAuthUrl;
     }
   };
 
@@ -344,6 +472,8 @@ export const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
     }
   };
 
+  if (!isOpen) return null;
+
   const currentSlideData = showcaseSlides[currentSlide];
 
   return createPortal(
@@ -368,23 +498,6 @@ export const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
             <div className="flex items-center gap-2.5">
               <img src="/logo_fxd.png" alt="FlexiDoc Logo" className="w-8 h-8 rounded-lg object-contain bg-white/10 backdrop-blur-sm p-1 border border-white/20" />
               <span className="text-lg font-black tracking-tight text-white drop-shadow-sm">FlexiDoc</span>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => { setActiveTab('login'); setErrorMessage(''); }}
-                className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all ${activeTab === 'login' ? 'bg-white/20 backdrop-blur-md text-white border border-white/30' : 'text-slate-300 hover:text-white'}`}
-              >
-                {lang === 'VI' ? 'Đăng nhập' : 'Sign In'}
-              </button>
-              <button
-                type="button"
-                onClick={() => { setActiveTab('register'); setErrorMessage(''); }}
-                className={`px-3 py-1.5 rounded-full text-xs font-extrabold border transition-all ${activeTab === 'register' ? 'bg-white text-slate-900 border-white' : 'border-white/30 text-white hover:bg-white/10'}`}
-              >
-                {lang === 'VI' ? 'Đăng ký' : 'Sign Up'}
-              </button>
             </div>
           </div>
 
@@ -668,15 +781,18 @@ export const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
                       <div className="flex-1 h-px bg-slate-200" />
                     </div>
 
-                    {/* Google Login Button */}
-                    <button
-                      type="button"
-                      onClick={handleGoogleClick}
-                      className="w-full py-3 px-4 rounded-2xl border border-slate-200 hover:border-slate-300 bg-white text-slate-700 font-bold text-sm flex items-center justify-center gap-2.5 shadow-xs hover:shadow-md transition-all cursor-pointer group"
-                    >
-                      <GoogleIcon />
-                      <span>{lang === 'VI' ? 'Đăng nhập nhanh bằng Google' : 'Login with Google'}</span>
-                    </button>
+                    {/* Google Login Slot & Fallback Button */}
+                    <div className="w-full flex flex-col items-center justify-center gap-2 my-1">
+                      <div id="google-btn-slot-login" className="w-full flex justify-center min-h-[44px]"></div>
+                      <button
+                        type="button"
+                        onClick={handleGoogleClick}
+                        className="w-full py-2.5 px-4 rounded-full border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold flex items-center justify-center gap-2.5 transition-all shadow-xs cursor-pointer active:scale-[0.99]"
+                      >
+                        <GoogleIcon />
+                        <span>{lang === 'VI' ? 'Tiếp tục với Google' : 'Continue with Google'}</span>
+                      </button>
+                    </div>
 
                     {/* Main Red Login Button */}
                     <button
@@ -787,15 +903,18 @@ export const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
                       <div className="flex-1 h-px bg-slate-200" />
                     </div>
 
-                    {/* Google Register Button */}
-                    <button
-                      type="button"
-                      onClick={handleGoogleClick}
-                      className="w-full py-2.5 px-4 rounded-2xl border border-slate-200 hover:border-slate-300 bg-white text-slate-700 font-bold text-sm flex items-center justify-center gap-2.5 shadow-xs transition-all cursor-pointer"
-                    >
-                      <GoogleIcon />
-                      <span>{lang === 'VI' ? 'Đăng ký nhanh bằng Google' : 'Sign up with Google'}</span>
-                    </button>
+                    {/* Google Register Slot & Fallback Button */}
+                    <div className="w-full flex flex-col items-center justify-center gap-2 my-1">
+                      <div id="google-btn-slot-register" className="w-full flex justify-center min-h-[44px]"></div>
+                      <button
+                        type="button"
+                        onClick={handleGoogleClick}
+                        className="w-full py-2.5 px-4 rounded-full border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold flex items-center justify-center gap-2.5 transition-all shadow-xs cursor-pointer active:scale-[0.99]"
+                      >
+                        <GoogleIcon />
+                        <span>{lang === 'VI' ? 'Đăng ký với Google' : 'Sign up with Google'}</span>
+                      </button>
+                    </div>
 
                     <button
                       type="submit"

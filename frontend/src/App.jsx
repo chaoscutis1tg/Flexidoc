@@ -44,6 +44,7 @@ export const App = () => {
             {/* Public Landing Page & Commercial Gateway */}
             <Route path="/" element={<LandingPage />} />
             <Route path="/login" element={<LandingPage />} />
+            <Route path="/register" element={<LandingPage />} />
             <Route path="/privacy" element={<PrivacyPage />} />
             <Route path="/terms" element={<TermsPage />} />
 

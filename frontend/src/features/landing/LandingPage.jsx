@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../app/AuthContext';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { AuthModal } from '../auth/AuthModal';
 import {
   Briefcase,
@@ -35,10 +35,29 @@ import {
 export const LandingPage = () => {
   const { user, token } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [authDefaultTab, setAuthDefaultTab] = useState('login');
   const [activeNav, setActiveNav] = useState('features');
+
+  // Auto open AuthModal if route is /login or /register
+  useEffect(() => {
+    if (location.pathname === '/login') {
+      setAuthDefaultTab('login');
+      setAuthModalOpen(true);
+    } else if (location.pathname === '/register') {
+      setAuthDefaultTab('register');
+      setAuthModalOpen(true);
+    }
+  }, [location.pathname]);
+
+  const handleCloseAuthModal = () => {
+    setAuthModalOpen(false);
+    if (location.pathname === '/login' || location.pathname === '/register') {
+      navigate('/', { replace: true });
+    }
+  };
 
   const openLoginModal = () => {
     setAuthDefaultTab('login');
@@ -665,7 +684,7 @@ export const LandingPage = () => {
       {/* Auth Modal */}
       <AuthModal
         isOpen={authModalOpen}
-        onClose={() => setAuthModalOpen(false)}
+        onClose={handleCloseAuthModal}
         defaultTab={authDefaultTab}
       />
     </div>
