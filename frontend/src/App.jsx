@@ -5,6 +5,8 @@ import { ConfirmProvider } from './app/ConfirmContext';
 import { DashboardLayout } from './layouts/DashboardLayout';
 
 import { LandingPage } from './features/landing/LandingPage';
+import { PrivacyPage } from './features/public/PrivacyPage';
+import { TermsPage } from './features/public/TermsPage';
 import { DashboardPage } from './features/dashboard/DashboardPage';
 import { OrganizationsPage } from './features/orgs/OrganizationsPage';
 import { UsersPage } from './features/users/UsersPage';
@@ -42,6 +44,8 @@ export const App = () => {
             {/* Public Landing Page & Commercial Gateway */}
             <Route path="/" element={<LandingPage />} />
             <Route path="/login" element={<LandingPage />} />
+            <Route path="/privacy" element={<PrivacyPage />} />
+            <Route path="/terms" element={<TermsPage />} />
 
             {/* Protected Application Workspace Routes */}
             <Route element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
