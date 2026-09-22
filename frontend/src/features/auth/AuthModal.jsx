@@ -409,17 +409,17 @@ export const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
   const currentSlideData = showcaseSlides[currentSlide];
 
   return createPortal(
-    <div className="fixed inset-0 z-[99999] bg-slate-950/80 backdrop-blur-md p-3 md:p-6 flex items-center justify-center overflow-y-auto select-none pointer-events-auto">
+    <div className="fixed inset-0 z-[99999] bg-slate-950/80 backdrop-blur-md p-2 sm:p-4 flex items-center justify-center overflow-hidden select-none pointer-events-auto">
       {/* Outer Card Container */}
       <div
         onClick={(e) => e.stopPropagation()}
-        className="max-w-[960px] w-full bg-white rounded-[32px] overflow-hidden shadow-2xl border border-slate-200/60 grid grid-cols-1 md:grid-cols-2 relative animate-modal-pop select-text pointer-events-auto my-auto"
+        className="max-w-[880px] w-full max-h-[92vh] md:max-h-[86vh] bg-white rounded-3xl overflow-hidden shadow-2xl border border-slate-200/60 grid grid-cols-1 md:grid-cols-2 relative animate-modal-pop select-text pointer-events-auto my-auto"
       >
 
         {/* LEFT COLUMN: Contract Management Branding Banner */}
         <div
           key={`slide-bg-${currentSlide}`}
-          className="relative min-h-[300px] md:min-h-[580px] p-6 md:p-8 flex flex-col justify-between text-white overflow-hidden rounded-[26px] m-2.5 shadow-inner transition-all duration-500 animate-bg-zoom"
+          className="relative min-h-[200px] md:min-h-0 md:h-full p-4 md:p-5 flex flex-col justify-between text-white overflow-hidden rounded-2xl m-2 shadow-inner transition-all duration-500 animate-bg-zoom"
           style={{
             background: `linear-gradient(180deg, rgba(15, 23, 42, 0.45) 0%, rgba(15, 23, 42, 0.92) 100%), url("${currentSlideData.bgImage}")`,
             backgroundSize: 'cover',
@@ -428,67 +428,67 @@ export const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
         >
           {/* Top Header Pill Controls */}
           <div className="flex items-center justify-between z-10">
-            <div className="flex items-center gap-2.5">
-              <img src="/logo_fxd.png" alt="FlexiDoc Logo" className="w-8 h-8 rounded-lg object-contain bg-white/10 backdrop-blur-sm p-1 border border-white/20" />
-              <span className="text-lg font-black tracking-tight text-white drop-shadow-sm">FlexiDoc</span>
+            <div className="flex items-center gap-2">
+              <img src="/logo_fxd.png" alt="FlexiDoc Logo" className="w-7 h-7 rounded-lg object-contain bg-white/10 backdrop-blur-sm p-1 border border-white/20" />
+              <span className="text-base font-black tracking-tight text-white drop-shadow-sm">FlexiDoc</span>
             </div>
           </div>
 
           {/* Center Dynamic Content */}
-          <div key={`slide-content-${currentSlide}`} className={`my-auto py-6 z-10 ${slideAnimClass}`}>
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/15 backdrop-blur-md text-sky-200 text-[11px] font-bold mb-3 border border-white/20">
-              <Sparkles size={13} className="text-amber-300" /> {currentSlideData.badge}
+          <div key={`slide-content-${currentSlide}`} className={`my-auto py-2.5 z-10 ${slideAnimClass}`}>
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-white/15 backdrop-blur-md text-sky-200 text-[10.5px] font-bold mb-2 border border-white/20">
+              <Sparkles size={12} className="text-amber-300" /> {currentSlideData.badge}
             </div>
-            <h2 className="text-2xl md:text-3xl font-black text-white tracking-tight leading-snug mb-2 drop-shadow-md">
+            <h2 className="text-xl md:text-2xl font-black text-white tracking-tight leading-snug mb-1.5 drop-shadow-md">
               {currentSlideData.title}
             </h2>
-            <p className="text-xs md:text-sm text-slate-200 leading-relaxed font-normal max-w-sm drop-shadow-sm">
+            <p className="text-xs text-slate-200 leading-relaxed font-normal max-w-xs drop-shadow-sm">
               {currentSlideData.desc}
             </p>
           </div>
 
           {/* Bottom Showcase Footer */}
-          <div className="flex items-center justify-between pt-4 border-t border-white/15 z-10">
-            <div key={`slide-author-${currentSlide}`} className={`flex items-center gap-3 ${slideAnimClass}`}>
+          <div className="flex items-center justify-between pt-2.5 border-t border-white/15 z-10">
+            <div key={`slide-author-${currentSlide}`} className={`flex items-center gap-2.5 ${slideAnimClass}`}>
               <img
                 src={currentSlideData.avatar}
                 alt="Avatar"
-                className="w-10 h-10 rounded-full border-2 border-white/30 object-cover shadow-md bg-slate-900"
+                className="w-8 h-8 rounded-full border border-white/30 object-cover shadow-md bg-slate-900"
               />
               <div>
-                <h4 className="text-xs font-bold text-white tracking-wide">{currentSlideData.authorName}</h4>
-                <p className="text-[11px] text-slate-300">{currentSlideData.authorRole}</p>
+                <h4 className="text-[11.5px] font-bold text-white tracking-wide">{currentSlideData.authorName}</h4>
+                <p className="text-[10px] text-slate-300">{currentSlideData.authorRole}</p>
               </div>
             </div>
 
             {/* Carousel Arrows */}
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1">
               <button
                 type="button"
                 onClick={handlePrevSlide}
-                className="w-8 h-8 rounded-full border border-white/25 bg-black/20 hover:bg-white/20 flex items-center justify-center text-white transition-all cursor-pointer active:scale-95"
+                className="w-7 h-7 rounded-full border border-white/25 bg-black/20 hover:bg-white/20 flex items-center justify-center text-white transition-all cursor-pointer active:scale-95"
                 title="Slide trước"
               >
-                <ChevronLeft size={16} />
+                <ChevronLeft size={15} />
               </button>
               <button
                 type="button"
                 onClick={handleNextSlide}
-                className="w-8 h-8 rounded-full border border-white/25 bg-black/20 hover:bg-white/20 flex items-center justify-center text-white transition-all cursor-pointer active:scale-95"
+                className="w-7 h-7 rounded-full border border-white/25 bg-black/20 hover:bg-white/20 flex items-center justify-center text-white transition-all cursor-pointer active:scale-95"
                 title="Slide tiếp"
               >
-                <ChevronRight size={16} />
+                <ChevronRight size={15} />
               </button>
             </div>
           </div>
         </div>
 
         {/* RIGHT COLUMN: Clean Contract Form Panel */}
-        <div className="p-6 md:p-10 flex flex-col justify-between bg-white relative overflow-y-auto">
+        <div className="p-3.5 sm:p-5 md:p-5 flex flex-col justify-between bg-white relative overflow-y-auto md:overflow-hidden max-h-[88vh] md:max-h-none">
           {/* Top Controls Bar: Logo text / Language Selector & Close Button */}
-          <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
-              <span className="text-xl font-black tracking-tight text-slate-900">FlexiDoc</span>
+              <span className="text-lg font-black tracking-tight text-slate-900">FlexiDoc</span>
             </div>
 
             <div className="flex items-center gap-2">
@@ -642,13 +642,13 @@ export const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
             <>
               <div>
                 {/* Greeting Section */}
-                <div className="mb-6">
-                  <h3 className="text-2xl md:text-3xl font-black text-slate-900 tracking-tight mb-1.5">
+                <div className="mb-3">
+                  <h3 className="text-xl md:text-2xl font-black text-slate-900 tracking-tight mb-1">
                     {activeTab === 'login'
                       ? (lang === 'VI' ? 'Đăng Nhập Hệ Thống' : 'System Sign In')
                       : (lang === 'VI' ? 'Đăng Ký Tài Khoản' : 'Create Account')}
                   </h3>
-                  <p className="text-xs md:text-sm text-slate-500 font-medium">
+                  <p className="text-xs text-slate-500 font-medium">
                     {activeTab === 'login'
                       ? (lang === 'VI' ? 'Quản lý hợp đồng, tạo biểu mẫu và trích xuất dữ liệu thông minh' : 'Manage contracts and automated workflows')
                       : (lang === 'VI' ? 'Khởi tạo không gian làm việc số cho công ty & tổ chức của bạn' : 'Set up smart contract workspace for your team')}
@@ -657,14 +657,14 @@ export const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
 
                 {/* Error Banner */}
                 {errorMessage && (
-                  <div className="animate-fade-in bg-red-50 border border-red-200 p-3 rounded-2xl text-xs text-red-700 mb-4 flex items-center gap-2 font-semibold">
-                    <AlertCircle size={16} className="shrink-0 text-red-500" /> {errorMessage}
+                  <div className="animate-fade-in bg-red-50 border border-red-200 p-2.5 rounded-xl text-xs text-red-700 mb-3 flex items-center gap-2 font-semibold">
+                    <AlertCircle size={15} className="shrink-0 text-red-500" /> {errorMessage}
                   </div>
                 )}
 
                 {/* LOGIN FORM */}
                 {activeTab === 'login' && (
-                  <form key="login" onSubmit={handleLoginSubmit} className="animate-tab-switch flex flex-col gap-4">
+                  <form key="login" onSubmit={handleLoginSubmit} className="animate-tab-switch flex flex-col gap-2.5">
                     <div>
                       <input
                         type="email"
@@ -672,7 +672,7 @@ export const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
                         placeholder={lang === 'VI' ? 'Email đăng nhập' : 'Email'}
                         value={loginEmail}
                         onChange={(e) => setLoginEmail(e.target.value)}
-                        className="w-full px-4 py-3 rounded-2xl border border-slate-200 text-xs md:text-sm font-medium placeholder:text-xs placeholder:font-normal placeholder:normal-case placeholder:tracking-normal placeholder:text-slate-400 focus:border-red-500 focus:ring-4 focus:ring-red-500/10 outline-none transition-all bg-white"
+                        className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-xs md:text-sm font-medium placeholder:text-xs placeholder:font-normal placeholder:normal-case placeholder:tracking-normal placeholder:text-slate-400 focus:border-red-500 focus:ring-4 focus:ring-red-500/10 outline-none transition-all bg-white"
                       />
                     </div>
 
@@ -684,23 +684,23 @@ export const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
                           placeholder={lang === 'VI' ? 'Mật khẩu' : 'Password'}
                           value={loginPassword}
                           onChange={(e) => setLoginPassword(e.target.value)}
-                          className="w-full px-4 py-3 pr-11 rounded-2xl border border-slate-200 text-xs md:text-sm font-medium placeholder:text-xs placeholder:font-normal placeholder:normal-case placeholder:tracking-normal placeholder:text-slate-400 focus:border-red-500 focus:ring-4 focus:ring-red-500/10 outline-none transition-all bg-white"
+                          className="w-full px-3.5 py-2 pr-10 rounded-xl border border-slate-200 text-xs md:text-sm font-medium placeholder:text-xs placeholder:font-normal placeholder:normal-case placeholder:tracking-normal placeholder:text-slate-400 focus:border-red-500 focus:ring-4 focus:ring-red-500/10 outline-none transition-all bg-white"
                         />
                         <button
                           type="button"
                           onClick={() => setShowPassword(!showPassword)}
-                          className="absolute right-3.5 top-3 text-slate-400 hover:text-slate-600 transition-colors p-1"
+                          className="absolute right-3 top-2 text-slate-400 hover:text-slate-600 transition-colors p-1"
                         >
-                          {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                          {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                         </button>
                       </div>
 
                       {/* Forgot Password Link */}
-                      <div className="text-right mt-1.5">
+                      <div className="text-right mt-1">
                         <button
                           type="button"
                           onClick={() => setForgotModalOpen(true)}
-                          className="text-xs text-red-500 hover:text-red-600 font-bold transition-colors cursor-pointer"
+                          className="text-[11px] text-red-500 hover:text-red-600 font-bold transition-colors cursor-pointer"
                         >
                           {lang === 'VI' ? 'Quên mật khẩu?' : 'Forgot password?'}
                         </button>
@@ -708,18 +708,18 @@ export const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
                     </div>
 
                     {/* Divider Line */}
-                    <div className="flex items-center gap-3 my-1">
+                    <div className="flex items-center gap-2.5 my-0.5">
                       <div className="flex-1 h-px bg-slate-200" />
-                      <span className="text-xs text-slate-400 font-medium">{lang === 'VI' ? 'hoặc tài khoản Google' : 'or Google account'}</span>
+                      <span className="text-[11px] text-slate-400 font-medium">{lang === 'VI' ? 'hoặc đăng nhập với' : 'or sign in with'}</span>
                       <div className="flex-1 h-px bg-slate-200" />
                     </div>
 
                     {/* Google Login Button */}
-                    <div className="w-full flex items-center justify-center my-1">
+                    <div className="w-full flex items-center justify-center">
                       <button
                         type="button"
                         onClick={handleGoogleClick}
-                        className="w-full py-3 px-4 rounded-full border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold flex items-center justify-center gap-2.5 transition-all shadow-xs cursor-pointer active:scale-[0.99]"
+                        className="w-full py-2 px-3 rounded-full border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold flex items-center justify-center gap-2 transition-all shadow-xs cursor-pointer active:scale-[0.99]"
                       >
                         <GoogleIcon />
                         <span>{lang === 'VI' ? 'Tiếp tục với Google' : 'Continue with Google'}</span>
@@ -730,7 +730,7 @@ export const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
                     <button
                       type="submit"
                       disabled={loading}
-                      className="w-full py-3.5 px-6 rounded-2xl bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 text-white font-extrabold text-sm md:text-base shadow-lg shadow-red-500/25 hover:shadow-red-500/40 active:scale-[0.99] transition-all cursor-pointer flex items-center justify-center gap-2 mt-1"
+                      className="w-full py-2.5 px-5 rounded-xl bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 text-white font-extrabold text-xs md:text-sm shadow-md shadow-red-500/25 hover:shadow-red-500/40 active:scale-[0.99] transition-all cursor-pointer flex items-center justify-center gap-2 mt-0.5"
                     >
                       {loading ? (lang === 'VI' ? 'Đang Đăng Nhập...' : 'Logging in...') : (lang === 'VI' ? 'Đăng Nhập Hệ Thống' : 'Sign In')}
                     </button>
@@ -739,108 +739,168 @@ export const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
 
                 {/* REGISTER FORM */}
                 {activeTab === 'register' && (
-                  <form key="register" onSubmit={handleRegisterSubmit} className="animate-tab-switch flex flex-col gap-3">
+                  <form key="register" onSubmit={handleRegisterSubmit} className="animate-tab-switch flex flex-col gap-1.5 md:gap-2">
                     {/* Organization Mode Selection */}
-                    <div className="grid grid-cols-2 gap-2 mb-1">
+                    <div className="grid grid-cols-2 gap-2 mb-0.5">
                       <div
                         onClick={() => setRegisterMode('NEW_ORG')}
-                        className={`p-2.5 rounded-2xl border cursor-pointer text-center transition-all ${registerMode === 'NEW_ORG'
-                          ? 'border-red-500 bg-red-50/50 text-red-600 font-bold shadow-xs'
+                        className={`py-1.5 px-2 rounded-xl border cursor-pointer text-center transition-all ${registerMode === 'NEW_ORG'
+                          ? 'border-red-500 bg-red-50/50 text-red-600 font-bold shadow-2xs'
                           : 'border-slate-200 bg-slate-50 text-slate-600 hover:border-slate-300'
                           }`}
                       >
-                        <div className="text-xs">{lang === 'VI' ? 'Tạo Tổ Chức Mới' : 'Create New Org'}</div>
+                        <div className="text-[11px] font-extrabold">{lang === 'VI' ? 'Tạo Tổ Chức Mới' : 'Create New Org'}</div>
                       </div>
 
                       <div
                         onClick={() => setRegisterMode('JOIN_ORG')}
-                        className={`p-2.5 rounded-2xl border cursor-pointer text-center transition-all ${registerMode === 'JOIN_ORG'
-                          ? 'border-red-500 bg-red-50/50 text-red-600 font-bold shadow-xs'
+                        className={`py-1.5 px-2 rounded-xl border cursor-pointer text-center transition-all ${registerMode === 'JOIN_ORG'
+                          ? 'border-red-500 bg-red-50/50 text-red-600 font-bold shadow-2xs'
                           : 'border-slate-200 bg-slate-50 text-slate-600 hover:border-slate-300'
                           }`}
                       >
-                        <div className="text-xs">{lang === 'VI' ? 'Gia Nhập Bằng Mã' : 'Join via Code'}</div>
+                        <div className="text-[11px] font-extrabold">{lang === 'VI' ? 'Gia Nhập Bằng Mã' : 'Join via Code'}</div>
                       </div>
                     </div>
 
-                    <input
-                      type="text"
-                      required
-                      placeholder={lang === 'VI' ? 'Họ và tên người đại diện' : 'Full Name'}
-                      value={regFullName}
-                      onChange={(e) => setRegFullName(e.target.value)}
-                      className="w-full px-4 py-2.5 rounded-2xl border border-slate-200 text-xs md:text-sm font-medium placeholder:text-xs placeholder:font-normal placeholder:normal-case placeholder:tracking-normal placeholder:text-slate-400 focus:border-red-500 focus:ring-4 focus:ring-red-500/10 outline-none transition-all"
-                    />
-
-                    <input
-                      type="email"
-                      required
-                      placeholder={lang === 'VI' ? 'Email công việc / cá nhân' : 'Email'}
-                      value={regEmail}
-                      onChange={(e) => setRegEmail(e.target.value)}
-                      className="w-full px-4 py-2.5 rounded-2xl border border-slate-200 text-xs md:text-sm font-medium placeholder:text-xs placeholder:font-normal placeholder:normal-case placeholder:tracking-normal placeholder:text-slate-400 focus:border-red-500 focus:ring-4 focus:ring-red-500/10 outline-none transition-all"
-                    />
-
-                    <div className="relative">
-                      <input
-                        type={showPassword ? 'text' : 'password'}
-                        required
-                        placeholder={lang === 'VI' ? 'Mật khẩu bảo mật' : 'Password'}
-                        value={regPassword}
-                        onChange={(e) => setRegPassword(e.target.value)}
-                        className="w-full px-4 py-2.5 pr-11 rounded-2xl border border-slate-200 text-xs md:text-sm font-medium placeholder:text-xs placeholder:font-normal placeholder:normal-case placeholder:tracking-normal placeholder:text-slate-400 focus:border-red-500 focus:ring-4 focus:ring-red-500/10 outline-none transition-all"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-3.5 top-2.5 text-slate-400 hover:text-slate-600 p-1"
-                      >
-                        {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                      </button>
-                    </div>
-
-                    {registerMode === 'NEW_ORG' ? (
-                      <div className="flex flex-col gap-2">
-                        <input
-                          type="text"
-                          required
-                          placeholder={lang === 'VI' ? 'Tên Công Ty / Tổ Chức (VD: Công Ty TNHH May Vina)' : 'Organization Name'}
-                          value={regOrgName}
-                          onChange={(e) => setRegOrgName(e.target.value)}
-                          className="w-full px-4 py-2.5 rounded-2xl border border-slate-200 text-xs md:text-sm font-medium placeholder:text-xs placeholder:font-normal placeholder:normal-case placeholder:tracking-normal placeholder:text-slate-400 focus:border-red-500 focus:ring-4 focus:ring-red-500/10 outline-none transition-all"
-                        />
-                        <input
-                          type="text"
-                          placeholder={lang === 'VI' ? 'Mã Tổ Chức (Tùy chọn, VD: MAYVINA)' : 'Org Code (Optional)'}
-                          value={regOrgCode}
-                          onChange={(e) => setRegOrgCode(e.target.value.toUpperCase())}
-                          className="w-full px-4 py-2.5 rounded-2xl border border-slate-200 text-xs md:text-sm font-bold uppercase tracking-wider placeholder:text-xs placeholder:font-normal placeholder:normal-case placeholder:tracking-normal placeholder:text-slate-400 focus:border-red-500 focus:ring-4 focus:ring-red-500/10 outline-none transition-all"
-                        />
-                      </div>
-                    ) : (
+                    {/* 2-Column Input Grid for Laptop/Desktop */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                       <input
                         type="text"
                         required
-                        placeholder={lang === 'VI' ? 'Mã Tổ Chức (Bắt buộc do Admin cấp)' : 'Required Org Code'}
-                        value={regOrgCode}
-                        onChange={(e) => setRegOrgCode(e.target.value.toUpperCase())}
-                        className="w-full px-4 py-2.5 rounded-2xl border border-slate-200 text-xs md:text-sm font-bold uppercase tracking-wider placeholder:text-xs placeholder:font-normal placeholder:normal-case placeholder:tracking-normal placeholder:text-slate-400 focus:border-red-500 focus:ring-4 focus:ring-red-500/10 outline-none transition-all"
+                        placeholder={lang === 'VI' ? 'Họ và tên' : 'Full Name'}
+                        value={regFullName}
+                        onChange={(e) => setRegFullName(e.target.value)}
+                        className="w-full px-3 py-1.5 md:py-2 rounded-xl border border-slate-200 text-xs font-medium placeholder:text-xs placeholder:font-normal placeholder:normal-case placeholder:tracking-normal placeholder:text-slate-400 focus:border-red-500 focus:ring-2 focus:ring-red-500/10 outline-none transition-all bg-white"
                       />
+
+                      <input
+                        type="email"
+                        required
+                        placeholder={lang === 'VI' ? 'Email công việc' : 'Email'}
+                        value={regEmail}
+                        onChange={(e) => setRegEmail(e.target.value)}
+                        className="w-full px-3 py-1.5 md:py-2 rounded-xl border border-slate-200 text-xs font-medium placeholder:text-xs placeholder:font-normal placeholder:normal-case placeholder:tracking-normal placeholder:text-slate-400 focus:border-red-500 focus:ring-2 focus:ring-red-500/10 outline-none transition-all bg-white"
+                      />
+                    </div>
+
+                    {registerMode === 'NEW_ORG' ? (
+                      <>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          <div className="relative">
+                            <input
+                              type={showPassword ? 'text' : 'password'}
+                              required
+                              placeholder={lang === 'VI' ? 'Mật khẩu bảo mật' : 'Password'}
+                              value={regPassword}
+                              onChange={(e) => setRegPassword(e.target.value)}
+                              className="w-full px-3 py-1.5 md:py-2 pr-9 rounded-xl border border-slate-200 text-xs font-medium placeholder:text-xs placeholder:font-normal placeholder:normal-case placeholder:tracking-normal placeholder:text-slate-400 focus:border-red-500 focus:ring-2 focus:ring-red-500/10 outline-none transition-all bg-white"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setShowPassword(!showPassword)}
+                              className="absolute right-2.5 top-1.5 md:top-2 text-slate-400 hover:text-slate-600 p-0.5"
+                            >
+                              {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                            </button>
+                          </div>
+
+                          <input
+                            type="text"
+                            required
+                            placeholder={lang === 'VI' ? 'Tên Công Ty / Tổ Chức' : 'Organization Name'}
+                            value={regOrgName}
+                            onChange={(e) => setRegOrgName(e.target.value)}
+                            className="w-full px-3 py-1.5 md:py-2 rounded-xl border border-slate-200 text-xs font-medium placeholder:text-xs placeholder:font-normal placeholder:normal-case placeholder:tracking-normal placeholder:text-slate-400 focus:border-red-500 focus:ring-2 focus:ring-red-500/10 outline-none transition-all bg-white"
+                          />
+                        </div>
+
+                        <div>
+                          <input
+                            type="text"
+                            placeholder={lang === 'VI' ? 'Mã Tổ Chức (Tùy chọn, VD: MAYVINA)' : 'Org Code (Optional)'}
+                            value={regOrgCode}
+                            onChange={(e) => setRegOrgCode(e.target.value.toUpperCase())}
+                            className={`w-full px-3 py-1.5 md:py-2 rounded-xl border text-xs font-bold uppercase tracking-wider placeholder:text-xs placeholder:font-normal placeholder:normal-case placeholder:tracking-normal placeholder:text-slate-400 outline-none transition-all bg-white ${
+                              regOrgCodeCheck.exists === true
+                                ? 'border-red-400 bg-red-50 text-red-700'
+                                : regOrgCodeCheck.exists === false && regOrgCode.trim()
+                                ? 'border-emerald-400 bg-emerald-50 text-emerald-800'
+                                : 'border-slate-200 focus:border-red-500 focus:ring-2 focus:ring-red-500/10'
+                            }`}
+                          />
+                          {regOrgCodeCheck.checking && (
+                            <span className="text-[10px] text-slate-400 mt-0.5 block">Đang kiểm tra mã tổ chức...</span>
+                          )}
+                          {regOrgCodeCheck.exists === true && (
+                            <span className="text-[10px] text-red-500 font-semibold mt-0.5 block">Mã '{regOrgCode.trim()}' đã tồn tại (hợp lệ cho tạo mới).</span>
+                          )}
+                          {regOrgCodeCheck.exists === false && regOrgCode.trim() && (
+                            <span className="text-[10px] text-emerald-600 font-semibold mt-0.5 block">Mã '{regOrgCode.trim()}' khả dụng!</span>
+                          )}
+                        </div>
+                      </>
+                    ) : (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <div className="relative">
+                          <input
+                            type={showPassword ? 'text' : 'password'}
+                            required
+                            placeholder={lang === 'VI' ? 'Mật khẩu bảo mật' : 'Password'}
+                            value={regPassword}
+                            onChange={(e) => setRegPassword(e.target.value)}
+                            className="w-full px-3 py-1.5 md:py-2 pr-9 rounded-xl border border-slate-200 text-xs font-medium placeholder:text-xs placeholder:font-normal placeholder:normal-case placeholder:tracking-normal placeholder:text-slate-400 focus:border-red-500 focus:ring-2 focus:ring-red-500/10 outline-none transition-all bg-white"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowPassword(!showPassword)}
+                            className="absolute right-2.5 top-1.5 md:top-2 text-slate-400 hover:text-slate-600 p-0.5"
+                          >
+                            {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                          </button>
+                        </div>
+
+                        <div>
+                          <input
+                            type="text"
+                            required
+                            placeholder={lang === 'VI' ? 'Mã Tổ Chức (Bắt buộc)' : 'Required Org Code'}
+                            value={regOrgCode}
+                            onChange={(e) => setRegOrgCode(e.target.value.toUpperCase())}
+                            className={`w-full px-3 py-1.5 md:py-2 rounded-xl border text-xs font-bold uppercase tracking-wider placeholder:text-xs placeholder:font-normal placeholder:normal-case placeholder:tracking-normal placeholder:text-slate-400 outline-none transition-all bg-white ${
+                              regOrgCodeCheck.exists === false && regOrgCode.trim()
+                                ? 'border-red-400 bg-red-50 text-red-700'
+                                : regOrgCodeCheck.exists === true
+                                ? 'border-emerald-400 bg-emerald-50 text-emerald-800'
+                                : 'border-slate-200 focus:border-red-500 focus:ring-2 focus:ring-red-500/10'
+                            }`}
+                          />
+                          {regOrgCodeCheck.checking && (
+                            <span className="text-[10px] text-slate-400 mt-0.5 block">Đang kiểm tra mã tổ chức...</span>
+                          )}
+                          {regOrgCodeCheck.exists === true && (
+                            <span className="text-[10px] text-emerald-600 font-semibold mt-0.5 block">Tổ chức: {regOrgCodeCheck.orgName || regOrgCode.trim()}</span>
+                          )}
+                          {regOrgCodeCheck.exists === false && regOrgCode.trim() && (
+                            <span className="text-[10px] text-red-500 font-semibold mt-0.5 block">Mã '{regOrgCode.trim()}' không tồn tại.</span>
+                          )}
+                        </div>
+                      </div>
                     )}
 
                     {/* Divider Line */}
-                    <div className="flex items-center gap-3 my-0.5">
+                    <div className="flex items-center gap-2.5 my-0.5">
                       <div className="flex-1 h-px bg-slate-200" />
-                      <span className="text-xs text-slate-400 font-medium">{lang === 'VI' ? 'hoặc tài khoản Google' : 'or Google account'}</span>
+                      <span className="text-[10px] text-slate-400 font-medium">{lang === 'VI' ? 'hoặc đăng ký với' : 'or sign up with'}</span>
                       <div className="flex-1 h-px bg-slate-200" />
                     </div>
 
                     {/* Google Register Button */}
-                    <div className="w-full flex items-center justify-center my-1">
+                    <div className="w-full flex items-center justify-center">
                       <button
                         type="button"
                         onClick={handleGoogleClick}
-                        className="w-full py-3 px-4 rounded-full border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold flex items-center justify-center gap-2.5 transition-all shadow-xs cursor-pointer active:scale-[0.99]"
+                        className="w-full py-1.5 md:py-2 px-3 rounded-full border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold flex items-center justify-center gap-2 transition-all shadow-2xs cursor-pointer active:scale-[0.99]"
                       >
                         <GoogleIcon />
                         <span>{lang === 'VI' ? 'Đăng ký với Google' : 'Sign up with Google'}</span>
@@ -850,7 +910,7 @@ export const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
                     <button
                       type="submit"
                       disabled={loading}
-                      className="w-full py-3.5 px-6 rounded-2xl bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 text-white font-extrabold text-sm md:text-base shadow-lg shadow-red-500/25 hover:shadow-red-500/40 active:scale-[0.99] transition-all cursor-pointer flex items-center justify-center gap-2 mt-1"
+                      className="w-full py-2 md:py-2.5 px-5 rounded-xl bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 text-white font-extrabold text-xs shadow-md shadow-red-500/25 hover:shadow-red-500/40 active:scale-[0.99] transition-all cursor-pointer flex items-center justify-center gap-2 mt-0.5"
                     >
                       {loading ? (lang === 'VI' ? 'Đang Khởi Tạo...' : 'Creating Account...') : (lang === 'VI' ? 'Tạo Tài Khoản Ngay' : 'Sign Up')}
                     </button>
@@ -859,7 +919,7 @@ export const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
               </div>
 
               {/* Bottom Footer Section */}
-              <div className="text-center pt-4 mt-4 text-xs text-slate-500 font-medium">
+              <div className="text-center pt-2 mt-2 text-xs text-slate-500 font-medium">
                 {activeTab === 'login' ? (
                   <>
                     {lang === 'VI' ? 'Chưa có tài khoản doanh nghiệp? ' : "Don't have an account? "}
