@@ -2,11 +2,11 @@ version: '3.8'
 
 services:
   # App chính (Backend Node.js tích hợp Frontend React)
-  webhopdong_app:
+  flexidoc_app:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: webhopdong_app
+    container_name: flexidoc_app
     restart: unless-stopped
     ports:
       - "80:5000"

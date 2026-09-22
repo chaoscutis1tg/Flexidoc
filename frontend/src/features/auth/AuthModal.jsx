@@ -19,8 +19,9 @@ import {
   Check,
   ChevronLeft,
   ChevronRight,
-  Globe,
-  Info
+  ShieldCheck,
+  FileText,
+  HelpCircle
 } from 'lucide-react';
 
 const GoogleIcon = () => (
@@ -34,24 +35,24 @@ const GoogleIcon = () => (
 
 const showcaseSlides = [
   {
-    title: "Số Hóa Hợp Đồng Thông Minh",
-    desc: "Tự động nhận diện biến số, giữ nguyên 100% định dạng Word gốc & xuất PDF A4 chuẩn sắc nét.",
+    title: "Số Hóa Hợp Đồng Word Thông Minh",
+    desc: "Giữ nguyên 100% định dạng Word gốc, tự động trích xuất biến thông minh & xuất file PDF A4 chuẩn sắc nét.",
     authorName: "FlexiDoc AI Engine",
-    authorRole: "Document Parsing System",
+    authorRole: "Giải Pháp Số Hóa Hợp Đồng",
     avatar: "/logo_fxd.png",
   },
   {
-    title: "Phân Quyền & Quản Lý Doanh Nghiệp",
-    desc: "Dễ dàng quản lý nhân sự, phân quyền vai trò làm việc và tạo mã gia nhập tổ chức an toàn.",
+    title: "Phân Quyền & Quản Lý Tổ Chức",
+    desc: "Dễ dàng phân quyền Quản trị viên, quản lý danh sách nhân sự và tạo mã gia nhập nhóm làm việc tiện lợi.",
     authorName: "FlexiDoc Enterprise",
-    authorRole: "Multi-tenant Platform",
+    authorRole: "Quản Trị Doanh Nghiệp Multi-tenant",
     avatar: "/logo.png",
   },
   {
-    title: "Bảo Mật & Tối Ưu Quy Trình",
-    desc: "Lưu trữ tập trung, mã hóa bảo mật chuẩn cao và ký duyệt hợp đồng nhanh chóng 24/7.",
+    title: "Bảo Mật & Lưu Trữ Tập Trung",
+    desc: "Lưu trữ dữ liệu hợp đồng tập trung mã hóa, bảo mật tối đa và tra cứu lịch sử thay đổi 24/7.",
     authorName: "FlexiDoc Cloud",
-    authorRole: "Secure SaaS Solution",
+    authorRole: "Nền Tảng Đám Mây An Toàn",
     avatar: "/logo_fxd.png",
   }
 ];
@@ -90,7 +91,7 @@ export const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
   const [googleOrgCodeCheck, setGoogleOrgCodeCheck] = useState({ checking: false, exists: null, orgName: '' });
   const [regOrgCodeCheck, setRegOrgCodeCheck] = useState({ checking: false, exists: null, orgName: '' });
 
-  // Reset tab when modal opens with new defaultTab
+  // Reset tab when modal opens
   useEffect(() => {
     if (isOpen) {
       setActiveTab(defaultTab);
@@ -135,59 +136,6 @@ export const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
   }, [regOrgCode]);
 
   const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
-
-  // Initialize Official Google Identity Services SDK
-  useEffect(() => {
-    if (isOpen && googleClientId) {
-      const initGoogleGIS = () => {
-        if (!window.google?.accounts?.id) return;
-        try {
-          window.google.accounts.id.initialize({
-            client_id: googleClientId,
-            callback: (response) => {
-              if (response.credential) {
-                try {
-                  const base64Url = response.credential.split('.')[1];
-                  const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-                  const jsonPayload = decodeURIComponent(
-                    atob(base64)
-                      .split('')
-                      .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
-                      .join('')
-                  );
-                  const payload = JSON.parse(jsonPayload);
-                  if (payload && payload.email) {
-                    executeGoogleAuth(payload.email, payload.name || payload.given_name);
-                  }
-                } catch (e) {
-                  console.error('JWT parse error', e);
-                }
-              }
-            }
-          });
-
-          // Render official button into hidden slot
-          const slot = document.getElementById('main-google-btn-slot');
-          if (slot) {
-            slot.innerHTML = '';
-            window.google.accounts.id.renderButton(slot, {
-              theme: 'outline',
-              size: 'large',
-              width: 320,
-              text: 'signin_with',
-              locale: 'vi'
-            });
-          }
-        } catch (err) {
-          console.warn('Google GIS Notice:', err);
-        }
-      };
-
-      initGoogleGIS();
-      const timer = setTimeout(initGoogleGIS, 300);
-      return () => clearTimeout(timer);
-    }
-  }, [isOpen, googleClientId, activeTab]);
 
   // Lock body scroll when AuthModal is open
   useEffect(() => {
@@ -258,46 +206,109 @@ export const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
     }
   };
 
-  const executeGoogleAuth = async (googleEmail, googleName) => {
-    if (!googleEmail) return;
+  const executeGoogleAuth = async (googleEmail, googleName, accessToken) => {
     setErrorMessage('');
     setLoading(true);
     try {
       const res = await loginWithGoogle({
-        email: googleEmail,
-        fullName: googleName || googleEmail.split('@')[0],
+        email: googleEmail || undefined,
+        fullName: googleName || (googleEmail ? googleEmail.split('@')[0] : 'Google User'),
         googleId: 'GOOGLE_' + Math.random().toString(36).substring(2),
+        accessToken: accessToken || undefined,
       });
 
       if (res.data && res.data.requiresOrgSetup) {
         setGoogleOrgSetupUser(res.data.user);
-      } else {
+      } else if (res.data && (res.data.token || res.token)) {
         onClose();
         navigate('/dashboard');
+      } else {
+        setErrorMessage('Đăng nhập không thành công. Vui lòng thử lại.');
       }
     } catch (err) {
+      console.error('executeGoogleAuth error:', err);
       setErrorMessage(err.message || 'Đăng nhập Google thất bại.');
     } finally {
       setLoading(false);
     }
   };
 
+  // Modern Official Google OAuth2 Token Client (Fixes blank white gsi/transform popup)
   const handleGoogleClick = () => {
+    setErrorMessage('');
+    if (window.google?.accounts?.oauth2 && googleClientId) {
+      try {
+        const client = window.google.accounts.oauth2.initTokenClient({
+          client_id: googleClientId,
+          scope: 'email profile openid',
+          callback: async (tokenResponse) => {
+            if (tokenResponse && tokenResponse.access_token) {
+              setLoading(true);
+              try {
+                const userInfoRes = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+                  headers: { Authorization: `Bearer ${tokenResponse.access_token}` }
+                });
+                const userInfo = await userInfoRes.json();
+                if (userInfo && userInfo.email) {
+                  await executeGoogleAuth(userInfo.email, userInfo.name || userInfo.given_name, tokenResponse.access_token);
+                } else {
+                  await executeGoogleAuth(null, null, tokenResponse.access_token);
+                }
+              } catch (err) {
+                console.warn("Frontend Google userinfo fetch notice, falling back to backend token exchange:", err);
+                await executeGoogleAuth(null, null, tokenResponse.access_token);
+              }
+            } else {
+              setLoading(false);
+            }
+          },
+          error_callback: (err) => {
+            console.warn("Google OAuth popup notice:", err);
+            setLoading(false);
+          }
+        });
+        client.requestAccessToken();
+      } catch (e) {
+        console.warn('Google Token Client init warning:', e);
+        fallbackGooglePrompt();
+      }
+    } else {
+      fallbackGooglePrompt();
+    }
+  };
+
+  const fallbackGooglePrompt = () => {
     if (window.google?.accounts?.id && googleClientId) {
       try {
-        window.google.accounts.id.prompt((notification) => {
-          if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-            const renderedBtn = document.querySelector('#main-google-btn-slot div[role="button"]');
-            if (renderedBtn) {
-              renderedBtn.click();
+        window.google.accounts.id.initialize({
+          client_id: googleClientId,
+          callback: (response) => {
+            if (response.credential) {
+              try {
+                const base64Url = response.credential.split('.')[1];
+                const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+                const jsonPayload = decodeURIComponent(
+                  atob(base64)
+                    .split('')
+                    .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+                    .join('')
+                );
+                const payload = JSON.parse(jsonPayload);
+                if (payload && payload.email) {
+                  executeGoogleAuth(payload.email, payload.name || payload.given_name);
+                }
+              } catch (e) {
+                console.error('JWT parse error', e);
+              }
             }
           }
         });
+        window.google.accounts.id.prompt();
       } catch (e) {
-        console.warn('Google prompt notice:', e);
+        setErrorMessage('SDK Google đang khởi tạo. Vui lòng bấm lại sau ít giây.');
       }
     } else {
-      setErrorMessage('Hệ thống đang khởi tạo Google SDK, vui lòng bấm lại sau 2 giây.');
+      setErrorMessage('SDK Google chưa sẵn sàng. Vui lòng tải lại trang.');
     }
   };
 
@@ -343,7 +354,7 @@ export const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
         className="max-w-[960px] w-full bg-white rounded-[32px] overflow-hidden shadow-2xl border border-slate-200/60 grid grid-cols-1 md:grid-cols-2 relative animate-modal-pop select-text pointer-events-auto my-auto"
       >
 
-        {/* LEFT COLUMN: Premium Moody Artwork Banner */}
+        {/* LEFT COLUMN: Contract Management Branding Banner */}
         <div
           className="relative min-h-[300px] md:min-h-[580px] p-6 md:p-8 flex flex-col justify-between text-white overflow-hidden rounded-[26px] m-2.5 shadow-inner"
           style={{
@@ -372,7 +383,7 @@ export const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
                 onClick={() => { setActiveTab('register'); setErrorMessage(''); }}
                 className={`px-3 py-1.5 rounded-full text-xs font-extrabold border transition-all ${activeTab === 'register' ? 'bg-white text-slate-900 border-white' : 'border-white/30 text-white hover:bg-white/10'}`}
               >
-                {lang === 'VI' ? 'Tham gia ngay' : 'Join Us'}
+                {lang === 'VI' ? 'Đăng ký' : 'Sign Up'}
               </button>
             </div>
           </div>
@@ -426,7 +437,7 @@ export const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
           </div>
         </div>
 
-        {/* RIGHT COLUMN: Clean Form Panel */}
+        {/* RIGHT COLUMN: Clean Contract Form Panel */}
         <div className="p-6 md:p-10 flex flex-col justify-between bg-white relative overflow-y-auto">
           {/* Top Controls Bar: Logo text / Language Selector & Close Button */}
           <div className="flex items-center justify-between mb-6">
@@ -442,7 +453,7 @@ export const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
                 className="px-2.5 py-1 rounded-full border border-slate-200 hover:border-slate-300 bg-slate-50 text-slate-700 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
                 title="Chuyển đổi ngôn ngữ"
               >
-                <span>{lang === 'VI' ? '🇻🇳 VI' : '🇬🇧 EN'}</span>
+                <span>{lang === 'VI' ? 'VN' : 'EN'}</span>
               </button>
 
               {/* Close Modal Button */}
@@ -463,13 +474,13 @@ export const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
               <div>
                 <div className="mb-5">
                   <div className="inline-flex items-center gap-1.5 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-full text-xs text-emerald-800 font-bold mb-2">
-                    <Check size={14} className="text-emerald-600" /> Đã xác thực với Google
+                    <Check size={14} className="text-emerald-600" /> Đã xác thực thành công với Google
                   </div>
                   <h3 className="text-2xl font-black text-slate-900 tracking-tight mb-1">
                     Thiết Lập Tổ Chức
                   </h3>
                   <p className="text-xs text-slate-500">
-                    Chào <span className="font-bold text-slate-800">{googleOrgSetupUser.fullName}</span> ({googleOrgSetupUser.email}). Vui lòng hoàn tất thiết lập:
+                    Chào <span className="font-bold text-slate-800">{googleOrgSetupUser.fullName}</span> ({googleOrgSetupUser.email}). Vui lòng chọn cách thiết lập tổ chức để bắt đầu:
                   </p>
                 </div>
 
@@ -490,7 +501,7 @@ export const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
                     >
                       <Building2 size={20} className={`mx-auto mb-1 ${googleOrgMode === 'NEW_ORG' ? 'text-red-500' : 'text-slate-500'}`} />
                       <div className={`text-xs font-extrabold ${googleOrgMode === 'NEW_ORG' ? 'text-red-600' : 'text-slate-700'}`}>Tạo Tổ Chức Mới</div>
-                      <span className="text-[10px] text-slate-500">Làm Quản trị viên</span>
+                      <span className="text-[10px] text-slate-500">Làm Quản trị viên Admin</span>
                     </div>
 
                     <div
@@ -502,7 +513,7 @@ export const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
                     >
                       <Users size={20} className={`mx-auto mb-1 ${googleOrgMode === 'JOIN_ORG' ? 'text-red-500' : 'text-slate-500'}`} />
                       <div className={`text-xs font-extrabold ${googleOrgMode === 'JOIN_ORG' ? 'text-red-600' : 'text-slate-700'}`}>Gia Nhập Bằng Mã</div>
-                      <span className="text-[10px] text-slate-500">Thành viên nhóm</span>
+                      <span className="text-[10px] text-slate-500">Nhân sự thành viên</span>
                     </div>
                   </div>
 
@@ -524,7 +535,7 @@ export const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
 
                       <div>
                         <label className="text-xs font-bold text-slate-700 block mb-1">
-                          Mã Tổ Chức <span className="text-slate-400 font-normal">(Tùy chọn)</span>:
+                          Mã Tổ Chức <span className="text-slate-400 font-normal">(Tùy chọn, VD: MAYVINA)</span>:
                         </label>
                         <input
                           type="text"
@@ -586,15 +597,15 @@ export const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
               <div>
                 {/* Greeting Section */}
                 <div className="mb-6">
-                  <h3 className="text-3xl font-black text-slate-900 tracking-tight mb-1.5">
+                  <h3 className="text-2xl md:text-3xl font-black text-slate-900 tracking-tight mb-1.5">
                     {activeTab === 'login'
-                      ? (lang === 'VI' ? 'Hi Designer 👋' : 'Hi Designer 👋')
-                      : (lang === 'VI' ? 'Tạo Tài Khoản ✨' : 'Create Account ✨')}
+                      ? (lang === 'VI' ? 'Đăng Nhập Hệ Thống' : 'System Sign In')
+                      : (lang === 'VI' ? 'Đăng Ký Tài Khoản' : 'Create Account')}
                   </h3>
                   <p className="text-xs md:text-sm text-slate-500 font-medium">
                     {activeTab === 'login'
-                      ? (lang === 'VI' ? 'Welcome to FlexiDoc' : 'Welcome to FlexiDoc')
-                      : (lang === 'VI' ? 'Tạo tài khoản mới để bắt đầu sử dụng' : 'Sign up to manage your documents')}
+                      ? (lang === 'VI' ? 'Quản lý hợp đồng, tạo biểu mẫu và trích xuất dữ liệu thông minh' : 'Manage contracts and automated workflows')
+                      : (lang === 'VI' ? 'Khởi tạo không gian làm việc số cho công ty & tổ chức của bạn' : 'Set up smart contract workspace for your team')}
                   </p>
                 </div>
 
@@ -612,7 +623,7 @@ export const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
                       <input
                         type="email"
                         required
-                        placeholder={lang === 'VI' ? 'Email' : 'Email'}
+                        placeholder={lang === 'VI' ? 'Email đăng nhập' : 'Email'}
                         value={loginEmail}
                         onChange={(e) => setLoginEmail(e.target.value)}
                         className="w-full px-4 py-3 rounded-2xl border border-slate-200 text-sm font-medium placeholder:text-slate-400 focus:border-red-500 focus:ring-4 focus:ring-red-500/10 outline-none transition-all bg-white"
@@ -624,7 +635,7 @@ export const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
                         <input
                           type={showPassword ? 'text' : 'password'}
                           required
-                          placeholder={lang === 'VI' ? 'Password' : 'Password'}
+                          placeholder={lang === 'VI' ? 'Mật khẩu' : 'Password'}
                           value={loginPassword}
                           onChange={(e) => setLoginPassword(e.target.value)}
                           className="w-full px-4 py-3 pr-11 rounded-2xl border border-slate-200 text-sm font-medium placeholder:text-slate-400 focus:border-red-500 focus:ring-4 focus:ring-red-500/10 outline-none transition-all bg-white"
@@ -645,7 +656,7 @@ export const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
                           onClick={() => setForgotModalOpen(true)}
                           className="text-xs text-red-500 hover:text-red-600 font-bold transition-colors cursor-pointer"
                         >
-                          {lang === 'VI' ? 'Forgot password ?' : 'Forgot password ?'}
+                          {lang === 'VI' ? 'Quên mật khẩu?' : 'Forgot password?'}
                         </button>
                       </div>
                     </div>
@@ -653,23 +664,19 @@ export const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
                     {/* Divider Line */}
                     <div className="flex items-center gap-3 my-1">
                       <div className="flex-1 h-px bg-slate-200" />
-                      <span className="text-xs text-slate-400 font-medium">or</span>
+                      <span className="text-xs text-slate-400 font-medium">{lang === 'VI' ? 'hoặc tài khoản Google' : 'or Google account'}</span>
                       <div className="flex-1 h-px bg-slate-200" />
                     </div>
 
                     {/* Google Login Button */}
-                    <div className="relative">
-                      <button
-                        type="button"
-                        onClick={handleGoogleClick}
-                        className="w-full py-3 px-4 rounded-2xl border border-slate-200 hover:border-slate-300 bg-white text-slate-700 font-bold text-sm flex items-center justify-center gap-2.5 shadow-xs hover:shadow-md transition-all cursor-pointer group"
-                      >
-                        <span>Login with Google</span>
-                        <GoogleIcon />
-                      </button>
-                      {/* Hidden Slot for Official Google GIS Button */}
-                      <div id="main-google-btn-slot" className="hidden"></div>
-                    </div>
+                    <button
+                      type="button"
+                      onClick={handleGoogleClick}
+                      className="w-full py-3 px-4 rounded-2xl border border-slate-200 hover:border-slate-300 bg-white text-slate-700 font-bold text-sm flex items-center justify-center gap-2.5 shadow-xs hover:shadow-md transition-all cursor-pointer group"
+                    >
+                      <GoogleIcon />
+                      <span>{lang === 'VI' ? 'Đăng nhập nhanh bằng Google' : 'Login with Google'}</span>
+                    </button>
 
                     {/* Main Red Login Button */}
                     <button
@@ -677,7 +684,7 @@ export const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
                       disabled={loading}
                       className="w-full py-3.5 px-6 rounded-2xl bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 text-white font-extrabold text-sm md:text-base shadow-lg shadow-red-500/25 hover:shadow-red-500/40 active:scale-[0.99] transition-all cursor-pointer flex items-center justify-center gap-2 mt-1"
                     >
-                      {loading ? (lang === 'VI' ? 'Đang Đăng Nhập...' : 'Logging in...') : (lang === 'VI' ? 'Login' : 'Login')}
+                      {loading ? (lang === 'VI' ? 'Đang Đăng Nhập...' : 'Logging in...') : (lang === 'VI' ? 'Đăng Nhập Hệ Thống' : 'Sign In')}
                     </button>
                   </form>
                 )}
@@ -711,7 +718,7 @@ export const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
                     <input
                       type="text"
                       required
-                      placeholder={lang === 'VI' ? 'Họ và tên' : 'Full Name'}
+                      placeholder={lang === 'VI' ? 'Họ và tên người đại diện' : 'Full Name'}
                       value={regFullName}
                       onChange={(e) => setRegFullName(e.target.value)}
                       className="w-full px-4 py-2.5 rounded-2xl border border-slate-200 text-sm font-medium focus:border-red-500 focus:ring-4 focus:ring-red-500/10 outline-none transition-all"
@@ -720,7 +727,7 @@ export const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
                     <input
                       type="email"
                       required
-                      placeholder="Email"
+                      placeholder={lang === 'VI' ? 'Email công việc / cá nhân' : 'Email'}
                       value={regEmail}
                       onChange={(e) => setRegEmail(e.target.value)}
                       className="w-full px-4 py-2.5 rounded-2xl border border-slate-200 text-sm font-medium focus:border-red-500 focus:ring-4 focus:ring-red-500/10 outline-none transition-all"
@@ -730,7 +737,7 @@ export const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
                       <input
                         type={showPassword ? 'text' : 'password'}
                         required
-                        placeholder={lang === 'VI' ? 'Mật khẩu' : 'Password'}
+                        placeholder={lang === 'VI' ? 'Mật khẩu bảo mật' : 'Password'}
                         value={regPassword}
                         onChange={(e) => setRegPassword(e.target.value)}
                         className="w-full px-4 py-2.5 pr-11 rounded-2xl border border-slate-200 text-sm font-medium focus:border-red-500 focus:ring-4 focus:ring-red-500/10 outline-none transition-all"
@@ -749,7 +756,7 @@ export const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
                         <input
                           type="text"
                           required
-                          placeholder={lang === 'VI' ? 'Tên Công Ty / Tổ Chức' : 'Organization Name'}
+                          placeholder={lang === 'VI' ? 'Tên Công Ty / Tổ Chức (VD: Công Ty TNHH May Vina)' : 'Organization Name'}
                           value={regOrgName}
                           onChange={(e) => setRegOrgName(e.target.value)}
                           className="w-full px-4 py-2.5 rounded-2xl border border-slate-200 text-sm font-medium focus:border-red-500 focus:ring-4 focus:ring-red-500/10 outline-none transition-all"
@@ -776,21 +783,19 @@ export const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
                     {/* Divider Line */}
                     <div className="flex items-center gap-3 my-0.5">
                       <div className="flex-1 h-px bg-slate-200" />
-                      <span className="text-xs text-slate-400 font-medium">or</span>
+                      <span className="text-xs text-slate-400 font-medium">{lang === 'VI' ? 'hoặc tài khoản Google' : 'or Google account'}</span>
                       <div className="flex-1 h-px bg-slate-200" />
                     </div>
 
                     {/* Google Register Button */}
-                    <div className="relative">
-                      <button
-                        type="button"
-                        onClick={handleGoogleClick}
-                        className="w-full py-2.5 px-4 rounded-2xl border border-slate-200 hover:border-slate-300 bg-white text-slate-700 font-bold text-sm flex items-center justify-center gap-2.5 shadow-xs transition-all cursor-pointer"
-                      >
-                        <span>Login with Google</span>
-                        <GoogleIcon />
-                      </button>
-                    </div>
+                    <button
+                      type="button"
+                      onClick={handleGoogleClick}
+                      className="w-full py-2.5 px-4 rounded-2xl border border-slate-200 hover:border-slate-300 bg-white text-slate-700 font-bold text-sm flex items-center justify-center gap-2.5 shadow-xs transition-all cursor-pointer"
+                    >
+                      <GoogleIcon />
+                      <span>{lang === 'VI' ? 'Đăng ký nhanh bằng Google' : 'Sign up with Google'}</span>
+                    </button>
 
                     <button
                       type="submit"
@@ -807,22 +812,22 @@ export const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
               <div className="text-center pt-4 mt-4 text-xs text-slate-500 font-medium">
                 {activeTab === 'login' ? (
                   <>
-                    Don't have an account?{' '}
+                    {lang === 'VI' ? 'Chưa có tài khoản doanh nghiệp? ' : "Don't have an account? "}
                     <span
                       onClick={() => { setActiveTab('register'); setErrorMessage(''); }}
                       className="text-red-500 font-bold cursor-pointer hover:underline"
                     >
-                      Sign up
+                      {lang === 'VI' ? 'Đăng ký ngay' : 'Sign up'}
                     </span>
                   </>
                 ) : (
                   <>
-                    Already have an account?{' '}
+                    {lang === 'VI' ? 'Đã có tài khoản? ' : 'Already have an account? '}
                     <span
                       onClick={() => { setActiveTab('login'); setErrorMessage(''); }}
                       className="text-red-500 font-bold cursor-pointer hover:underline"
                     >
-                      Sign in
+                      {lang === 'VI' ? 'Đăng nhập ngay' : 'Sign in'}
                     </span>
                   </>
                 )}
@@ -835,11 +840,11 @@ export const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
             <div className="absolute inset-0 bg-white/95 backdrop-blur-sm z-20 p-6 flex flex-col justify-between rounded-2xl animate-fade-in">
               <div className="text-center my-auto">
                 <div className="w-12 h-12 rounded-full bg-red-50 text-red-500 flex items-center justify-center mx-auto mb-3 border border-red-100">
-                  <Info size={24} />
+                  <HelpCircle size={24} />
                 </div>
                 <h4 className="text-lg font-black text-slate-900 mb-2">Khôi Phục Mật Khẩu</h4>
                 <p className="text-xs text-slate-600 leading-relaxed max-w-xs mx-auto mb-4">
-                  Để đảm bảo an toàn cho tài khoản doanh nghiệp, vui lòng liên hệ trực tiếp với <strong>Quản trị viên (Admin)</strong> tổ chức của bạn để reset mật khẩu, hoặc gửi email hỗ trợ tới <strong>support@flexidoc.io.vn</strong>.
+                  Để đảm bảo an toàn cho dữ liệu hợp đồng doanh nghiệp, vui lòng liên hệ trực tiếp với <strong>Quản trị viên (Admin)</strong> tổ chức của bạn để cài lại mật khẩu, hoặc gửi email tới <strong>support@flexidoc.io.vn</strong>.
                 </p>
                 <button
                   type="button"
@@ -858,4 +863,5 @@ export const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
     document.body
   );
 };
+
 

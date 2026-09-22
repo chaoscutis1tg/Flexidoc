@@ -121,7 +121,21 @@ export class AuthService {
     return true;
   }
 
-  async loginWithGoogle({ email, fullName, googleId, mode, orgCode, organizationName }) {
+  async loginWithGoogle({ email, fullName, googleId, mode, orgCode, organizationName, accessToken }) {
+    if (accessToken && !email) {
+      try {
+        const googleRes = await fetch(`https://www.googleapis.com/oauth2/v3/userinfo?access_token=${accessToken}`);
+        const googleData = await googleRes.json();
+        if (googleData && googleData.email) {
+          email = googleData.email;
+          fullName = googleData.name || googleData.given_name || email.split('@')[0];
+          googleId = 'GOOGLE_' + (googleData.sub || Date.now());
+        }
+      } catch (err) {
+        console.error('Server-side Google UserInfo fetch failed:', err);
+      }
+    }
+
     if (!email) {
       throw new AppError('Vui lòng cung cấp Email tài khoản Google.', 400);
     }
