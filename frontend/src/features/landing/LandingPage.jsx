@@ -553,15 +553,11 @@ export const LandingPage = () => {
               <div className="space-y-2.5 pt-2 text-slate-300">
                 <div className="flex items-center gap-2.5">
                   <Phone size={14} className="text-sky-400 shrink-0" />
-                  <span>Hotline: <strong className="text-white">1900 6868</strong> / <strong className="text-white">0988 123 456</strong></span>
+                  <span>Hotline: <strong className="text-white">0846002611</strong></span>
                 </div>
                 <div className="flex items-center gap-2.5">
                   <Mail size={14} className="text-sky-400 shrink-0" />
                   <span>Email Hỗ Trợ: <strong className="text-white">dovankhoa091@gmail.com</strong></span>
-                </div>
-                <div className="flex items-start gap-2.5">
-                  <MapPin size={14} className="text-sky-400 shrink-0 mt-0.5" />
-                  <span>Địa chỉ: Tòa nhà FlexiDoc, Số 88 Phố Duy Tân, Cầu Giấy, Hà Nội</span>
                 </div>
               </div>
             </div>
@@ -640,8 +636,10 @@ export const LandingPage = () => {
                 <ShieldCheck size={14} className="text-emerald-400" /> Hỗ Trợ & Pháp Lý
               </h5>
               <ul className="space-y-2.5 text-slate-400 p-0 m-0 list-none">
-                <li className="flex items-center gap-1.5">
-                  <ChevronRight size={12} className="text-slate-600" /> Trung tâm hỗ trợ 24/7
+                <li>
+                  <a href="mailto:dovankhoa091@gmail.com" className="hover:text-sky-400 transition-colors flex items-center gap-1.5 text-slate-400">
+                    <ChevronRight size={12} className="text-slate-600" /> Trung tâm hỗ trợ 24/7
+                  </a>
                 </li>
                 <li>
                   <a href="/privacy" className="hover:text-sky-400 transition-colors flex items-center gap-1.5 text-slate-400">
@@ -652,9 +650,6 @@ export const LandingPage = () => {
                   <a href="/terms" className="hover:text-sky-400 transition-colors flex items-center gap-1.5 text-slate-400">
                     <ChevronRight size={12} className="text-slate-600" /> <strong>Điều khoản sử dụng (Terms)</strong>
                   </a>
-                </li>
-                <li className="flex items-center gap-1.5">
-                  <ChevronRight size={12} className="text-slate-600" /> Cam kết chất lượng (SLA 99.9%)
                 </li>
               </ul>
             </div>
@@ -669,9 +664,6 @@ export const LandingPage = () => {
             </div>
 
             <div className="flex items-center gap-4">
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-bold">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> Server Sẵn Sàng 99.9%
-              </span>
               <span className="inline-flex items-center gap-1 text-slate-400">
                 <Globe size={13} className="text-sky-400" /> Việt Nam (Tiếng Việt)
               </span>

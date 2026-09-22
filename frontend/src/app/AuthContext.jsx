@@ -92,6 +92,11 @@ export const AuthProvider = ({ children }) => {
     return res.data || { exists: false };
   };
 
+  const changePassword = async (oldPassword, newPassword) => {
+    const res = await api.post('/auth/change-password', { oldPassword, newPassword });
+    return res;
+  };
+
   const logout = () => {
     setToken(null);
     setUser(null);
@@ -100,7 +105,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, loading, login, register, loginWithGoogle, setupGoogleOrg, checkOrgCode, refreshUser, logout }}>
+    <AuthContext.Provider value={{ user, token, loading, login, register, loginWithGoogle, setupGoogleOrg, checkOrgCode, refreshUser, changePassword, logout }}>
       {children}
     </AuthContext.Provider>
   );

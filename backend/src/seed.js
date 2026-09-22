@@ -7,6 +7,7 @@ import { TemplateVersion } from './models/template-version.model.js';
 import { MasterData } from './models/master-data.model.js';
 import { Contract } from './models/contract.model.js';
 import { ContractVersion } from './models/contract-version.model.js';
+import { AuditLog } from './models/audit-log.model.js';
 
 const seedData = async () => {
   try {
@@ -21,18 +22,19 @@ const seedData = async () => {
     await MasterData.deleteMany({});
     await Contract.deleteMany({});
     await ContractVersion.deleteMany({});
+    await AuditLog.deleteMany({});
 
-    console.log('[Seed] Cleared existing data.');
+    console.log('[Seed] Cleared existing data completely.');
 
     // 1. Create Super Admin user
     const superAdmin = await User.create({
-      fullName: 'Super Admin System',
-      email: 'admin@mtctms.vn',
+      fullName: 'Quản Trị Viên Hệ Thống',
+      email: 'admin123@gmail.com',
       passwordHash: '123456',
       role: 'SUPER_ADMIN',
       status: 'ACTIVE',
     });
-    console.log('[Seed] Super Admin created: admin@mtctms.vn / 123456');
+    console.log('[Seed] Super Admin created: admin123@gmail.com / 123456');
 
     const now = new Date();
     const expires30Days = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);

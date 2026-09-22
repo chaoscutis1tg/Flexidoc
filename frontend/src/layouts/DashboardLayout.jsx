@@ -3,6 +3,7 @@ import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../app/AuthContext';
 import { RenewalModal } from '../features/subscription/RenewalModal';
 import { PendingInvitationsBanner } from '../components/PendingInvitationsBanner';
+import { ChangePasswordModal } from '../components/ChangePasswordModal';
 import {
   FileText,
   LayoutDashboard,
@@ -20,7 +21,8 @@ import {
   Check,
   AlertTriangle,
   Settings,
-  Clock
+  Clock,
+  KeyRound
 } from 'lucide-react';
 import { getRoleInfo } from '../utils/roleFormatter';
 
@@ -30,6 +32,7 @@ export const DashboardLayout = () => {
   const location = useLocation();
 
   const [showRenewalModal, setShowRenewalModal] = useState(false);
+  const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
   const [copiedCode, setCopiedCode] = useState(false);
 
   useEffect(() => {
@@ -254,13 +257,24 @@ export const DashboardLayout = () => {
               </span>
             </div>
           </div>
-          <button
-            onClick={handleLogout}
-            className="btn-action btn-secondary"
-            style={{ width: '100%', marginTop: '10px', justifyContent: 'center', padding: '7px', fontSize: '12px' }}
-          >
-            <LogOut size={14} /> Đăng xuất
-          </button>
+          <div style={{ display: 'flex', gap: '6px', marginTop: '10px' }}>
+            <button
+              onClick={() => setShowChangePasswordModal(true)}
+              className="btn-action btn-secondary"
+              style={{ flex: 1, justifyContent: 'center', padding: '7px 4px', fontSize: '11.5px', gap: '4px' }}
+              title="Đổi mật khẩu tài khoản của bạn"
+            >
+              <KeyRound size={13} className="text-slate-600" /> Đổi mật khẩu
+            </button>
+            <button
+              onClick={handleLogout}
+              className="btn-action btn-secondary"
+              style={{ flex: 1, justifyContent: 'center', padding: '7px 4px', fontSize: '11.5px', gap: '4px' }}
+              title="Đăng xuất khỏi hệ thống"
+            >
+              <LogOut size={13} /> Đăng xuất
+            </button>
+          </div>
         </div>
       </aside>
 
@@ -286,29 +300,6 @@ export const DashboardLayout = () => {
         }}>
           {/* Left: Active System Branding & Operational Status */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '7px',
-              padding: '4px 10px',
-              background: '#ecfdf5',
-              borderRadius: '20px',
-              border: '1px solid #a7f3d0'
-            }}>
-              <span style={{
-                width: '8px',
-                height: '8px',
-                borderRadius: '50%',
-                background: '#10b981',
-                boxShadow: '0 0 0 3px rgba(16, 185, 129, 0.25)'
-              }} />
-              <span style={{ fontSize: '11px', fontWeight: '700', color: '#047857', letterSpacing: '0.02em' }}>
-                Hệ thống sẵn sàng
-              </span>
-            </div>
-
-            <div style={{ width: '1px', height: '18px', background: '#cbd5e1' }} />
-
             <div style={{ display: 'flex', flexDirection: 'column' }}>
               <span style={{
                 fontSize: '14.5px',
@@ -487,6 +478,9 @@ export const DashboardLayout = () => {
 
       {/* Subscription Renewal Modal */}
       <RenewalModal isOpen={showRenewalModal} onClose={() => setShowRenewalModal(false)} />
+
+      {/* Change Password Modal */}
+      <ChangePasswordModal isOpen={showChangePasswordModal} onClose={() => setShowChangePasswordModal(false)} />
 
     </div>
   );

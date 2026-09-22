@@ -221,10 +221,25 @@ export class AuthService {
     return { token, user: userObj, requiresOrgSetup: false };
   }
 
-  async setupGoogleOrganization({ userId, mode, organizationName, orgCode }) {
-    const user = await userRepository.findById(userId);
+  async setupGoogleOrganization({ userId, email, mode, organizationName, orgCode }) {
+    let user = null;
+    if (userId) {
+      user = await userRepository.findById(userId);
+    }
+    if (!user && email) {
+      user = await userRepository.findByEmail(email.trim().toLowerCase());
+    }
     if (!user) {
       throw new AppError('Không tìm thấy tài khoản người dùng.', 404);
+    }
+
+    // If user already has an organization, return token directly for immediate login!
+    if (user.organizationId) {
+      const populatedUser = await userRepository.findById(user._id, null, { populate: 'organizationId' });
+      const token = this.generateToken(populatedUser);
+      const userObj = populatedUser.toObject();
+      delete userObj.passwordHash;
+      return { token, user: userObj };
     }
 
     let organization = null;

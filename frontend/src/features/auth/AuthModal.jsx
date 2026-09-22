@@ -207,7 +207,14 @@ export const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
       onClose();
       navigate('/dashboard');
     } catch (err) {
-      setErrorMessage(err.message || 'Đăng ký thất bại.');
+      const msg = err.message || 'Đăng ký thất bại.';
+      if (msg.includes('đã tồn tại') || msg.includes('đã được đăng ký') || msg.includes('trùng lặp')) {
+        setLoginEmail(regEmail);
+        setActiveTab('login');
+        setErrorMessage('Email này đã có tài khoản trên hệ thống. Đã chuyển sang màn hình Đăng Nhập!');
+      } else {
+        setErrorMessage(msg);
+      }
     } finally {
       setLoading(false);
     }
@@ -381,7 +388,8 @@ export const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
     setLoading(true);
     try {
       await setupGoogleOrg({
-        userId: googleOrgSetupUser._id,
+        userId: googleOrgSetupUser._id || googleOrgSetupUser.id,
+        email: googleOrgSetupUser.email,
         mode: googleOrgMode,
         organizationName: googleOrgName,
         orgCode: googleOrgCode,

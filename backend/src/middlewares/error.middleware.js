@@ -12,8 +12,14 @@ export const errorHandler = (err, req, res, next) => {
 
   if (err.code === 11000) {
     statusCode = 400;
-    const field = Object.keys(err.keyValue).join(', ');
-    message = `Dữ liệu bị trùng lặp ở trường: ${field}`;
+    const field = err.keyValue ? Object.keys(err.keyValue)[0] : '';
+    if (field === 'email') {
+      message = 'Email này đã tồn tại trong hệ thống. Vui lòng sử dụng tính năng Đăng nhập!';
+    } else if (field === 'code') {
+      message = 'Mã Tổ Chức này đã được sử dụng. Vui lòng chọn Mã Tổ Chức khác!';
+    } else {
+      message = `Dữ liệu '${field}' đã tồn tại trong hệ thống.`;
+    }
   }
 
   if (err.name === 'JsonWebTokenError') {
