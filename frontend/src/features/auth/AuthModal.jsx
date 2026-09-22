@@ -17,8 +17,10 @@ import {
   Eye,
   EyeOff,
   Check,
-  ChevronDown,
-  ChevronUp
+  ChevronLeft,
+  ChevronRight,
+  Globe,
+  Info
 } from 'lucide-react';
 
 const GoogleIcon = () => (
@@ -30,6 +32,30 @@ const GoogleIcon = () => (
   </svg>
 );
 
+const showcaseSlides = [
+  {
+    title: "Số Hóa Hợp Đồng Thông Minh",
+    desc: "Tự động nhận diện biến số, giữ nguyên 100% định dạng Word gốc & xuất PDF A4 chuẩn sắc nét.",
+    authorName: "FlexiDoc AI Engine",
+    authorRole: "Document Parsing System",
+    avatar: "/logo_fxd.png",
+  },
+  {
+    title: "Phân Quyền & Quản Lý Doanh Nghiệp",
+    desc: "Dễ dàng quản lý nhân sự, phân quyền vai trò làm việc và tạo mã gia nhập tổ chức an toàn.",
+    authorName: "FlexiDoc Enterprise",
+    authorRole: "Multi-tenant Platform",
+    avatar: "/logo.png",
+  },
+  {
+    title: "Bảo Mật & Tối Ưu Quy Trình",
+    desc: "Lưu trữ tập trung, mã hóa bảo mật chuẩn cao và ký duyệt hợp đồng nhanh chóng 24/7.",
+    authorName: "FlexiDoc Cloud",
+    authorRole: "Secure SaaS Solution",
+    avatar: "/logo_fxd.png",
+  }
+];
+
 export const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
   const { login, register, loginWithGoogle, setupGoogleOrg, checkOrgCode } = useAuth();
   const navigate = useNavigate();
@@ -37,10 +63,9 @@ export const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
   const [activeTab, setActiveTab] = useState(defaultTab); // 'login' | 'register'
   const [registerMode, setRegisterMode] = useState('NEW_ORG'); // 'NEW_ORG' | 'JOIN_ORG'
   const [showPassword, setShowPassword] = useState(false);
-
-  // Toggle for Inline Google Email Fast Auth Input
-  const [showGoogleEmailInput, setShowGoogleEmailInput] = useState(false);
-  const [customGoogleEmail, setCustomGoogleEmail] = useState('');
+  const [lang, setLang] = useState('VI'); // 'VI' | 'EN'
+  const [currentSlide, setCurrentSlide] = useState(0);
+  const [forgotModalOpen, setForgotModalOpen] = useState(false);
 
   // Google User Onboarding Setup State
   const [googleOrgSetupUser, setGoogleOrgSetupUser] = useState(null);
@@ -64,6 +89,14 @@ export const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
   // Real-time Org Code Validation States
   const [googleOrgCodeCheck, setGoogleOrgCodeCheck] = useState({ checking: false, exists: null, orgName: '' });
   const [regOrgCodeCheck, setRegOrgCodeCheck] = useState({ checking: false, exists: null, orgName: '' });
+
+  // Reset tab when modal opens with new defaultTab
+  useEffect(() => {
+    if (isOpen) {
+      setActiveTab(defaultTab);
+      setErrorMessage('');
+    }
+  }, [isOpen, defaultTab]);
 
   // Debounced check for Google Org Code
   useEffect(() => {
@@ -103,7 +136,7 @@ export const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
 
   const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
 
-  // Initialize Official Google Identity Services SDK directly in the main card
+  // Initialize Official Google Identity Services SDK
   useEffect(() => {
     if (isOpen && googleClientId) {
       const initGoogleGIS = () => {
@@ -116,19 +149,24 @@ export const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
                 try {
                   const base64Url = response.credential.split('.')[1];
                   const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-                  const jsonPayload = decodeURIComponent(atob(base64).split('').map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join(''));
+                  const jsonPayload = decodeURIComponent(
+                    atob(base64)
+                      .split('')
+                      .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+                      .join('')
+                  );
                   const payload = JSON.parse(jsonPayload);
                   if (payload && payload.email) {
                     executeGoogleAuth(payload.email, payload.name || payload.given_name);
                   }
                 } catch (e) {
-                  console.error("JWT parse error", e);
+                  console.error('JWT parse error', e);
                 }
               }
             }
           });
 
-          // Render button into main slot
+          // Render official button into hidden slot
           const slot = document.getElementById('main-google-btn-slot');
           if (slot) {
             slot.innerHTML = '';
@@ -164,6 +202,14 @@ export const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
   }, [isOpen]);
 
   if (!isOpen) return null;
+
+  const handleNextSlide = () => {
+    setCurrentSlide((prev) => (prev + 1) % showcaseSlides.length);
+  };
+
+  const handlePrevSlide = () => {
+    setCurrentSlide((prev) => (prev - 1 + showcaseSlides.length) % showcaseSlides.length);
+  };
 
   const handleLoginSubmit = async (e) => {
     e.preventDefault();
@@ -236,6 +282,25 @@ export const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
     }
   };
 
+  const handleGoogleClick = () => {
+    if (window.google?.accounts?.id && googleClientId) {
+      try {
+        window.google.accounts.id.prompt((notification) => {
+          if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
+            const renderedBtn = document.querySelector('#main-google-btn-slot div[role="button"]');
+            if (renderedBtn) {
+              renderedBtn.click();
+            }
+          }
+        });
+      } catch (e) {
+        console.warn('Google prompt notice:', e);
+      }
+    } else {
+      setErrorMessage('Hệ thống đang khởi tạo Google SDK, vui lòng bấm lại sau 2 giây.');
+    }
+  };
+
   const handleGoogleOrgSetupSubmit = async (e) => {
     e.preventDefault();
     if (!googleOrgSetupUser) return;
@@ -268,90 +333,148 @@ export const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
     }
   };
 
+  const currentSlideData = showcaseSlides[currentSlide];
+
   return createPortal(
-    <div className="fixed inset-0 z-[99999] bg-slate-950/80 backdrop-blur-md p-4 flex items-center justify-center animate-backdrop overflow-hidden select-none pointer-events-auto">
+    <div className="fixed inset-0 z-[99999] bg-slate-950/80 backdrop-blur-md p-3 md:p-6 flex items-center justify-center overflow-y-auto select-none pointer-events-auto">
       {/* Outer Card Container */}
-      <div 
+      <div
         onClick={(e) => e.stopPropagation()}
-        className="max-w-[920px] w-[95vw] max-h-[92vh] bg-slate-900 p-3 rounded-[28px] overflow-hidden grid grid-cols-1 md:grid-cols-[44%_56%] gap-3 shadow-2xl border border-white/15 animate-modal-pop select-text pointer-events-auto"
+        className="max-w-[960px] w-full bg-white rounded-[32px] overflow-hidden shadow-2xl border border-slate-200/60 grid grid-cols-1 md:grid-cols-2 relative animate-modal-pop select-text pointer-events-auto my-auto"
       >
 
-        {/* LEFT COLUMN: Modern Graphic Branding Panel */}
+        {/* LEFT COLUMN: Premium Moody Artwork Banner */}
         <div
-          className="relative rounded-2xl p-7 flex flex-col justify-between text-white overflow-hidden shadow-inner animate-float-bg"
+          className="relative min-h-[300px] md:min-h-[580px] p-6 md:p-8 flex flex-col justify-between text-white overflow-hidden rounded-[26px] m-2.5 shadow-inner"
           style={{
-            background: 'linear-gradient(180deg, rgba(15, 23, 42, 0.35) 0%, rgba(15, 23, 42, 0.9) 100%), url("/auth_illustration.png")',
+            background: 'linear-gradient(180deg, rgba(15, 23, 42, 0.45) 0%, rgba(15, 23, 42, 0.92) 100%), url("/auth_illustration.png")',
             backgroundSize: 'cover',
             backgroundPosition: 'center',
           }}
         >
-          {/* Top Logo Overlay */}
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-white/95 flex items-center justify-center shadow-lg backdrop-blur-sm">
-              <Briefcase size={22} className="text-sky-600" />
+          {/* Top Header Pill Controls */}
+          <div className="flex items-center justify-between z-10">
+            <div className="flex items-center gap-2.5">
+              <img src="/logo_fxd.png" alt="FlexiDoc Logo" className="w-8 h-8 rounded-lg object-contain bg-white/10 backdrop-blur-sm p-1 border border-white/20" />
+              <span className="text-lg font-black tracking-tight text-white drop-shadow-sm">FlexiDoc</span>
             </div>
-            <div>
-              <h2 className="text-xl font-black text-white tracking-wider leading-tight">
-                FlexiDoc
-              </h2>
-              <span className="text-[11px] text-sky-300 font-bold uppercase tracking-widest">
-                Hệ Thống Số Hóa Hợp Đồng
-              </span>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => { setActiveTab('login'); setErrorMessage(''); }}
+                className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all ${activeTab === 'login' ? 'bg-white/20 backdrop-blur-md text-white border border-white/30' : 'text-slate-300 hover:text-white'}`}
+              >
+                {lang === 'VI' ? 'Đăng nhập' : 'Sign In'}
+              </button>
+              <button
+                type="button"
+                onClick={() => { setActiveTab('register'); setErrorMessage(''); }}
+                className={`px-3 py-1.5 rounded-full text-xs font-extrabold border transition-all ${activeTab === 'register' ? 'bg-white text-slate-900 border-white' : 'border-white/30 text-white hover:bg-white/10'}`}
+              >
+                {lang === 'VI' ? 'Tham gia ngay' : 'Join Us'}
+              </button>
             </div>
           </div>
 
-          {/* Bottom Features Glass Overlay */}
-          <div className="bg-slate-900/70 backdrop-blur-md p-4 md:p-5 rounded-2xl border border-white/20 shadow-xl">
-            <div className="text-sm font-extrabold mb-2 text-white flex items-center gap-2">
-              <Sparkles size={18} className="text-sky-400" /> Quản Lý Hợp Đồng Thông Minh
+          {/* Center Dynamic Content */}
+          <div className="my-auto py-6 z-10">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/15 backdrop-blur-md text-sky-200 text-[11px] font-bold mb-3 border border-white/20">
+              <Sparkles size={13} className="text-amber-300" /> {currentSlideData.badge}
             </div>
-            <p className="text-xs text-sky-100 leading-relaxed m-0">
-              Giữ nguyên 100% định dạng Word gốc. Xuất A4 PDF sắc nét & phân quyền tổ chức dễ dàng.
+            <h2 className="text-2xl md:text-3xl font-black text-white tracking-tight leading-snug mb-2 drop-shadow-md">
+              {currentSlideData.title}
+            </h2>
+            <p className="text-xs md:text-sm text-slate-200 leading-relaxed font-normal max-w-sm drop-shadow-sm">
+              {currentSlideData.desc}
             </p>
+          </div>
 
-            <div className="flex flex-col gap-2 mt-3 pt-3 border-t border-white/15">
-              <div className="text-[12px] text-sky-50 flex items-center gap-2 font-semibold">
-                <CheckCircle2 size={15} className="text-emerald-400 shrink-0" /> Tự động trích xuất biến thông minh
+          {/* Bottom Showcase Footer */}
+          <div className="flex items-center justify-between pt-4 border-t border-white/15 z-10">
+            <div className="flex items-center gap-3">
+              <img
+                src={currentSlideData.avatar}
+                alt="Avatar"
+                className="w-10 h-10 rounded-full border-2 border-white/30 object-cover shadow-md bg-slate-900"
+              />
+              <div>
+                <h4 className="text-xs font-bold text-white tracking-wide">{currentSlideData.authorName}</h4>
+                <p className="text-[11px] text-slate-300">{currentSlideData.authorRole}</p>
               </div>
-              <div className="text-[12px] text-sky-50 flex items-center gap-2 font-semibold">
-                <CheckCircle2 size={15} className="text-emerald-400 shrink-0" /> Tạo mã gia nhập nhân viên nhanh chóng
-              </div>
-              <div className="text-[12px] text-sky-50 flex items-center gap-2 font-semibold">
-                <CheckCircle2 size={15} className="text-emerald-400 shrink-0" /> Đăng nhập Google 1-Click bảo mật
-              </div>
+            </div>
+
+            {/* Carousel Arrows */}
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={handlePrevSlide}
+                className="w-8 h-8 rounded-full border border-white/25 bg-black/20 hover:bg-white/20 flex items-center justify-center text-white transition-all cursor-pointer active:scale-95"
+                title="Slide trước"
+              >
+                <ChevronLeft size={16} />
+              </button>
+              <button
+                type="button"
+                onClick={handleNextSlide}
+                className="w-8 h-8 rounded-full border border-white/25 bg-black/20 hover:bg-white/20 flex items-center justify-center text-white transition-all cursor-pointer active:scale-95"
+                title="Slide tiếp"
+              >
+                <ChevronRight size={16} />
+              </button>
             </div>
           </div>
         </div>
 
-        {/* RIGHT COLUMN: Interactive Form Card */}
-        <div className="bg-white rounded-2xl p-6 md:p-7 flex flex-col justify-between relative overflow-y-auto">
-          {/* Close Button */}
-          <button
-            onClick={onClose}
-            className="absolute top-4 right-4 bg-slate-100 text-slate-500 hover:bg-slate-200 hover:text-slate-900 rounded-full w-8 h-8 flex items-center justify-center transition-all cursor-pointer z-10"
-            title="Đóng Modal"
-          >
-            <X size={16} />
-          </button>
+        {/* RIGHT COLUMN: Clean Form Panel */}
+        <div className="p-6 md:p-10 flex flex-col justify-between bg-white relative overflow-y-auto">
+          {/* Top Controls Bar: Logo text / Language Selector & Close Button */}
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-2">
+              <span className="text-xl font-black tracking-tight text-slate-900">FlexiDoc</span>
+            </div>
 
-          {/* ONBOARDING STEP FOR GOOGLE SIGN-IN USER */}
+            <div className="flex items-center gap-2">
+              {/* Language Switcher */}
+              <button
+                type="button"
+                onClick={() => setLang(lang === 'VI' ? 'EN' : 'VI')}
+                className="px-2.5 py-1 rounded-full border border-slate-200 hover:border-slate-300 bg-slate-50 text-slate-700 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
+                title="Chuyển đổi ngôn ngữ"
+              >
+                <span>{lang === 'VI' ? '🇻🇳 VI' : '🇬🇧 EN'}</span>
+              </button>
+
+              {/* Close Modal Button */}
+              <button
+                type="button"
+                onClick={onClose}
+                className="w-8 h-8 rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 hover:text-slate-900 flex items-center justify-center transition-all cursor-pointer"
+                title="Đóng Modal"
+              >
+                <X size={16} />
+              </button>
+            </div>
+          </div>
+
+          {/* GOOGLE ORG ONBOARDING STEP */}
           {googleOrgSetupUser ? (
-            <div className="animate-fade-in flex flex-col justify-between h-full">
+            <div className="animate-fade-in flex flex-col justify-between h-full py-2">
               <div>
-                <div className="text-center mb-5">
-                  <div className="inline-flex items-center gap-2 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-full text-xs text-emerald-800 font-bold mb-2">
-                    <Check size={14} className="text-emerald-600" /> Đã xác thực bằng Google
+                <div className="mb-5">
+                  <div className="inline-flex items-center gap-1.5 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-full text-xs text-emerald-800 font-bold mb-2">
+                    <Check size={14} className="text-emerald-600" /> Đã xác thực với Google
                   </div>
                   <h3 className="text-2xl font-black text-slate-900 tracking-tight mb-1">
                     Thiết Lập Tổ Chức
                   </h3>
                   <p className="text-xs text-slate-500">
-                    Chào <span className="font-bold text-slate-800">{googleOrgSetupUser.fullName}</span> ({googleOrgSetupUser.email}). Vui lòng chọn cách thiết lập Tổ chức:
+                    Chào <span className="font-bold text-slate-800">{googleOrgSetupUser.fullName}</span> ({googleOrgSetupUser.email}). Vui lòng hoàn tất thiết lập:
                   </p>
                 </div>
 
                 {errorMessage && (
-                  <div className="animate-fade-in bg-red-50 border border-red-300 p-3 rounded-xl text-xs text-red-800 mb-4 flex items-center gap-2">
+                  <div className="animate-fade-in bg-red-50 border border-red-300 p-3 rounded-2xl text-xs text-red-800 mb-4 flex items-center gap-2 font-medium">
                     <AlertCircle size={16} className="shrink-0" /> {errorMessage}
                   </div>
                 )}
@@ -360,26 +483,26 @@ export const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
                   <div className="grid grid-cols-2 gap-3">
                     <div
                       onClick={() => setGoogleOrgMode('NEW_ORG')}
-                      className={`p-3 rounded-xl border cursor-pointer text-center transition-all ${googleOrgMode === 'NEW_ORG'
-                        ? 'border-sky-600 bg-sky-50 shadow-sm'
+                      className={`p-3 rounded-2xl border cursor-pointer text-center transition-all ${googleOrgMode === 'NEW_ORG'
+                        ? 'border-red-500 bg-red-50/50 shadow-xs'
                         : 'border-slate-200 bg-slate-50 hover:border-slate-300'
                         }`}
                     >
-                      <Building2 size={20} className={`mx-auto mb-1 ${googleOrgMode === 'NEW_ORG' ? 'text-sky-600' : 'text-slate-500'}`} />
-                      <div className={`text-xs font-extrabold ${googleOrgMode === 'NEW_ORG' ? 'text-sky-600' : 'text-slate-700'}`}>Tạo Tổ Chức Mới</div>
-                      <span className="text-[10px] text-slate-500">Làm chủ Quản trị (Admin)</span>
+                      <Building2 size={20} className={`mx-auto mb-1 ${googleOrgMode === 'NEW_ORG' ? 'text-red-500' : 'text-slate-500'}`} />
+                      <div className={`text-xs font-extrabold ${googleOrgMode === 'NEW_ORG' ? 'text-red-600' : 'text-slate-700'}`}>Tạo Tổ Chức Mới</div>
+                      <span className="text-[10px] text-slate-500">Làm Quản trị viên</span>
                     </div>
 
                     <div
                       onClick={() => setGoogleOrgMode('JOIN_ORG')}
-                      className={`p-3 rounded-xl border cursor-pointer text-center transition-all ${googleOrgMode === 'JOIN_ORG'
-                        ? 'border-sky-600 bg-sky-50 shadow-sm'
+                      className={`p-3 rounded-2xl border cursor-pointer text-center transition-all ${googleOrgMode === 'JOIN_ORG'
+                        ? 'border-red-500 bg-red-50/50 shadow-xs'
                         : 'border-slate-200 bg-slate-50 hover:border-slate-300'
                         }`}
                     >
-                      <Users size={20} className={`mx-auto mb-1 ${googleOrgMode === 'JOIN_ORG' ? 'text-sky-600' : 'text-slate-500'}`} />
-                      <div className={`text-xs font-extrabold ${googleOrgMode === 'JOIN_ORG' ? 'text-sky-600' : 'text-slate-700'}`}>Gia Nhập Bằng Mã</div>
-                      <span className="text-[10px] text-slate-500">Nhân sự thành viên</span>
+                      <Users size={20} className={`mx-auto mb-1 ${googleOrgMode === 'JOIN_ORG' ? 'text-red-500' : 'text-slate-500'}`} />
+                      <div className={`text-xs font-extrabold ${googleOrgMode === 'JOIN_ORG' ? 'text-red-600' : 'text-slate-700'}`}>Gia Nhập Bằng Mã</div>
+                      <span className="text-[10px] text-slate-500">Thành viên nhóm</span>
                     </div>
                   </div>
 
@@ -389,102 +512,68 @@ export const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
                         <label className="text-xs font-bold text-slate-700 block mb-1">
                           Tên Công Ty / Tổ Chức Mới:
                         </label>
-                        <div className="relative">
-                          <Building2 size={18} className="absolute left-3.5 top-3 text-slate-400" />
-                          <input
-                            type="text"
-                            required
-                            placeholder="VD: Công Ty TNHH May Vina"
-                            value={googleOrgName}
-                            onChange={(e) => setGoogleOrgName(e.target.value)}
-                            className="w-full pl-11 pr-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-sky-500 outline-none transition-all font-medium"
-                          />
-                        </div>
+                        <input
+                          type="text"
+                          required
+                          placeholder="VD: Công Ty TNHH May Vina"
+                          value={googleOrgName}
+                          onChange={(e) => setGoogleOrgName(e.target.value)}
+                          className="w-full px-4 py-2.5 rounded-2xl border border-slate-200 text-sm focus:border-red-500 focus:ring-4 focus:ring-red-500/10 outline-none transition-all font-medium"
+                        />
                       </div>
 
                       <div>
                         <label className="text-xs font-bold text-slate-700 block mb-1">
-                          Mã Tổ Chức <span className="text-slate-400 font-normal">(Tùy chọn, tự động tạo nếu bỏ trống)</span>:
+                          Mã Tổ Chức <span className="text-slate-400 font-normal">(Tùy chọn)</span>:
                         </label>
-                        <div className="relative">
-                          <Building2 size={18} className="absolute left-3.5 top-3 text-sky-600" />
-                          <input
-                            type="text"
-                            placeholder="VD: ORG-MAYVINA (Tự tạo nếu để trống)"
-                            value={googleOrgCode}
-                            onChange={(e) => setGoogleOrgCode(e.target.value.toUpperCase())}
-                            className={`w-full pl-11 pr-4 py-2.5 rounded-xl border text-sm font-bold tracking-wider outline-none transition-all uppercase ${googleOrgCodeCheck.exists === true
-                              ? 'border-red-400 bg-red-50 focus:ring-red-400 text-red-700'
-                              : googleOrgCodeCheck.exists === false && googleOrgCode.trim()
-                                ? 'border-emerald-400 bg-emerald-50 focus:ring-emerald-400 text-emerald-800'
-                                : 'border-slate-200 focus:ring-sky-500'
-                              }`}
-                          />
-                        </div>
-                        {googleOrgCodeCheck.checking && (
-                          <span className="text-xs text-slate-400 font-medium mt-1 block">Đang kiểm tra mã...</span>
-                        )}
-                        {!googleOrgCodeCheck.checking && googleOrgCodeCheck.exists === true && (
-                          <span className="text-xs text-red-600 font-bold mt-1 flex items-center gap-1">
-                            <AlertCircle size={14} /> Mã '{googleOrgCode}' đã được sử dụng! Vui lòng chọn mã khác.
-                          </span>
-                        )}
-                        {!googleOrgCodeCheck.checking && googleOrgCodeCheck.exists === false && googleOrgCode.trim() && (
-                          <span className="text-xs text-emerald-600 font-bold mt-1 flex items-center gap-1">
-                            <CheckCircle2 size={14} /> Mã '{googleOrgCode}' hợp lệ và chưa ai sử dụng!
-                          </span>
-                        )}
+                        <input
+                          type="text"
+                          placeholder="VD: MAYVINA"
+                          value={googleOrgCode}
+                          onChange={(e) => setGoogleOrgCode(e.target.value.toUpperCase())}
+                          className={`w-full px-4 py-2.5 rounded-2xl border text-sm font-bold tracking-wider outline-none transition-all uppercase ${googleOrgCodeCheck.exists === true
+                            ? 'border-red-400 bg-red-50 text-red-700'
+                            : googleOrgCodeCheck.exists === false && googleOrgCode.trim()
+                              ? 'border-emerald-400 bg-emerald-50 text-emerald-800'
+                              : 'border-slate-200 focus:border-red-500'
+                            }`}
+                        />
                       </div>
                     </div>
                   ) : (
                     <div>
-                      <label className="text-xs font-bold text-sky-600 block mb-1">
+                      <label className="text-xs font-bold text-red-600 block mb-1">
                         Mã Tổ Chức Đã Có (Bắt buộc):
                       </label>
-                      <div className="relative">
-                        <Building2 size={18} className="absolute left-3.5 top-3 text-sky-600" />
-                        <input
-                          type="text"
-                          required
-                          placeholder="Nhập mã do Trưởng nhóm cấp"
-                          value={googleOrgCode}
-                          onChange={(e) => setGoogleOrgCode(e.target.value.toUpperCase())}
-                          className={`w-full pl-11 pr-4 py-2.5 rounded-xl border text-sm font-bold tracking-wider outline-none transition-all uppercase ${googleOrgCodeCheck.exists === false && googleOrgCode.trim()
-                            ? 'border-red-400 bg-red-50 focus:ring-red-400 text-red-700'
-                            : googleOrgCodeCheck.exists === true
-                              ? 'border-emerald-400 bg-emerald-50 focus:ring-emerald-400 text-emerald-800'
-                              : 'border-slate-200 focus:ring-sky-500'
-                            }`}
-                        />
-                      </div>
-                      {googleOrgCodeCheck.checking && (
-                        <span className="text-xs text-slate-400 font-medium mt-1 block">Đang tìm kiếm tổ chức...</span>
-                      )}
-                      {!googleOrgCodeCheck.checking && googleOrgCodeCheck.exists === true && (
-                        <span className="text-xs text-emerald-600 font-bold mt-1 flex items-center gap-1">
-                          <CheckCircle2 size={14} /> Đã tìm thấy: <strong className="underline">{googleOrgCodeCheck.orgName}</strong>. Sẵn sàng gia nhập!
-                        </span>
-                      )}
-                      {!googleOrgCodeCheck.checking && googleOrgCodeCheck.exists === false && googleOrgCode.trim() && (
-                        <span className="text-xs text-red-600 font-bold mt-1 flex items-center gap-1">
-                          <AlertCircle size={14} /> Không tìm thấy tổ chức nào với mã '{googleOrgCode}'.
-                        </span>
-                      )}
+                      <input
+                        type="text"
+                        required
+                        placeholder="Nhập mã do Trưởng nhóm cấp"
+                        value={googleOrgCode}
+                        onChange={(e) => setGoogleOrgCode(e.target.value.toUpperCase())}
+                        className={`w-full px-4 py-2.5 rounded-2xl border text-sm font-bold tracking-wider outline-none transition-all uppercase ${googleOrgCodeCheck.exists === false && googleOrgCode.trim()
+                          ? 'border-red-400 bg-red-50 text-red-700'
+                          : googleOrgCodeCheck.exists === true
+                            ? 'border-emerald-400 bg-emerald-50 text-emerald-800'
+                            : 'border-slate-200 focus:border-red-500'
+                          }`}
+                      />
                     </div>
                   )}
 
                   <button
                     type="submit"
                     disabled={loading}
-                    className="w-full py-3 px-4 rounded-full bg-gradient-to-r from-emerald-500 to-emerald-600 text-white font-extrabold text-sm flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/30 hover:-translate-y-0.5 hover:shadow-emerald-500/45 active:scale-[0.98] transition-all cursor-pointer mt-2"
+                    className="w-full py-3 px-6 rounded-2xl bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 text-white font-extrabold text-sm flex items-center justify-center gap-2 shadow-lg shadow-red-500/25 active:scale-[0.99] transition-all cursor-pointer mt-2"
                   >
-                    {loading ? 'Đang Thiết Lập...' : 'Xác Nhận & Vào Hệ Thống'} <ArrowRight size={18} />
+                    {loading ? 'Đang Thiết Lập...' : 'Xác Nhận & Vào Hệ Thống'} <ArrowRight size={16} />
                   </button>
                 </form>
               </div>
 
               <div className="text-center pt-3 border-t border-slate-100">
                 <button
+                  type="button"
                   onClick={() => setGoogleOrgSetupUser(null)}
                   className="text-xs text-slate-500 hover:text-slate-800 font-bold underline cursor-pointer"
                 >
@@ -495,321 +584,272 @@ export const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
           ) : (
             <>
               <div>
-                {/* Header Title */}
-                <div className="mb-4 text-center">
-                  <h3 className="text-2xl font-black text-slate-900 tracking-tight mb-1">
-                    {activeTab === 'login' ? 'Đăng Nhập Hệ Thống' : 'Khởi Tạo Tài Khoản'}
-                  </h3>
-                  <p className="text-xs text-slate-500">
+                {/* Greeting Section */}
+                <div className="mb-6">
+                  <h3 className="text-3xl font-black text-slate-900 tracking-tight mb-1.5">
                     {activeTab === 'login'
-                      ? 'Chào mừng trở lại! Chọn phương thức đăng nhập mong muốn'
-                      : 'Điền thông tin để tạo tài khoản doanh nghiệp mới'}
+                      ? (lang === 'VI' ? 'Hi Designer 👋' : 'Hi Designer 👋')
+                      : (lang === 'VI' ? 'Tạo Tài Khoản ✨' : 'Create Account ✨')}
+                  </h3>
+                  <p className="text-xs md:text-sm text-slate-500 font-medium">
+                    {activeTab === 'login'
+                      ? (lang === 'VI' ? 'Welcome to FlexiDoc' : 'Welcome to FlexiDoc')
+                      : (lang === 'VI' ? 'Tạo tài khoản mới để bắt đầu sử dụng' : 'Sign up to manage your documents')}
                   </p>
                 </div>
 
-                {/* Top Google Sign-In Container */}
-                <div className="bg-slate-50/80 border border-slate-200/80 p-3.5 rounded-2xl mb-4">
-                  {/* Slot for Official Google GIS Button */}
-                  <div className="flex flex-col items-center justify-center min-h-[44px]">
-                    <div id="main-google-btn-slot" className="w-full flex justify-center"></div>
-                  </div>
-
-                  {/* Toggle Fast Google Email Input */}
-                  <div className="mt-2.5 text-center">
-                    <button
-                      type="button"
-                      onClick={() => setShowGoogleEmailInput(!showGoogleEmailInput)}
-                      className="text-xs font-bold text-sky-600 hover:text-sky-700 flex items-center justify-center gap-1 mx-auto transition-all cursor-pointer"
-                    >
-                      <GoogleIcon />
-                      <span>{showGoogleEmailInput ? 'Ẩn nhập Email Google nhanh' : 'Đăng nhập nhanh bằng Email Google'}</span>
-                      {showGoogleEmailInput ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-                    </button>
-                  </div>
-
-                  {/* Fast Google Email Form */}
-                  {showGoogleEmailInput && (
-                    <form
-                      onSubmit={(e) => {
-                        e.preventDefault();
-                        executeGoogleAuth(customGoogleEmail);
-                      }}
-                      className="animate-fade-in mt-3 pt-3 border-t border-slate-200/80 space-y-2.5"
-                    >
-                      <div>
-                        <label className="text-[11px] font-bold text-slate-700 block mb-1">
-                          Nhập Email Google của bạn:
-                        </label>
-                        <div className="relative">
-                          <Mail size={16} className="absolute left-3 top-2.5 text-slate-400" />
-                          <input
-                            type="email"
-                            required
-                            placeholder="ten-cua-ban@gmail.com"
-                            value={customGoogleEmail}
-                            onChange={(e) => setCustomGoogleEmail(e.target.value)}
-                            className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-slate-200 focus:ring-2 focus:ring-sky-500 outline-none font-semibold text-slate-800 transition-all bg-white"
-                          />
-                        </div>
-                      </div>
-
-                      <button
-                        type="submit"
-                        disabled={loading}
-                        className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-sky-600 to-blue-600 text-white font-extrabold text-xs shadow-md shadow-sky-600/20 hover:shadow-sky-600/35 active:scale-95 transition-all cursor-pointer flex items-center justify-center gap-1.5"
-                      >
-                        {loading ? 'Đang Xác Thực Google...' : 'Đăng Nhập Với Google Email'} <ArrowRight size={14} />
-                      </button>
-                    </form>
-                  )}
-                </div>
-
-                {/* Divider */}
-                <div className="flex items-center mb-4 gap-3">
-                  <div className="flex-1 h-px bg-slate-200" />
-                  <span className="text-[11px] text-slate-400 font-bold uppercase tracking-wider">hoặc tài khoản mật khẩu</span>
-                  <div className="flex-1 h-px bg-slate-200" />
-                </div>
-
-                {/* Error Message */}
+                {/* Error Banner */}
                 {errorMessage && (
-                  <div className="animate-fade-in bg-red-50 border border-red-300 p-3 rounded-xl text-xs text-red-800 mb-4 flex items-center gap-2">
-                    <AlertCircle size={16} className="shrink-0" /> {errorMessage}
+                  <div className="animate-fade-in bg-red-50 border border-red-200 p-3 rounded-2xl text-xs text-red-700 mb-4 flex items-center gap-2 font-semibold">
+                    <AlertCircle size={16} className="shrink-0 text-red-500" /> {errorMessage}
                   </div>
                 )}
 
-                {/* TAB 1: LOGIN FORM */}
+                {/* LOGIN FORM */}
                 {activeTab === 'login' && (
-                  <form onSubmit={handleLoginSubmit} className="animate-tab-slide flex flex-col gap-3">
+                  <form onSubmit={handleLoginSubmit} className="flex flex-col gap-4">
                     <div>
-                      <label className="text-xs font-bold text-slate-700 block mb-1">
-                        Email đăng nhập:
-                      </label>
-                      <div className="relative">
-                        <Mail size={18} className="absolute left-3.5 top-2.5 text-slate-400" />
-                        <input
-                          type="email"
-                          required
-                          placeholder="vidu@congty.com"
-                          value={loginEmail}
-                          onChange={(e) => setLoginEmail(e.target.value)}
-                          className="w-full pl-11 pr-4 py-2 rounded-xl border border-slate-200 text-xs md:text-sm focus:ring-2 focus:ring-sky-500 outline-none transition-all"
-                        />
-                      </div>
+                      <input
+                        type="email"
+                        required
+                        placeholder={lang === 'VI' ? 'Email' : 'Email'}
+                        value={loginEmail}
+                        onChange={(e) => setLoginEmail(e.target.value)}
+                        className="w-full px-4 py-3 rounded-2xl border border-slate-200 text-sm font-medium placeholder:text-slate-400 focus:border-red-500 focus:ring-4 focus:ring-red-500/10 outline-none transition-all bg-white"
+                      />
                     </div>
 
                     <div>
-                      <label className="text-xs font-bold text-slate-700 block mb-1">
-                        Mật khẩu:
-                      </label>
                       <div className="relative">
-                        <Lock size={18} className="absolute left-3.5 top-2.5 text-slate-400" />
                         <input
                           type={showPassword ? 'text' : 'password'}
                           required
-                          placeholder="••••••••"
+                          placeholder={lang === 'VI' ? 'Password' : 'Password'}
                           value={loginPassword}
                           onChange={(e) => setLoginPassword(e.target.value)}
-                          className="w-full pl-11 pr-11 py-2 rounded-xl border border-slate-200 text-xs md:text-sm focus:ring-2 focus:ring-sky-500 outline-none transition-all"
+                          className="w-full px-4 py-3 pr-11 rounded-2xl border border-slate-200 text-sm font-medium placeholder:text-slate-400 focus:border-red-500 focus:ring-4 focus:ring-red-500/10 outline-none transition-all bg-white"
                         />
                         <button
                           type="button"
                           onClick={() => setShowPassword(!showPassword)}
-                          className="absolute right-3 top-2 text-slate-400 hover:text-slate-600 p-1 rounded cursor-pointer"
-                          title={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+                          className="absolute right-3.5 top-3 text-slate-400 hover:text-slate-600 transition-colors p-1"
                         >
-                          {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                          {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                        </button>
+                      </div>
+
+                      {/* Forgot Password Link */}
+                      <div className="text-right mt-1.5">
+                        <button
+                          type="button"
+                          onClick={() => setForgotModalOpen(true)}
+                          className="text-xs text-red-500 hover:text-red-600 font-bold transition-colors cursor-pointer"
+                        >
+                          {lang === 'VI' ? 'Forgot password ?' : 'Forgot password ?'}
                         </button>
                       </div>
                     </div>
 
-                    {/* Primary Action Button */}
+                    {/* Divider Line */}
+                    <div className="flex items-center gap-3 my-1">
+                      <div className="flex-1 h-px bg-slate-200" />
+                      <span className="text-xs text-slate-400 font-medium">or</span>
+                      <div className="flex-1 h-px bg-slate-200" />
+                    </div>
+
+                    {/* Google Login Button */}
+                    <div className="relative">
+                      <button
+                        type="button"
+                        onClick={handleGoogleClick}
+                        className="w-full py-3 px-4 rounded-2xl border border-slate-200 hover:border-slate-300 bg-white text-slate-700 font-bold text-sm flex items-center justify-center gap-2.5 shadow-xs hover:shadow-md transition-all cursor-pointer group"
+                      >
+                        <span>Login with Google</span>
+                        <GoogleIcon />
+                      </button>
+                      {/* Hidden Slot for Official Google GIS Button */}
+                      <div id="main-google-btn-slot" className="hidden"></div>
+                    </div>
+
+                    {/* Main Red Login Button */}
                     <button
                       type="submit"
                       disabled={loading}
-                      className="w-full py-2.5 px-4 rounded-full bg-gradient-to-r from-orange-500 to-orange-600 text-white font-extrabold text-xs md:text-sm flex items-center justify-center gap-2 shadow-lg shadow-orange-500/30 hover:-translate-y-0.5 hover:shadow-orange-500/45 active:scale-[0.98] transition-all cursor-pointer mt-1"
+                      className="w-full py-3.5 px-6 rounded-2xl bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 text-white font-extrabold text-sm md:text-base shadow-lg shadow-red-500/25 hover:shadow-red-500/40 active:scale-[0.99] transition-all cursor-pointer flex items-center justify-center gap-2 mt-1"
                     >
-                      {loading ? 'Đang Đăng Nhập...' : 'Đăng Nhập Ngay'} <ArrowRight size={16} />
+                      {loading ? (lang === 'VI' ? 'Đang Đăng Nhập...' : 'Logging in...') : (lang === 'VI' ? 'Login' : 'Login')}
                     </button>
                   </form>
                 )}
 
-                {/* TAB 2: REGISTER FORM */}
+                {/* REGISTER FORM */}
                 {activeTab === 'register' && (
-                  <form onSubmit={handleRegisterSubmit} className="animate-tab-slide flex flex-col gap-2.5">
-                    {/* Mode Toggle */}
+                  <form onSubmit={handleRegisterSubmit} className="flex flex-col gap-3">
+                    {/* Organization Mode Selection */}
                     <div className="grid grid-cols-2 gap-2 mb-1">
                       <div
                         onClick={() => setRegisterMode('NEW_ORG')}
-                        className={`p-2 rounded-xl border cursor-pointer text-center transition-all ${registerMode === 'NEW_ORG'
-                          ? 'border-orange-500 bg-orange-50/70 shadow-xs'
-                          : 'border-slate-200 bg-slate-50 hover:border-slate-300'
+                        className={`p-2.5 rounded-2xl border cursor-pointer text-center transition-all ${registerMode === 'NEW_ORG'
+                          ? 'border-red-500 bg-red-50/50 text-red-600 font-bold shadow-xs'
+                          : 'border-slate-200 bg-slate-50 text-slate-600 hover:border-slate-300'
                           }`}
                       >
-                        <Building2 size={16} className={`mx-auto mb-0.5 ${registerMode === 'NEW_ORG' ? 'text-orange-600' : 'text-slate-500'}`} />
-                        <div className={`text-[11px] font-extrabold ${registerMode === 'NEW_ORG' ? 'text-orange-600' : 'text-slate-700'}`}>Tạo Tổ Chức Mới</div>
+                        <div className="text-xs">{lang === 'VI' ? 'Tạo Tổ Chức Mới' : 'Create New Org'}</div>
                       </div>
 
                       <div
                         onClick={() => setRegisterMode('JOIN_ORG')}
-                        className={`p-2 rounded-xl border cursor-pointer text-center transition-all ${registerMode === 'JOIN_ORG'
-                          ? 'border-orange-500 bg-orange-50/70 shadow-xs'
-                          : 'border-slate-200 bg-slate-50 hover:border-slate-300'
+                        className={`p-2.5 rounded-2xl border cursor-pointer text-center transition-all ${registerMode === 'JOIN_ORG'
+                          ? 'border-red-500 bg-red-50/50 text-red-600 font-bold shadow-xs'
+                          : 'border-slate-200 bg-slate-50 text-slate-600 hover:border-slate-300'
                           }`}
                       >
-                        <Users size={16} className={`mx-auto mb-0.5 ${registerMode === 'JOIN_ORG' ? 'text-orange-600' : 'text-slate-500'}`} />
-                        <div className={`text-[11px] font-extrabold ${registerMode === 'JOIN_ORG' ? 'text-orange-600' : 'text-slate-700'}`}>Gia Nhập Bằng Mã</div>
+                        <div className="text-xs">{lang === 'VI' ? 'Gia Nhập Bằng Mã' : 'Join via Code'}</div>
                       </div>
                     </div>
 
-                    <div>
-                      <label className="text-[11.5px] font-bold text-slate-700 block mb-0.5">Họ và Tên:</label>
-                      <div className="relative">
-                        <User size={16} className="absolute left-3 top-2.5 text-slate-400" />
-                        <input
-                          type="text"
-                          required
-                          placeholder="Nguyễn Văn A"
-                          value={regFullName}
-                          onChange={(e) => setRegFullName(e.target.value)}
-                          className="w-full pl-9 pr-3 py-1.5 rounded-xl border border-slate-200 text-xs md:text-sm focus:ring-2 focus:ring-sky-500 outline-none transition-all"
-                        />
-                      </div>
-                    </div>
+                    <input
+                      type="text"
+                      required
+                      placeholder={lang === 'VI' ? 'Họ và tên' : 'Full Name'}
+                      value={regFullName}
+                      onChange={(e) => setRegFullName(e.target.value)}
+                      className="w-full px-4 py-2.5 rounded-2xl border border-slate-200 text-sm font-medium focus:border-red-500 focus:ring-4 focus:ring-red-500/10 outline-none transition-all"
+                    />
 
-                    <div>
-                      <label className="text-[11.5px] font-bold text-slate-700 block mb-0.5">Email:</label>
-                      <div className="relative">
-                        <Mail size={16} className="absolute left-3 top-2.5 text-slate-400" />
-                        <input
-                          type="email"
-                          required
-                          placeholder="vidu@gmail.com"
-                          value={regEmail}
-                          onChange={(e) => setRegEmail(e.target.value)}
-                          className="w-full pl-9 pr-3 py-1.5 rounded-xl border border-slate-200 text-xs md:text-sm focus:ring-2 focus:ring-sky-500 outline-none transition-all"
-                        />
-                      </div>
-                    </div>
+                    <input
+                      type="email"
+                      required
+                      placeholder="Email"
+                      value={regEmail}
+                      onChange={(e) => setRegEmail(e.target.value)}
+                      className="w-full px-4 py-2.5 rounded-2xl border border-slate-200 text-sm font-medium focus:border-red-500 focus:ring-4 focus:ring-red-500/10 outline-none transition-all"
+                    />
 
-                    <div>
-                      <label className="text-[11.5px] font-bold text-slate-700 block mb-0.5">Mật khẩu:</label>
-                      <div className="relative">
-                        <Lock size={16} className="absolute left-3 top-2.5 text-slate-400" />
-                        <input
-                          type={showPassword ? 'text' : 'password'}
-                          required
-                          placeholder="••••••••"
-                          value={regPassword}
-                          onChange={(e) => setRegPassword(e.target.value)}
-                          className="w-full pl-9 pr-9 py-1.5 rounded-xl border border-slate-200 text-xs md:text-sm focus:ring-2 focus:ring-sky-500 outline-none transition-all"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setShowPassword(!showPassword)}
-                          className="absolute right-2.5 top-1.5 text-slate-400 hover:text-slate-600 p-1"
-                        >
-                          {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                        </button>
-                      </div>
+                    <div className="relative">
+                      <input
+                        type={showPassword ? 'text' : 'password'}
+                        required
+                        placeholder={lang === 'VI' ? 'Mật khẩu' : 'Password'}
+                        value={regPassword}
+                        onChange={(e) => setRegPassword(e.target.value)}
+                        className="w-full px-4 py-2.5 pr-11 rounded-2xl border border-slate-200 text-sm font-medium focus:border-red-500 focus:ring-4 focus:ring-red-500/10 outline-none transition-all"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-3.5 top-2.5 text-slate-400 hover:text-slate-600 p-1"
+                      >
+                        {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                      </button>
                     </div>
 
                     {registerMode === 'NEW_ORG' ? (
                       <div className="flex flex-col gap-2">
-                        <div>
-                          <label className="text-[11.5px] font-bold text-slate-700 block mb-0.5">Tên Tổ Chức / Công Ty:</label>
-                          <div className="relative">
-                            <Building2 size={16} className="absolute left-3 top-2.5 text-slate-400" />
-                            <input
-                              type="text"
-                              required
-                              placeholder="VD: Công Ty TNHH May Vina"
-                              value={regOrgName}
-                              onChange={(e) => setRegOrgName(e.target.value)}
-                              className="w-full pl-9 pr-3 py-1.5 rounded-xl border border-slate-200 text-xs md:text-sm focus:ring-2 focus:ring-sky-500 outline-none transition-all font-medium"
-                            />
-                          </div>
-                        </div>
-
-                        <div>
-                          <label className="text-[11.5px] font-bold text-slate-700 block mb-0.5">
-                            Mã Tổ Chức <span className="text-slate-400 font-normal">(Tùy chọn)</span>:
-                          </label>
-                          <div className="relative">
-                            <Building2 size={16} className="absolute left-3 top-2.5 text-sky-600" />
-                            <input
-                              type="text"
-                              placeholder="VINA"
-                              value={regOrgCode}
-                              onChange={(e) => setRegOrgCode(e.target.value.toUpperCase())}
-                              className={`w-full pl-9 pr-3 py-1.5 rounded-xl border text-xs md:text-sm font-bold tracking-wider outline-none transition-all uppercase ${regOrgCodeCheck.exists === true
-                                ? 'border-red-400 bg-red-50 focus:ring-red-400 text-red-700'
-                                : regOrgCodeCheck.exists === false && regOrgCode.trim()
-                                  ? 'border-emerald-400 bg-emerald-50 focus:ring-emerald-400 text-emerald-800'
-                                  : 'border-slate-200 focus:ring-sky-500'
-                                }`}
-                            />
-                          </div>
-                        </div>
+                        <input
+                          type="text"
+                          required
+                          placeholder={lang === 'VI' ? 'Tên Công Ty / Tổ Chức' : 'Organization Name'}
+                          value={regOrgName}
+                          onChange={(e) => setRegOrgName(e.target.value)}
+                          className="w-full px-4 py-2.5 rounded-2xl border border-slate-200 text-sm font-medium focus:border-red-500 focus:ring-4 focus:ring-red-500/10 outline-none transition-all"
+                        />
+                        <input
+                          type="text"
+                          placeholder={lang === 'VI' ? 'Mã Tổ Chức (Tùy chọn, VD: MAYVINA)' : 'Org Code (Optional)'}
+                          value={regOrgCode}
+                          onChange={(e) => setRegOrgCode(e.target.value.toUpperCase())}
+                          className="w-full px-4 py-2.5 rounded-2xl border border-slate-200 text-sm font-bold uppercase tracking-wider focus:border-red-500 focus:ring-4 focus:ring-red-500/10 outline-none transition-all"
+                        />
                       </div>
                     ) : (
-                      <div>
-                        <label className="text-[11.5px] font-bold text-sky-600 block mb-0.5">Mã Tổ Chức (Bắt buộc):</label>
-                        <div className="relative">
-                          <Building2 size={16} className="absolute left-3 top-2.5 text-sky-600" />
-                          <input
-                            type="text"
-                            required
-                            placeholder="VINA"
-                            value={regOrgCode}
-                            onChange={(e) => setRegOrgCode(e.target.value.toUpperCase())}
-                            className={`w-full pl-9 pr-3 py-1.5 rounded-xl border text-xs md:text-sm font-bold tracking-wider outline-none transition-all uppercase ${regOrgCodeCheck.exists === false && regOrgCode.trim()
-                              ? 'border-red-400 bg-red-50 focus:ring-red-400 text-red-700'
-                              : regOrgCodeCheck.exists === true
-                                ? 'border-emerald-400 bg-emerald-50 focus:ring-emerald-400 text-emerald-800'
-                                : 'border-slate-200 focus:ring-sky-500'
-                              }`}
-                          />
-                        </div>
-                      </div>
+                      <input
+                        type="text"
+                        required
+                        placeholder={lang === 'VI' ? 'Mã Tổ Chức (Bắt buộc do Admin cấp)' : 'Required Org Code'}
+                        value={regOrgCode}
+                        onChange={(e) => setRegOrgCode(e.target.value.toUpperCase())}
+                        className="w-full px-4 py-2.5 rounded-2xl border border-slate-200 text-sm font-bold uppercase tracking-wider focus:border-red-500 focus:ring-4 focus:ring-red-500/10 outline-none transition-all"
+                      />
                     )}
+
+                    {/* Divider Line */}
+                    <div className="flex items-center gap-3 my-0.5">
+                      <div className="flex-1 h-px bg-slate-200" />
+                      <span className="text-xs text-slate-400 font-medium">or</span>
+                      <div className="flex-1 h-px bg-slate-200" />
+                    </div>
+
+                    {/* Google Register Button */}
+                    <div className="relative">
+                      <button
+                        type="button"
+                        onClick={handleGoogleClick}
+                        className="w-full py-2.5 px-4 rounded-2xl border border-slate-200 hover:border-slate-300 bg-white text-slate-700 font-bold text-sm flex items-center justify-center gap-2.5 shadow-xs transition-all cursor-pointer"
+                      >
+                        <span>Login with Google</span>
+                        <GoogleIcon />
+                      </button>
+                    </div>
 
                     <button
                       type="submit"
                       disabled={loading}
-                      className="w-full py-2.5 px-4 rounded-full bg-gradient-to-r from-orange-500 to-orange-600 text-white font-extrabold text-xs md:text-sm flex items-center justify-center gap-2 shadow-lg shadow-orange-500/30 hover:-translate-y-0.5 hover:shadow-orange-500/45 active:scale-[0.98] transition-all cursor-pointer mt-1"
+                      className="w-full py-3.5 px-6 rounded-2xl bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 text-white font-extrabold text-sm md:text-base shadow-lg shadow-red-500/25 hover:shadow-red-500/40 active:scale-[0.99] transition-all cursor-pointer flex items-center justify-center gap-2 mt-1"
                     >
-                      {loading ? 'Đang Khởi Tạo...' : 'Tạo Tài Khoản Ngay'} <ArrowRight size={16} />
+                      {loading ? (lang === 'VI' ? 'Đang Khởi Tạo...' : 'Creating Account...') : (lang === 'VI' ? 'Tạo Tài Khoản Ngay' : 'Sign Up')}
                     </button>
                   </form>
                 )}
               </div>
 
               {/* Bottom Footer Section */}
-              <div className="text-center pt-2.5 mt-2 border-t border-slate-100 text-xs text-slate-500">
+              <div className="text-center pt-4 mt-4 text-xs text-slate-500 font-medium">
                 {activeTab === 'login' ? (
                   <>
-                    Chưa có tài khoản?{' '}
+                    Don't have an account?{' '}
                     <span
                       onClick={() => { setActiveTab('register'); setErrorMessage(''); }}
-                      className="text-orange-600 font-extrabold cursor-pointer hover:underline"
+                      className="text-red-500 font-bold cursor-pointer hover:underline"
                     >
-                      Đăng ký
+                      Sign up
                     </span>
                   </>
                 ) : (
                   <>
-                    Đã có tài khoản?{' '}
+                    Already have an account?{' '}
                     <span
                       onClick={() => { setActiveTab('login'); setErrorMessage(''); }}
-                      className="text-orange-600 font-extrabold cursor-pointer hover:underline"
+                      className="text-red-500 font-bold cursor-pointer hover:underline"
                     >
-                      Đăng nhập
+                      Sign in
                     </span>
                   </>
                 )}
               </div>
             </>
+          )}
+
+          {/* FORGOT PASSWORD MODAL NOTE */}
+          {forgotModalOpen && (
+            <div className="absolute inset-0 bg-white/95 backdrop-blur-sm z-20 p-6 flex flex-col justify-between rounded-2xl animate-fade-in">
+              <div className="text-center my-auto">
+                <div className="w-12 h-12 rounded-full bg-red-50 text-red-500 flex items-center justify-center mx-auto mb-3 border border-red-100">
+                  <Info size={24} />
+                </div>
+                <h4 className="text-lg font-black text-slate-900 mb-2">Khôi Phục Mật Khẩu</h4>
+                <p className="text-xs text-slate-600 leading-relaxed max-w-xs mx-auto mb-4">
+                  Để đảm bảo an toàn cho tài khoản doanh nghiệp, vui lòng liên hệ trực tiếp với <strong>Quản trị viên (Admin)</strong> tổ chức của bạn để reset mật khẩu, hoặc gửi email hỗ trợ tới <strong>support@flexidoc.io.vn</strong>.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setForgotModalOpen(false)}
+                  className="px-6 py-2.5 rounded-full bg-slate-900 text-white font-bold text-xs hover:bg-slate-800 transition-all cursor-pointer shadow-md"
+                >
+                  Đóng Hướng Dẫn
+                </button>
+              </div>
+            </div>
           )}
         </div>
 
@@ -818,3 +858,4 @@ export const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
     document.body
   );
 };
+
