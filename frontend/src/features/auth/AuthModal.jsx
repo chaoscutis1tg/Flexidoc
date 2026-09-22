@@ -244,7 +244,7 @@ export const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
 
         if (accessToken) {
           window.history.replaceState(null, '', window.location.pathname);
-          
+
           // Broadcast token to main window via BroadcastChannel
           try {
             const channel = new BroadcastChannel('flexidoc_oauth_channel');
@@ -258,7 +258,7 @@ export const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
           if (window.opener && window.opener !== window) {
             try {
               window.opener.postMessage({ type: 'GOOGLE_OAUTH_TOKEN', accessToken }, '*');
-            } catch (e) {}
+            } catch (e) { }
           }
 
           // Broadcast token to main window via localStorage signal
@@ -326,92 +326,7 @@ export const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
     };
   }, []);
 
-  // Render official Google Identity Services buttons and token client fallback
-  useEffect(() => {
-    if (!isOpen || !googleClientId) return;
 
-    let isMounted = true;
-    let attempts = 0;
-
-    const handleGoogleCredentialResponse = async (response) => {
-      if (!response || !response.credential) {
-        setErrorMessage('Không nhận được thông tin xác thực từ Google.');
-        return;
-      }
-      setLoading(true);
-      setErrorMessage('');
-      try {
-        const base64Url = response.credential.split('.')[1];
-        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-        const jsonPayload = decodeURIComponent(
-          atob(base64)
-            .split('')
-            .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
-            .join('')
-        );
-        const payload = JSON.parse(jsonPayload);
-        if (payload && payload.email) {
-          await executeGoogleAuth(payload.email, payload.name || payload.given_name, null, payload.sub);
-        } else {
-          setErrorMessage('Không tìm thấy Email từ tài khoản Google.');
-        }
-      } catch (err) {
-        console.error('Google JWT parse error:', err);
-        setErrorMessage('Lỗi xử lý phản hồi xác thực Google.');
-      } finally {
-        if (isMounted) setLoading(false);
-      }
-    };
-
-    const setupGoogle = () => {
-      if (window.google?.accounts?.id) {
-        try {
-          window.google.accounts.id.initialize({
-            client_id: googleClientId,
-            callback: handleGoogleCredentialResponse,
-            auto_select: false,
-          });
-
-          const loginSlot = document.getElementById('google-btn-slot-login');
-          if (loginSlot) {
-            loginSlot.innerHTML = '';
-            window.google.accounts.id.renderButton(loginSlot, {
-              theme: 'outline',
-              size: 'large',
-              text: 'continue_with',
-              shape: 'pill',
-              logo_alignment: 'left',
-              width: 360,
-            });
-          }
-
-          const regSlot = document.getElementById('google-btn-slot-register');
-          if (regSlot) {
-            regSlot.innerHTML = '';
-            window.google.accounts.id.renderButton(regSlot, {
-              theme: 'outline',
-              size: 'large',
-              text: 'signup_with',
-              shape: 'pill',
-              logo_alignment: 'left',
-              width: 360,
-            });
-          }
-        } catch (e) {
-          console.warn('Google GSI renderButton notice:', e);
-        }
-      } else if (attempts < 15) {
-        attempts++;
-        setTimeout(setupGoogle, 200);
-      }
-    };
-
-    const timer = setTimeout(setupGoogle, 200);
-    return () => {
-      isMounted = false;
-      clearTimeout(timer);
-    };
-  }, [isOpen, activeTab, googleClientId]);
 
   const handleGoogleClick = () => {
     setErrorMessage('');
@@ -781,13 +696,12 @@ export const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
                       <div className="flex-1 h-px bg-slate-200" />
                     </div>
 
-                    {/* Google Login Slot & Fallback Button */}
-                    <div className="w-full flex flex-col items-center justify-center gap-2 my-1">
-                      <div id="google-btn-slot-login" className="w-full flex justify-center min-h-[44px]"></div>
+                    {/* Google Login Button */}
+                    <div className="w-full flex items-center justify-center my-1">
                       <button
                         type="button"
                         onClick={handleGoogleClick}
-                        className="w-full py-2.5 px-4 rounded-full border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold flex items-center justify-center gap-2.5 transition-all shadow-xs cursor-pointer active:scale-[0.99]"
+                        className="w-full py-3 px-4 rounded-full border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold flex items-center justify-center gap-2.5 transition-all shadow-xs cursor-pointer active:scale-[0.99]"
                       >
                         <GoogleIcon />
                         <span>{lang === 'VI' ? 'Tiếp tục với Google' : 'Continue with Google'}</span>
@@ -903,13 +817,12 @@ export const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
                       <div className="flex-1 h-px bg-slate-200" />
                     </div>
 
-                    {/* Google Register Slot & Fallback Button */}
-                    <div className="w-full flex flex-col items-center justify-center gap-2 my-1">
-                      <div id="google-btn-slot-register" className="w-full flex justify-center min-h-[44px]"></div>
+                    {/* Google Register Button */}
+                    <div className="w-full flex items-center justify-center my-1">
                       <button
                         type="button"
                         onClick={handleGoogleClick}
-                        className="w-full py-2.5 px-4 rounded-full border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold flex items-center justify-center gap-2.5 transition-all shadow-xs cursor-pointer active:scale-[0.99]"
+                        className="w-full py-3 px-4 rounded-full border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold flex items-center justify-center gap-2.5 transition-all shadow-xs cursor-pointer active:scale-[0.99]"
                       >
                         <GoogleIcon />
                         <span>{lang === 'VI' ? 'Đăng ký với Google' : 'Sign up with Google'}</span>
