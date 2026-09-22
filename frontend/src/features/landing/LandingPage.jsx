@@ -91,20 +91,20 @@ export const LandingPage = () => {
 
           {/* Brand Logo */}
           <div className="flex items-center gap-3 cursor-pointer group" onClick={() => navigate('/')}>
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-sky-600 via-blue-600 to-indigo-600 flex items-center justify-center text-white shadow-md shadow-sky-500/25 group-hover:scale-105 transition-all">
-              <Briefcase size={22} />
+            <div className="w-10 h-10 rounded-2xl bg-white flex items-center justify-center border border-slate-200 shadow-md group-hover:scale-105 transition-all overflow-hidden p-1">
+              <img src="/logo.png" alt="FlexiDoc Logo" className="w-full h-full object-contain" />
             </div>
             <div>
               <div className="flex items-center gap-2">
                 <h2 className="text-xl font-black text-slate-900 leading-none tracking-tight">
-                  MT-CTMS
+                  FlexiDoc
                 </h2>
                 <span className="bg-sky-100 text-sky-700 text-[10px] font-extrabold px-2 py-0.5 rounded-md border border-sky-200 uppercase tracking-wider">
                   SaaS
                 </span>
               </div>
               <span className="text-[11px] text-slate-500 font-semibold tracking-wide block mt-0.5">
-                Nền Tảng Quản Lý Hợp Đồng
+                Số Hóa & Quản Lý Hợp Đồng
               </span>
             </div>
           </div>
@@ -518,11 +518,11 @@ export const LandingPage = () => {
             {/* Col 1: Brand & Contact Info (Spans 2 cols on lg) */}
             <div className="lg:col-span-2 space-y-4">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-sky-600 to-blue-600 text-white flex items-center justify-center font-black shadow-lg shadow-sky-600/30">
-                  <Briefcase size={22} />
+                <div className="w-10 h-10 rounded-xl bg-white text-white flex items-center justify-center font-black shadow-lg border border-slate-700 overflow-hidden p-1">
+                  <img src="/logo.png" alt="FlexiDoc Logo" className="w-full h-full object-contain" />
                 </div>
                 <div>
-                  <h4 className="text-base font-black text-white tracking-wide">MT-CTMS SaaS Platform</h4>
+                  <h4 className="text-base font-black text-white tracking-wide">FlexiDoc SaaS Platform</h4>
                   <p className="text-[11px] text-sky-400 font-medium">Hệ Thống Quản Lý & Số Hóa Hợp Đồng Thông Minh</p>
                 </div>
               </div>
@@ -538,11 +538,11 @@ export const LandingPage = () => {
                 </div>
                 <div className="flex items-center gap-2.5">
                   <Mail size={14} className="text-sky-400 shrink-0" />
-                  <span>Email: <strong className="text-white">lienhe@mt-ctms.vn</strong> | <strong className="text-white">support@mt-ctms.vn</strong></span>
+                  <span>Email Hỗ Trợ: <strong className="text-white">dovankhoa091@gmail.com</strong></span>
                 </div>
                 <div className="flex items-start gap-2.5">
                   <MapPin size={14} className="text-sky-400 shrink-0 mt-0.5" />
-                  <span>Địa chỉ: Tòa nhà Công Nghệ MT-Tower, Số 88 Phố Duy Tân, Quận Cầu Giấy, TP. Hà Nội</span>
+                  <span>Địa chỉ: Tòa nhà FlexiDoc, Số 88 Phố Duy Tân, Cầu Giấy, Hà Nội</span>
                 </div>
               </div>
             </div>
@@ -618,20 +618,21 @@ export const LandingPage = () => {
             {/* Col 4: Hỗ Trợ & Pháp Lý */}
             <div>
               <h5 className="text-xs font-extrabold uppercase tracking-wider text-white mb-4 flex items-center gap-1.5">
-                <ShieldCheck size={14} className="text-emerald-400" /> Hỗ Trợ & Bảo Mật
+                <ShieldCheck size={14} className="text-emerald-400" /> Hỗ Trợ & Pháp Lý
               </h5>
               <ul className="space-y-2.5 text-slate-400 p-0 m-0 list-none">
                 <li className="flex items-center gap-1.5">
                   <ChevronRight size={12} className="text-slate-600" /> Trung tâm hỗ trợ 24/7
                 </li>
-                <li className="flex items-center gap-1.5">
-                  <ChevronRight size={12} className="text-slate-600" /> Hướng dẫn tích hợp API
+                <li>
+                  <a href="/privacy" className="hover:text-sky-400 transition-colors flex items-center gap-1.5 text-slate-400">
+                    <ChevronRight size={12} className="text-slate-600" /> <strong>Chính sách bảo mật (Privacy)</strong>
+                  </a>
                 </li>
-                <li className="flex items-center gap-1.5">
-                  <ChevronRight size={12} className="text-slate-600" /> Chính sách bảo mật dữ liệu
-                </li>
-                <li className="flex items-center gap-1.5">
-                  <ChevronRight size={12} className="text-slate-600" /> Điều khoản sử dụng dịch vụ
+                <li>
+                  <a href="/terms" className="hover:text-sky-400 transition-colors flex items-center gap-1.5 text-slate-400">
+                    <ChevronRight size={12} className="text-slate-600" /> <strong>Điều khoản sử dụng (Terms)</strong>
+                  </a>
                 </li>
                 <li className="flex items-center gap-1.5">
                   <ChevronRight size={12} className="text-slate-600" /> Cam kết chất lượng (SLA 99.9%)
@@ -645,7 +646,7 @@ export const LandingPage = () => {
           <div className="pt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-slate-500 text-[11px]">
             <div className="flex items-center gap-2">
               <ShieldCheck size={16} className="text-emerald-400 shrink-0" />
-              <span>© 2026 MT-CTMS Platform. Bảo lưu mọi quyền. Mã hóa SSL 256-Bit chuẩn Quốc Tế.</span>
+              <span>© 2026 FlexiDoc Platform (https://flexidoc.io.vn). Bảo lưu mọi quyền. Mã hóa SSL 256-Bit chuẩn Quốc Tế.</span>
             </div>
 
             <div className="flex items-center gap-4">
