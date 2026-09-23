@@ -288,13 +288,27 @@ export const ContractsPage = () => {
   const handleDownloadPdf = async (contractId, code) => {
     try {
       const res = await api.get(`/contracts/${contractId}/download-pdf`, { responseType: 'blob' });
-      const url = window.URL.createObjectURL(new Blob([res]));
+
+      // Check if response blob is actually a JSON error payload
+      if (res && (res.type === 'application/json' || (res instanceof Blob && res.type.includes('json')))) {
+        const text = await res.text();
+        let errorMsg = 'Không thể xuất file PDF.';
+        try {
+          const json = JSON.parse(text);
+          errorMsg = json.message || errorMsg;
+        } catch (e) {}
+        throw new Error(errorMsg);
+      }
+
+      const blob = res instanceof Blob ? res : new Blob([res], { type: 'application/pdf' });
+      const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', `HD_${code}.pdf`);
+      link.setAttribute('download', `HD_${code || contractId}.pdf`);
       document.body.appendChild(link);
       link.click();
       link.remove();
+      window.URL.revokeObjectURL(url);
     } catch (err) {
       alert('Không thể tải PDF: ' + err.message);
     }

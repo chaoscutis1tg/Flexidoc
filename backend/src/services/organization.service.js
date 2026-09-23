@@ -16,7 +16,38 @@ export class OrganizationService {
     }).populate('parentOrganizationId', 'name code');
   }
 
+  async syncOrganizationManagers() {
+    try {
+      const orgsWithoutManager = await Organization.find({
+        $or: [
+          { managerEmail: { $in: ['', null] } },
+          { managerUserId: null }
+        ],
+        deletedAt: null
+      });
+
+      for (const org of orgsWithoutManager) {
+        const adminUser = await userRepository.findOne({
+          organizationId: org._id,
+          role: 'ORGANIZATION_ADMIN',
+          status: 'ACTIVE'
+        });
+
+        if (adminUser) {
+          org.managerName = adminUser.fullName || org.managerName || 'Quản lý tổ chức';
+          org.managerEmail = adminUser.email.toLowerCase().trim();
+          org.managerUserId = adminUser._id;
+          await org.save();
+        }
+      }
+    } catch (e) {
+      console.error('syncOrganizationManagers error:', e);
+    }
+  }
+
   async createOrganization(data, parentId = null, tenantContext = null) {
+    await this.syncOrganizationManagers();
+
     const existing = await organizationRepository.findByCode(data.code);
     if (existing) {
       throw new AppError(`Mã tổ chức '${data.code}' đã tồn tại trong hệ thống.`, 400);
@@ -48,20 +79,25 @@ export class OrganizationService {
     data.ancestors = ancestors;
     data.level = level;
 
-    // Single Manager Constraint: Check if managerEmail is already assigned to another active/pending org
+    // Single Manager Constraint: Check if managerEmail or managerUserId is already assigned to another active/pending org
     if (data.managerEmail) {
       const normalizedEmail = data.managerEmail.toLowerCase().trim();
+      const managerUser = await userRepository.findByEmail(data.managerEmail);
+      if (managerUser) {
+        data.managerUserId = managerUser._id;
+      }
+
+      const orConditions = [{ managerEmail: normalizedEmail }];
+      if (managerUser) {
+        orConditions.push({ managerUserId: managerUser._id });
+      }
+
       const existingManagerOrg = await Organization.findOne({
-        managerEmail: normalizedEmail,
+        $or: orConditions,
         deletedAt: null
       });
       if (existingManagerOrg) {
         throw new AppError(`Mỗi nhân sự chỉ được quản lý duy nhất 1 tổ chức/chi nhánh. Email '${data.managerEmail}' hiện đang là Quản lý của '${existingManagerOrg.name}' (Mã: ${existingManagerOrg.code}).`, 400);
-      }
-
-      const managerUser = await userRepository.findByEmail(data.managerEmail);
-      if (managerUser) {
-        data.managerUserId = managerUser._id;
       }
     }
 
@@ -158,8 +194,15 @@ export class OrganizationService {
     // Single Manager Constraint: Ensure manager is not already assigned to another org
     if (updateData.managerEmail && isNewManagerEmail) {
       const normalizedEmail = updateData.managerEmail.toLowerCase().trim();
+      const managerUser = await userRepository.findByEmail(updateData.managerEmail.trim());
+
+      const orConditions = [{ managerEmail: normalizedEmail }];
+      if (managerUser) {
+        orConditions.push({ managerUserId: managerUser._id });
+      }
+
       const existingManagerOrg = await Organization.findOne({
-        managerEmail: normalizedEmail,
+        $or: orConditions,
         _id: { $ne: orgId },
         deletedAt: null
       });
@@ -246,6 +289,7 @@ export class OrganizationService {
   }
 
   async getOrganizationTree(tenantContext = null) {
+    await this.syncOrganizationManagers();
     let orgs = [];
 
     if (!tenantContext || tenantContext.role === 'SUPER_ADMIN') {
@@ -305,6 +349,7 @@ export class OrganizationService {
   }
 
   async getPaginatedRootOrganizations(queryParams = {}, tenantContext = null) {
+    await this.syncOrganizationManagers();
     const page = Math.max(1, parseInt(queryParams.page) || 1);
     const limit = Math.max(1, parseInt(queryParams.limit) || 20);
     const search = (queryParams.search || '').trim();

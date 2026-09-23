@@ -240,7 +240,7 @@ export class ContractService {
         </html>
       `;
 
-      await page.setContent(htmlDocument, { waitUntil: 'networkidle0' });
+      await page.setContent(htmlDocument, { waitUntil: 'domcontentloaded' });
 
       const pdfBuffer = await page.pdf({
         format: 'A4',
@@ -285,10 +285,25 @@ export class ContractService {
 
     // Convert Vietnamese accented unicode characters to ASCII for pdf-lib standard font fallback
     const sanitizeVietnameseForPdf = (str) => {
+      if (!str) return '';
       return str
+        .replace(/à|á|ạ|ả|ã|â|ầ|ấ|ậ|ẩ|ẫ|ă|ằ|ắ|ặ|ẳ|ẵ/g, 'a')
+        .replace(/À|Á|Ạ|Ả|Ã|Â|Ầ|Ấ|Ậ|Ẩ|Ẫ|Ă|Ằ|Ắ|Ặ|Ẳ|Ẵ/g, 'A')
+        .replace(/è|é|ẹ|ẻ|ẽ|ê|ề|ế|ệ|ể|ễ/g, 'e')
+        .replace(/È|É|Ẹ|Ẻ|Ẽ|Ê|Ề|Ế|Ệ|Ể|Ễ/g, 'E')
+        .replace(/ì|í|ị|ỉ|ĩ/g, 'i')
+        .replace(/Ì|Í|Ị|Ỉ|Ĩ/g, 'I')
+        .replace(/ò|ó|ọ|ỏ|õ|ô|ồ|ố|ộ|ổ|ỗ|ơ|ờ|ớ|ợ|ở|ỡ/g, 'o')
+        .replace(/Ò|Ó|Ọ|Ỏ|Õ|Ô|Ồ|Ố|Ộ|Ổ|Ỗ|Ơ|Ờ|Ớ|Ợ|Ở|Ỡ/g, 'O')
+        .replace(/ù|ú|ụ|ủ|ũ|ư|ừ|ứ|ự|ử|ữ/g, 'u')
+        .replace(/Ù|Ú|Ụ|Ủ|Ũ|Ư|Ừ|Ứ|Ự|Ử|Ữ/g, 'U')
+        .replace(/ỳ|ý|ỵ|ỷ|ỹ/g, 'y')
+        .replace(/Ỳ|Ý|Ỵ|Ỷ|Ỹ/g, 'Y')
+        .replace(/đ/g, 'd')
+        .replace(/Đ/g, 'D')
         .normalize('NFD')
         .replace(/[\u0300-\u036f]/g, '')
-        .replace(/đ/g, 'd').replace(/Đ/g, 'D');
+        .replace(/[^\x00-\x7F]/g, '');
     };
 
     const lines = cleanText.split('\n');
@@ -310,6 +325,8 @@ export class ContractService {
       const fontSize = trimmed.toUpperCase().includes('HOP DONG') ? 14 : isHeader ? 11 : 10;
       
       const safeText = sanitizeVietnameseForPdf(trimmed);
+      if (!safeText) return;
+
       let x = 50;
       if (isTitle) {
         try {
@@ -320,13 +337,17 @@ export class ContractService {
         }
       }
 
-      page.drawText(safeText, {
-        x,
-        y,
-        size: fontSize,
-        font: currentFont,
-        color: rgb(0.05, 0.05, 0.05),
-      });
+      try {
+        page.drawText(safeText, {
+          x,
+          y,
+          size: fontSize,
+          font: currentFont,
+          color: rgb(0.05, 0.05, 0.05),
+        });
+      } catch (e) {
+        console.warn('Fallback PDF drawText skipped unencodable line:', e.message);
+      }
       y -= (fontSize + 6);
     });
 

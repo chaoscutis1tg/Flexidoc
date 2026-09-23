@@ -185,13 +185,29 @@ export const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
     e.preventDefault();
     setErrorMessage('');
 
-    if (registerMode === 'NEW_ORG' && regOrgCodeCheck.exists) {
-      setErrorMessage(`Mã Tổ chức '${regOrgCode.trim().toUpperCase()}' đã tồn tại! Vui lòng chọn Mã Tổ chức khác.`);
-      return;
+    if (registerMode === 'NEW_ORG') {
+      if (!regOrgName.trim()) {
+        setErrorMessage('Vui lòng nhập Tên Công Ty / Tổ Chức.');
+        return;
+      }
+      if (!regOrgCode.trim()) {
+        setErrorMessage('Vui lòng nhập Mã Tổ Chức khi tạo mới.');
+        return;
+      }
+      if (regOrgCodeCheck.exists) {
+        setErrorMessage(`Mã Tổ chức '${regOrgCode.trim().toUpperCase()}' đã tồn tại! Vui lòng chọn Mã Tổ chức khác.`);
+        return;
+      }
     }
-    if (registerMode === 'JOIN_ORG' && regOrgCodeCheck.exists === false && regOrgCode.trim()) {
-      setErrorMessage(`Không tìm thấy Mã Tổ chức '${regOrgCode.trim().toUpperCase()}'. Vui lòng kiểm tra lại mã từ Quản trị viên!`);
-      return;
+    if (registerMode === 'JOIN_ORG') {
+      if (!regOrgCode.trim()) {
+        setErrorMessage('Vui lòng nhập Mã Tổ Chức để gia nhập.');
+        return;
+      }
+      if (regOrgCodeCheck.exists === false) {
+        setErrorMessage(`Không tìm thấy Mã Tổ chức '${regOrgCode.trim().toUpperCase()}'. Vui lòng kiểm tra lại mã từ Quản trị viên!`);
+        return;
+      }
     }
 
     setLoading(true);
@@ -582,11 +598,12 @@ export const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
 
                       <div>
                         <label className="text-xs font-bold text-slate-700 block mb-1">
-                          Mã Tổ Chức <span className="text-slate-400 font-normal">(Tùy chọn)</span>:
+                          Mã Tổ Chức <span className="text-red-500 font-bold">(Bắt buộc)</span>:
                         </label>
                         <input
                           type="text"
-                          placeholder="Mã Tổ Chức"
+                          required
+                          placeholder="Mã Tổ Chức (Bắt buộc, VD: CTYABC)"
                           value={googleOrgCode}
                           onChange={(e) => setGoogleOrgCode(e.target.value.toUpperCase())}
                           className={`w-full px-4 py-2.5 rounded-2xl border text-xs md:text-sm font-bold tracking-wider outline-none transition-all uppercase placeholder:text-xs placeholder:font-normal placeholder:normal-case placeholder:tracking-normal placeholder:text-slate-400 ${googleOrgCodeCheck.exists === true
@@ -819,7 +836,8 @@ export const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
                         <div>
                           <input
                             type="text"
-                            placeholder={lang === 'VI' ? 'Mã Tổ Chức (Tùy chọn, VD: MAYVINA)' : 'Org Code (Optional)'}
+                            required
+                            placeholder={lang === 'VI' ? 'Mã Tổ Chức (Bắt buộc, VD: CTYABC)' : 'Org Code (Required)'}
                             value={regOrgCode}
                             onChange={(e) => setRegOrgCode(e.target.value.toUpperCase())}
                             className={`w-full px-3 py-1.5 md:py-2 rounded-xl border text-xs font-bold uppercase tracking-wider placeholder:text-xs placeholder:font-normal placeholder:normal-case placeholder:tracking-normal placeholder:text-slate-400 outline-none transition-all bg-white ${
@@ -834,7 +852,7 @@ export const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
                             <span className="text-[10px] text-slate-400 mt-0.5 block">Đang kiểm tra mã tổ chức...</span>
                           )}
                           {regOrgCodeCheck.exists === true && (
-                            <span className="text-[10px] text-red-500 font-semibold mt-0.5 block">Mã '{regOrgCode.trim()}' đã tồn tại (hợp lệ cho tạo mới).</span>
+                            <span className="text-[10px] text-red-500 font-semibold mt-0.5 block">Mã '{regOrgCode.trim()}' đã tồn tại. Vui lòng chọn mã khác.</span>
                           )}
                           {regOrgCodeCheck.exists === false && regOrgCode.trim() && (
                             <span className="text-[10px] text-emerald-600 font-semibold mt-0.5 block">Mã '{regOrgCode.trim()}' khả dụng!</span>

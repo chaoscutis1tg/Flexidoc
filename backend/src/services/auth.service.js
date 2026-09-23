@@ -43,8 +43,14 @@ export class AuthService {
       role = 'STAFF';
     } else {
       // Create New Organization
-      const name = organizationName ? organizationName.trim() : `Tổ chức ${fullName.trim()}`;
-      let code = orgCode ? orgCode.trim().toUpperCase() : ('ORG-' + Math.floor(10000 + Math.random() * 90000));
+      if (!organizationName || !organizationName.trim()) {
+        throw new AppError('Vui lòng nhập Tên Tổ Chức khi tạo mới.', 400);
+      }
+      if (!orgCode || !orgCode.trim()) {
+        throw new AppError('Vui lòng nhập Mã Tổ Chức khi tạo mới.', 400);
+      }
+      const name = organizationName.trim();
+      const code = orgCode.trim().toUpperCase();
       
       const existingOrg = await organizationRepository.findByCode(code);
       if (existingOrg) {
@@ -56,6 +62,8 @@ export class AuthService {
         code,
         plan: 'FREE',
         status: 'ACTIVE',
+        managerName: fullName.trim(),
+        managerEmail: email.trim().toLowerCase(),
       });
       role = 'ORGANIZATION_ADMIN';
     }
@@ -69,6 +77,11 @@ export class AuthService {
       authProvider: 'LOCAL',
       status: 'ACTIVE',
     });
+
+    if (organization && role === 'ORGANIZATION_ADMIN') {
+      organization.managerUserId = newUser._id;
+      await organization.save();
+    }
 
     const populatedUser = await userRepository.findById(newUser._id, null, { populate: 'organizationId' });
     const token = this.generateToken(populatedUser);
@@ -152,30 +165,45 @@ export class AuthService {
       user.lastLoginAt = new Date();
       user.authProvider = 'GOOGLE';
       if (googleId) user.googleId = googleId;
+      await user.save();
 
-      // If user does not have an organization yet, assign a personal default organization
+      // If user has no organization yet
       if (!user.organizationId) {
         let organization = null;
         if (mode === 'JOIN_ORG' && orgCode) {
           const upperCode = orgCode.trim().toUpperCase();
           organization = await organizationRepository.findByCode(upperCode);
-        }
-        if (!organization) {
-          const name = organizationName ? organizationName.trim() : `Tổ chức ${cleanName}`;
-          const randomCode = 'ORG-' + Math.floor(10000 + Math.random() * 90000);
+          if (organization) {
+            user.organizationId = organization._id;
+            user.role = 'STAFF';
+            await user.save();
+          }
+        } else if (organizationName && orgCode) {
+          const name = organizationName.trim();
+          const code = orgCode.trim().toUpperCase();
+          const existingOrg = await organizationRepository.findByCode(code);
+          if (existingOrg) {
+            throw new AppError(`Mã Tổ chức '${code}' đã được sử dụng. Vui lòng chọn Mã Tổ chức khác!`, 400);
+          }
           organization = await organizationRepository.create({
             name,
-            code: randomCode,
+            code,
             plan: 'FREE',
             status: 'ACTIVE',
           });
+          user.organizationId = organization._id;
           user.role = 'ORGANIZATION_ADMIN';
+          await user.save();
         }
-        user.organizationId = organization._id;
+
+        if (!user.organizationId) {
+          const userObj = user.toObject();
+          delete userObj.passwordHash;
+          return { token: null, user: userObj, requiresOrgSetup: true };
+        }
       }
-      await user.save();
     } else {
-      // User is brand new: auto-create personal organization and log them in immediately!
+      // User is brand new
       let organization = null;
       let role = 'STAFF';
 
@@ -183,25 +211,19 @@ export class AuthService {
         const upperCode = orgCode.trim().toUpperCase();
         organization = await organizationRepository.findByCode(upperCode);
         if (!organization) {
-          const name = `Tổ chức ${cleanName}`;
-          const randomCode = 'ORG-' + Math.floor(10000 + Math.random() * 90000);
-          organization = await organizationRepository.create({
-            name,
-            code: randomCode,
-            plan: 'FREE',
-            status: 'ACTIVE',
-          });
-          role = 'ORGANIZATION_ADMIN';
-        } else {
-          role = 'STAFF';
+          throw new AppError(`Không tìm thấy Tổ chức với Mã '${upperCode}'. Vui lòng kiểm tra lại mã!`, 404);
         }
-      } else {
-        const name = organizationName ? organizationName.trim() : `Tổ chức ${cleanName}`;
-        const randomCode = 'ORG-' + Math.floor(10000 + Math.random() * 90000);
-        
+        role = 'STAFF';
+      } else if (organizationName && orgCode) {
+        const name = organizationName.trim();
+        const code = orgCode.trim().toUpperCase();
+        const existingOrg = await organizationRepository.findByCode(code);
+        if (existingOrg) {
+          throw new AppError(`Mã Tổ chức '${code}' đã được sử dụng. Vui lòng chọn Mã Tổ chức khác!`, 400);
+        }
         organization = await organizationRepository.create({
           name,
-          code: randomCode,
+          code,
           plan: 'FREE',
           status: 'ACTIVE',
         });
@@ -212,12 +234,18 @@ export class AuthService {
         email: cleanEmail,
         passwordHash: 'GOOGLE_OAUTH_PWD_' + Math.random().toString(36).substring(2),
         fullName: cleanName,
-        organizationId: organization._id,
-        role,
+        organizationId: organization ? organization._id : null,
+        role: organization ? role : 'STAFF',
         authProvider: 'GOOGLE',
         status: 'ACTIVE',
         googleId: googleId || 'GOOGLE_' + Date.now(),
       });
+
+      if (!organization) {
+        const userObj = user.toObject();
+        delete userObj.passwordHash;
+        return { token: null, user: userObj, requiresOrgSetup: true };
+      }
     }
 
     const populatedUser = await userRepository.findById(user._id, null, { populate: 'organizationId' });
@@ -240,7 +268,7 @@ export class AuthService {
       throw new AppError('Không tìm thấy tài khoản người dùng.', 404);
     }
 
-    // If user already has an organization, return token directly for immediate login!
+    // If user already has an organization, return token directly
     if (user.organizationId) {
       const populatedUser = await userRepository.findById(user._id, null, { populate: 'organizationId' });
       const token = this.generateToken(populatedUser);
@@ -253,7 +281,7 @@ export class AuthService {
     let role = 'STAFF';
 
     if (mode === 'JOIN_ORG') {
-      if (!orgCode) {
+      if (!orgCode || !orgCode.trim()) {
         throw new AppError('Vui lòng nhập Mã Tổ Chức để gia nhập.', 400);
       }
       const upperCode = orgCode.trim().toUpperCase();
@@ -263,8 +291,14 @@ export class AuthService {
       }
       role = 'STAFF';
     } else {
-      const name = organizationName ? organizationName.trim() : `Tổ chức ${user.fullName}`;
-      let code = orgCode ? orgCode.trim().toUpperCase() : ('ORG-' + Math.floor(10000 + Math.random() * 90000));
+      if (!organizationName || !organizationName.trim()) {
+        throw new AppError('Vui lòng nhập Tên Công Ty / Tổ Chức Mới.', 400);
+      }
+      if (!orgCode || !orgCode.trim()) {
+        throw new AppError('Vui lòng nhập Mã Tổ Chức khi tạo mới.', 400);
+      }
+      const name = organizationName.trim();
+      const code = orgCode.trim().toUpperCase();
       
       const existingOrg = await organizationRepository.findByCode(code);
       if (existingOrg) {
@@ -276,6 +310,9 @@ export class AuthService {
         code,
         plan: 'FREE',
         status: 'ACTIVE',
+        managerName: user.fullName,
+        managerEmail: user.email ? user.email.toLowerCase().trim() : '',
+        managerUserId: user._id,
       });
       role = 'ORGANIZATION_ADMIN';
     }
