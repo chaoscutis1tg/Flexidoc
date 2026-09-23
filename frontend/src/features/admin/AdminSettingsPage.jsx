@@ -100,8 +100,24 @@ export const AdminSettingsPage = () => {
   const [savingPayment, setSavingPayment] = useState(false);
   const [savingSecurity, setSavingSecurity] = useState(false);
   const [savingPricing, setSavingPricing] = useState(false);
+  const [backingUp, setBackingUp] = useState(false);
   const [copiedWebhook, setCopiedWebhook] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
+
+  const handleTriggerBackup = async () => {
+    setBackingUp(true);
+    setMessage({ type: '', text: '' });
+    try {
+      const res = await api.post('/system-settings/trigger-backup');
+      if (res.success) {
+        setMessage({ type: 'success', text: 'Sao lưu MongoDB và xoay vòng giữ đúng 3 bản gần nhất thành công!' });
+      }
+    } catch (err) {
+      setMessage({ type: 'error', text: err.message || 'Sao lưu MongoDB thất bại.' });
+    } finally {
+      setBackingUp(false);
+    }
+  };
 
   const fetchSettings = async () => {
     setLoading(true);
@@ -685,6 +701,29 @@ export const AdminSettingsPage = () => {
                 className="w-full md:w-72 px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm font-bold focus:ring-2 focus:ring-purple-500 outline-none bg-white"
               />
               <span className="text-[10.5px] text-slate-400 mt-1 block">Tổ chức dùng gói FREE sẽ không thể tạo vượt quá số lượng hợp đồng này trừ khi nâng cấp gói PRO/VIP.</span>
+            </div>
+
+            {/* Backup & 3-Rotation Panel */}
+            <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200 space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <h4 className="text-sm font-black text-slate-900 flex items-center gap-2">
+                    <Server size={18} className="text-indigo-600" /> Tự Động Sao Lưu MongoDB (Mongodump Archive & Retention 3 Bản)
+                  </h4>
+                  <p className="text-xs text-slate-600 mt-1 leading-relaxed">
+                    Hệ thống thực thi <code className="font-mono bg-white px-1.5 py-0.5 rounded border border-slate-200 text-purple-700">mongodump --archive --gzip</code> và xoay vòng tự động <strong>chỉ giữ lại đúng 3 bản dump gần nhất</strong> trên ổ đĩa.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  disabled={backingUp}
+                  onClick={handleTriggerBackup}
+                  className="px-5 py-2.5 rounded-xl bg-slate-900 text-white font-extrabold text-xs flex items-center gap-2 hover:bg-slate-800 transition-all shadow-sm shrink-0 cursor-pointer hover:scale-105"
+                >
+                  {backingUp ? <Loader2 size={15} className="animate-spin text-sky-400" /> : <RefreshCw size={15} className="text-amber-400" />}
+                  Thực Hiện Sao Lưu & Xoay Vòng
+                </button>
+              </div>
             </div>
 
             <div className="pt-2 flex items-center justify-end">

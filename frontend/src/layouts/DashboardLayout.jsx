@@ -132,9 +132,11 @@ export const DashboardLayout = () => {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            boxShadow: '0 4px 10px rgba(2,132,199,0.3)'
+            boxShadow: '0 4px 10px rgba(2,132,199,0.3)',
+            padding: '4px',
+            overflow: 'hidden'
           }}>
-            <Briefcase size={20} color="#fff" />
+            <img src="/logo.png" alt="FlexiDoc Logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
           </div>
           <div>
             <h2 style={{ fontSize: '17px', fontWeight: '800', color: '#0f172a' }}>

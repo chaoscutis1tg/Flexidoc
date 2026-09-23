@@ -53,14 +53,16 @@ export const LoginPage = () => {
             width: '60px',
             height: '60px',
             borderRadius: '18px',
-            background: '#0284c7',
+            background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)',
             display: 'inline-flex',
             alignItems: 'center',
             justifyContent: 'center',
             marginBottom: '16px',
-            boxShadow: '0 8px 20px rgba(2, 132, 199, 0.3)'
+            boxShadow: '0 8px 20px rgba(2, 132, 199, 0.3)',
+            padding: '8px',
+            overflow: 'hidden'
           }}>
-            <Briefcase size={30} color="#fff" />
+            <img src="/logo.png" alt="FlexiDoc Logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
           </div>
           <h1 style={{ fontSize: '26px', fontWeight: '800', color: '#0f172a' }}>Hệ Thống FlexiDoc</h1>
           <p style={{ color: 'var(--text-muted)', fontSize: '14px', marginTop: '4px' }}>

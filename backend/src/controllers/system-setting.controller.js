@@ -58,9 +58,21 @@ export const updatePricingConfig = async (req, res, next) => {
 export const getAllSettings = async (req, res, next) => {
   try {
     const all = await systemSettingService.getAllSettings();
-    return sendSuccess(res, 200, 'Lấy toàn bộ cấu hình hệ thống thành công', all);
+    return sendSuccess(res, 200, 'Lấy toàn bộ cài đặt hệ thống thành công', all);
   } catch (error) {
     next(error);
   }
 };
 
+export const triggerMongoBackup = async (req, res, next) => {
+  try {
+    const { runMongoBackup } = await import('../utils/mongo-backup.util.js');
+    const result = runMongoBackup();
+    if (result && result.success) {
+      return sendSuccess(res, 200, 'Thực hiện Dump dữ liệu MongoDB và xoay vòng lưu 3 bản mới nhất thành công!', result);
+    }
+    return res.status(500).json({ success: false, message: 'Sao lưu MongoDB thất bại', details: result?.error });
+  } catch (error) {
+    next(error);
+  }
+};
