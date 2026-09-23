@@ -49,21 +49,7 @@ export const LoginPage = () => {
         overflow: 'hidden',
       }}>
         <div style={{ textAlign: 'center', marginBottom: '32px' }}>
-          <div style={{
-            width: '60px',
-            height: '60px',
-            borderRadius: '18px',
-            background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)',
-            display: 'inline-flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            marginBottom: '16px',
-            boxShadow: '0 8px 20px rgba(2, 132, 199, 0.3)',
-            padding: '8px',
-            overflow: 'hidden'
-          }}>
-            <img src="/logo.png" alt="FlexiDoc Logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
-          </div>
+          <img src="/logo.png" alt="FlexiDoc Logo" style={{ width: '64px', height: '64px', objectFit: 'contain', marginBottom: '16px', display: 'inline-block' }} />
           <h1 style={{ fontSize: '26px', fontWeight: '800', color: '#0f172a' }}>Hệ Thống FlexiDoc</h1>
           <p style={{ color: 'var(--text-muted)', fontSize: '14px', marginTop: '4px' }}>
             Quản Lý & Sinh Hợp Đồng Theo Mẫu Đa Tổ Chức

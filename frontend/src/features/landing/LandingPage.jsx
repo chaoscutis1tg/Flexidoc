@@ -110,9 +110,7 @@ export const LandingPage = () => {
 
           {/* Brand Logo */}
           <div className="flex items-center gap-3 cursor-pointer group" onClick={() => navigate('/')}>
-            <div className="w-10 h-10 rounded-2xl bg-white flex items-center justify-center border border-slate-200 shadow-md group-hover:scale-105 transition-all overflow-hidden p-1">
-              <img src="/logo.png" alt="FlexiDoc Logo" className="w-full h-full object-contain" />
-            </div>
+            <img src="/logo.png" alt="FlexiDoc Logo" className="w-10 h-10 object-contain group-hover:scale-105 transition-all" />
             <div>
               <div className="flex items-center gap-2">
                 <h2 className="text-xl font-black text-slate-900 leading-none tracking-tight">
@@ -537,9 +535,7 @@ export const LandingPage = () => {
             {/* Col 1: Brand & Contact Info (Spans 2 cols on lg) */}
             <div className="lg:col-span-2 space-y-4">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-white text-white flex items-center justify-center font-black shadow-lg border border-slate-700 overflow-hidden p-1">
-                  <img src="/logo.png" alt="FlexiDoc Logo" className="w-full h-full object-contain" />
-                </div>
+                <img src="/logo.png" alt="FlexiDoc Logo" className="w-10 h-10 object-contain" />
                 <div>
                   <h4 className="text-base font-black text-white tracking-wide">FlexiDoc SaaS Platform</h4>
                   <p className="text-[11px] text-sky-400 font-medium">Hệ Thống Quản Lý & Số Hóa Hợp Đồng Thông Minh</p>

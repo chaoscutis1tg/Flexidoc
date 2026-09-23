@@ -124,20 +124,7 @@ export const DashboardLayout = () => {
       }}>
         {/* Brand */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '0 8px 16px', borderBottom: '1px solid #e2e8f0' }}>
-          <div style={{
-            width: '38px',
-            height: '38px',
-            borderRadius: '10px',
-            background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            boxShadow: '0 4px 10px rgba(2,132,199,0.3)',
-            padding: '4px',
-            overflow: 'hidden'
-          }}>
-            <img src="/logo.png" alt="FlexiDoc Logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
-          </div>
+          <img src="/logo.png" alt="FlexiDoc Logo" style={{ width: '38px', height: '38px', objectFit: 'contain' }} />
           <div>
             <h2 style={{ fontSize: '17px', fontWeight: '800', color: '#0f172a' }}>
               FlexiDoc

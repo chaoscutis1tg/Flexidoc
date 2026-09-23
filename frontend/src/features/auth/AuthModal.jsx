@@ -429,7 +429,7 @@ export const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
           {/* Top Header Pill Controls */}
           <div className="flex items-center justify-between z-10">
             <div className="flex items-center gap-2">
-              <img src="/logo.png" alt="FlexiDoc Logo" className="w-7 h-7 rounded-lg object-contain bg-white/10 backdrop-blur-sm p-1 border border-white/20" />
+              <img src="/logo.png" alt="FlexiDoc Logo" className="w-7 h-7 object-contain" />
               <span className="text-base font-black tracking-tight text-white drop-shadow-sm">FlexiDoc</span>
             </div>
           </div>
@@ -488,9 +488,7 @@ export const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
           {/* Top Controls Bar: Logo text / Language Selector & Close Button */}
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-cyan-500 to-blue-600 p-1 shadow-md flex items-center justify-center">
-                <img src="/logo.png" alt="FlexiDoc Logo" className="w-full h-full object-contain" />
-              </div>
+              <img src="/logo.png" alt="FlexiDoc Logo" className="w-8 h-8 object-contain" />
               <span className="text-lg font-black tracking-tight text-slate-900">FlexiDoc</span>
             </div>
 
