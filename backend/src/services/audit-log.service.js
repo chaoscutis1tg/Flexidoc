@@ -14,7 +14,7 @@ export class AuditLogService {
       const ip = req.headers ? (req.headers['x-forwarded-for'] || (req.socket ? req.socket.remoteAddress : '127.0.0.1')) : '127.0.0.1';
       const userAgent = req.headers ? (req.headers['user-agent'] || 'Unknown') : 'Unknown';
 
-      if (!userId || !organizationId) return;
+      if (!userId) return;
 
       await auditLogRepository.createLog({
         userId,

@@ -20,7 +20,7 @@ export class OrderService {
     } else if (plan === 'VIP') {
       unitPrice = pricingConfig.vipMonthlyPrice ?? 999000;
     } else if (plan === 'BASIC') {
-      unitPrice = pricingConfig.starterPrice || 199000;
+      unitPrice = pricingConfig.basicMonthlyPrice ?? 199000;
     }
 
     let discountPercent = 0;

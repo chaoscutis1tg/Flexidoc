@@ -472,6 +472,36 @@ export const DashboardLayout = () => {
         {/* Dynamic Page Content */}
         <main style={{ padding: '28px', flex: 1, display: 'flex', flexDirection: 'column' }}>
           <PendingInvitationsBanner onStatusChange={refreshUser} />
+
+          {/* Sticky Expiration Banner */}
+          {isExpired && (
+            <div className="bg-gradient-to-r from-rose-600 via-red-600 to-rose-700 text-white p-4.5 rounded-2xl shadow-lg mb-6 flex flex-col md:flex-row items-center justify-between gap-4 border border-rose-400/30 animate-fade-in">
+              <div className="flex items-center gap-3.5">
+                <div className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center shrink-0 shadow-inner">
+                  <AlertTriangle size={22} className="text-amber-300" />
+                </div>
+                <div>
+                  <h4 className="text-sm font-black flex items-center gap-2">
+                    Gói dịch vụ [{plan}] của tổ chức bạn đã HẾT HẠN!
+                    <span className="bg-white/20 text-white text-[10.5px] px-2.5 py-0.5 rounded-full font-bold border border-white/20">
+                      🔒 Bảo toàn 100% dữ liệu (Read-Only)
+                    </span>
+                  </h4>
+                  <p className="text-xs text-rose-100 mt-1 leading-relaxed">
+                    Tất cả hợp đồng và mẫu cũ được lưu giữ an toàn (cho phép Xem/Tải PDF). Hệ thống tạm khóa tính năng Tạo mới & Sửa/Xóa. Vui lòng gia hạn gói cũ hoặc chọn gói mới để mở khóa tức thì!
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowRenewalModal(true)}
+                className="px-5 py-2.5 rounded-xl bg-white text-rose-700 font-black text-xs hover:bg-rose-50 transition-all shadow-md shrink-0 flex items-center gap-1.5 cursor-pointer hover:scale-105"
+              >
+                <Crown size={15} className="text-amber-500" />
+                Gia Hạn Ngay Qua SePay
+              </button>
+            </div>
+          )}
+
           <Outlet />
         </main>
       </div>

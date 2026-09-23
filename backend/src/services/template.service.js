@@ -20,16 +20,13 @@ export class TemplateService {
       throw new AppError('Gói Miễn Phí (FREE) chỉ cho phép tạo tối đa 2 mẫu hợp đồng và không hỗ trợ sửa hoặc xóa. Vui lòng nâng cấp gói cước!', 403);
     }
 
-    // 2. Expired Plan restriction
+    // 2. Expired Plan restriction: Lock all CREATE, EDIT, DELETE actions
     if (isExpired) {
-      if (actionType === 'EDIT' || actionType === 'DELETE') {
-        throw new AppError(`Gói cước '${plan}' của tổ chức bạn đã HẾT HẠN ngày ${new Date(org.planExpiresAt).toLocaleDateString('vi-VN')}. Vui lòng gia hạn gói dịch vụ để tiếp tục chỉnh sửa hoặc xóa mẫu!`, 403);
-      }
+      const expDate = org.planExpiresAt ? new Date(org.planExpiresAt).toLocaleDateString('vi-VN') : 'gần đây';
       if (actionType === 'CREATE') {
-        const existingCount = await templateRepository.count({ deletedAt: null }, tenantContext);
-        if (existingCount >= 2) {
-          throw new AppError(`Gói cước '${plan}' của bạn đã HẾT HẠN. Hệ thống tạm khóa và chỉ giữ lại 2 mẫu đầu tiên. Vui lòng gia hạn gói dịch vụ để tiếp tục tạo mẫu mới!`, 403);
-        }
+        throw new AppError(`Gói dịch vụ '${plan}' của tổ chức bạn đã HẾT HẠN ngày ${expDate}. Tất cả dữ liệu hợp đồng và mẫu cũ đã được bảo toàn ở chế độ Chỉ Xem (Read-Only). Vui lòng gia hạn gói dịch vụ để tiếp tục tạo mới!`, 403);
+      } else {
+        throw new AppError(`Gói dịch vụ '${plan}' của tổ chức bạn đã HẾT HẠN ngày ${expDate}. Các mẫu cũ đã được bảo toàn an toàn ở chế độ Chỉ Xem. Vui lòng gia hạn gói dịch vụ để chỉnh sửa hoặc xóa!`, 403);
       }
     }
 

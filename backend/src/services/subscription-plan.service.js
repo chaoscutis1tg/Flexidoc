@@ -95,7 +95,13 @@ export class SubscriptionPlanService {
     try {
       const pricingSetting = await systemSettingRepository.getByKey('PRICING_CONFIG');
       if (pricingSetting && pricingSetting.value) {
-        const { proMonthlyPrice, vipMonthlyPrice } = pricingSetting.value;
+        const { basicMonthlyPrice, proMonthlyPrice, vipMonthlyPrice } = pricingSetting.value;
+        if (basicMonthlyPrice !== undefined) {
+          await SubscriptionPlan.updateOne(
+            { code: 'BASIC' },
+            { price: basicMonthlyPrice, formattedPrice: new Intl.NumberFormat('vi-VN').format(basicMonthlyPrice) + 'đ' }
+          );
+        }
         if (proMonthlyPrice !== undefined) {
           await SubscriptionPlan.updateOne(
             { code: 'PRO' },

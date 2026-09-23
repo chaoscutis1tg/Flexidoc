@@ -64,6 +64,11 @@ export const RenewalModal = ({ isOpen, onClose, targetOrg = null }) => {
       setErrorMsg('');
       setManualSubmitted(false);
 
+      const userOrgPlan = targetOrg?.plan || (typeof user?.organizationId === 'object' ? user?.organizationId?.plan : null);
+      if (userOrgPlan && ['BASIC', 'PRO', 'VIP'].includes(userOrgPlan)) {
+        setSelectedPlan(userOrgPlan);
+      }
+
       fetchDynamicPlans().then((data) => {
         if (data && data.length > 0) {
           const commercialPlans = data.filter((p) => p.code !== 'FREE');

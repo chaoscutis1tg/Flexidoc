@@ -22,6 +22,7 @@ export const DEFAULT_SYSTEM_CONFIG = {
 
 export const DEFAULT_PRICING_CONFIG = {
   starterPrice: 0,
+  basicMonthlyPrice: 199000,
   proMonthlyPrice: 299000,
   vipMonthlyPrice: 999000,
   discount3MonthsPercent: 5,
@@ -122,6 +123,7 @@ export class SystemSettingService {
       ...current,
       ...newConfig,
       starterPrice: Number(newConfig.starterPrice ?? current.starterPrice),
+      basicMonthlyPrice: Number(newConfig.basicMonthlyPrice ?? current.basicMonthlyPrice ?? 199000),
       proMonthlyPrice: Number(newConfig.proMonthlyPrice ?? current.proMonthlyPrice),
       vipMonthlyPrice: Number(newConfig.vipMonthlyPrice ?? current.vipMonthlyPrice),
       discount3MonthsPercent: Number(newConfig.discount3MonthsPercent ?? current.discount3MonthsPercent ?? 5),

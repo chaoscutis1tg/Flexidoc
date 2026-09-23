@@ -88,6 +88,7 @@ export const AdminSettingsPage = () => {
   // Dynamic Package Pricing & Discount State
   const [pricingSettings, setPricingSettings] = useState({
     starterPrice: 0,
+    basicMonthlyPrice: 199000,
     proMonthlyPrice: 299000,
     vipMonthlyPrice: 999000,
     discount3MonthsPercent: 5,
@@ -720,7 +721,7 @@ export const AdminSettingsPage = () => {
                 <Tag size={15} className="text-emerald-600" /> Giá Tiền Các Gói Dịch Vụ (VNĐ / Tháng):
               </h4>
               
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div>
                   <label className="text-xs font-bold text-slate-700 block mb-1">
                     Gói Miễn Phí (Starter / Free):
@@ -736,6 +737,24 @@ export const AdminSettingsPage = () => {
                     <span className="absolute right-3 top-2.5 text-xs font-bold text-slate-400">VNĐ</span>
                   </div>
                   <span className="text-[10.5px] text-slate-400 mt-1 block">Mặc định 0đ (Gói dùng thử).</span>
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">
+                    Gói Cơ Bản (BASIC):
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      min={0}
+                      step={1000}
+                      value={pricingSettings.basicMonthlyPrice ?? 199000}
+                      onChange={(e) => setPricingSettings({ ...pricingSettings, basicMonthlyPrice: parseInt(e.target.value) || 0 })}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm font-bold text-teal-700 focus:ring-2 focus:ring-teal-500 outline-none bg-white"
+                    />
+                    <span className="absolute right-3 top-2.5 text-xs font-bold text-slate-400">VNĐ/Tháng</span>
+                  </div>
+                  <span className="text-[10.5px] text-slate-400 mt-1 block">Giá hiện tại: {(pricingSettings.basicMonthlyPrice ?? 199000).toLocaleString('vi-VN')} đ</span>
                 </div>
 
                 <div>

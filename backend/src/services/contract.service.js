@@ -5,6 +5,7 @@ import puppeteer from 'puppeteer';
 import fs from 'fs';
 import { contractRepository } from '../repositories/contract.repository.js';
 import { templateRepository } from '../repositories/template.repository.js';
+import { organizationRepository } from '../repositories/organization.repository.js';
 import { AppError } from '../utils/app-error.js';
 
 let browserPromise = null;
@@ -47,6 +48,26 @@ async function getPuppeteerBrowser() {
 }
 
 export class ContractService {
+  async _checkPlanLimits(tenantContext, actionType = 'CREATE') {
+    if (!tenantContext || !tenantContext.organizationId || tenantContext.role === 'SUPER_ADMIN') return;
+
+    const org = await organizationRepository.findById(tenantContext.organizationId);
+    if (!org) return;
+
+    const plan = org.plan || 'FREE';
+    const now = new Date();
+    const isExpired = plan !== 'FREE' && org.planExpiresAt && new Date(org.planExpiresAt) < now;
+
+    if (isExpired) {
+      const expDate = org.planExpiresAt ? new Date(org.planExpiresAt).toLocaleDateString('vi-VN') : 'gần đây';
+      if (actionType === 'CREATE') {
+        throw new AppError(`Gói dịch vụ '${plan}' của tổ chức bạn đã HẾT HẠN ngày ${expDate}. Tất cả hợp đồng cũ đã được bảo toàn an toàn ở chế độ Chỉ Xem (Read-Only). Vui lòng gia hạn gói dịch vụ để tiếp tục tạo hợp đồng mới!`, 403);
+      } else {
+        throw new AppError(`Gói dịch vụ '${plan}' của tổ chức bạn đã HẾT HẠN ngày ${expDate}. Các hợp đồng cũ đã được bảo toàn ở chế độ Chỉ Xem. Vui lòng gia hạn gói dịch vụ để tiếp tục chỉnh sửa hoặc xóa!`, 403);
+      }
+    }
+  }
+
   /**
    * Validate inputData against template fields schema.
    */
@@ -80,6 +101,7 @@ export class ContractService {
   }
 
   async createContract(data, tenantContext = null) {
+    await this._checkPlanLimits(tenantContext, 'CREATE');
     const { title, code, templateId, inputData = {} } = data;
 
     // 1. Fetch Template and current version
@@ -346,6 +368,7 @@ export class ContractService {
   }
 
   async updateContractData(contractId, inputData, tenantContext = null) {
+    await this._checkPlanLimits(tenantContext, 'EDIT');
     const contract = await contractRepository.findById(contractId, tenantContext);
     if (!contract) {
       throw new AppError('Hợp đồng không tồn tại.', 404);
