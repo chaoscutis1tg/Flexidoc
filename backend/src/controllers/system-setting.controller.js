@@ -67,7 +67,7 @@ export const getAllSettings = async (req, res, next) => {
 export const triggerMongoBackup = async (req, res, next) => {
   try {
     const { runMongoBackup } = await import('../utils/mongo-backup.util.js');
-    const result = runMongoBackup();
+    const result = await runMongoBackup();
     if (result && result.success) {
       return sendSuccess(res, 200, 'Thực hiện Dump dữ liệu MongoDB và xoay vòng lưu 3 bản mới nhất thành công!', result);
     }
