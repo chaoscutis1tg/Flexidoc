@@ -40,7 +40,7 @@ const showcaseSlides = [
     desc: "Giữ nguyên 100% định dạng Word gốc, tự động trích xuất biến thông minh & xuất file PDF A4 chuẩn sắc nét.",
     authorName: "FlexiDoc AI Engine",
     authorRole: "Giải Pháp Số Hóa Hợp Đồng",
-    avatar: "/logo_fxd.png",
+    avatar: "/logo.png",
     bgImage: "/auth_illustration.png",
   },
   {
@@ -58,7 +58,7 @@ const showcaseSlides = [
     desc: "Lưu trữ dữ liệu hợp đồng tập trung mã hóa, bảo mật tối đa và tra cứu lịch sử thay đổi 24/7.",
     authorName: "FlexiDoc Cloud",
     authorRole: "Nền Tảng Đám Mây An Toàn",
-    avatar: "/logo_fxd.png",
+    avatar: "/logo.png",
     bgImage: "/auth_illustration_3.png",
   }
 ];
@@ -429,7 +429,7 @@ export const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
           {/* Top Header Pill Controls */}
           <div className="flex items-center justify-between z-10">
             <div className="flex items-center gap-2">
-              <img src="/logo_fxd.png" alt="FlexiDoc Logo" className="w-7 h-7 rounded-lg object-contain bg-white/10 backdrop-blur-sm p-1 border border-white/20" />
+              <img src="/logo.png" alt="FlexiDoc Logo" className="w-7 h-7 rounded-lg object-contain bg-white/10 backdrop-blur-sm p-1 border border-white/20" />
               <span className="text-base font-black tracking-tight text-white drop-shadow-sm">FlexiDoc</span>
             </div>
           </div>
@@ -488,6 +488,9 @@ export const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
           {/* Top Controls Bar: Logo text / Language Selector & Close Button */}
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-cyan-500 to-blue-600 p-1 shadow-md flex items-center justify-center">
+                <img src="/logo.png" alt="FlexiDoc Logo" className="w-full h-full object-contain" />
+              </div>
               <span className="text-lg font-black tracking-tight text-slate-900">FlexiDoc</span>
             </div>
 

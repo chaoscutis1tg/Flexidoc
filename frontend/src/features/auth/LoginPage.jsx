@@ -136,7 +136,7 @@ export const LoginPage = () => {
           <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', justifyContent: 'center' }}>
             <button
               type="button"
-              onClick={() => handleFillDemo('admin@mtctms.vn')}
+              onClick={() => handleFillDemo('admin123@gmail.com')}
               style={{ padding: '4px 10px', borderRadius: '12px', background: '#e0f2fe', color: '#0369a1', border: '1px solid #bae6fd', fontSize: '11px', cursor: 'pointer', fontWeight: '600' }}
             >
               Super Admin
