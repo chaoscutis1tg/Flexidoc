@@ -29,13 +29,26 @@ import {
   Phone,
   Mail,
   FileText,
-  Zap
+  Zap,
+  Printer,
+  BarChart3,
+  PieChart,
+  UserCheck,
+  Sparkles
 } from 'lucide-react';
 import { VIETNAM_BANKS } from './AdminSettingsPage';
 
 export const AdminOrdersRevenuePage = () => {
   const { confirm } = useConfirm();
   const [activeTab, setActiveTab] = useState('orders'); // 'orders' | 'settings'
+
+  // Report Modal & Analytics State
+  const [reportModalOpen, setReportModalOpen] = useState(false);
+  const [reportTimeframe, setReportTimeframe] = useState('THIS_MONTH'); // TODAY | THIS_WEEK | THIS_MONTH | THIS_YEAR | ALL | CUSTOM
+  const [reportStartDate, setReportStartDate] = useState('');
+  const [reportEndDate, setReportEndDate] = useState('');
+  const [reportData, setReportData] = useState(null);
+  const [reportLoading, setReportLoading] = useState(false);
 
   // Orders & Stats state
   const [loading, setLoading] = useState(true);
@@ -124,6 +137,354 @@ export const AdminOrdersRevenuePage = () => {
   useEffect(() => {
     fetchOrdersAndStats();
   }, [statusFilter, searchQuery, page]);
+
+  const fetchReportData = async () => {
+    setReportLoading(true);
+    try {
+      let url = `/orders/admin/report?timeframe=${reportTimeframe}`;
+      if (reportTimeframe === 'CUSTOM') {
+        if (reportStartDate) url += `&startDate=${reportStartDate}`;
+        if (reportEndDate) url += `&endDate=${reportEndDate}`;
+      }
+      const res = await api.get(url);
+      if (res.success && res.data) {
+        setReportData(res.data);
+      }
+    } catch (err) {
+      console.error('Lỗi khi tải dữ liệu báo cáo:', err);
+    } finally {
+      setReportLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (reportModalOpen) {
+      fetchReportData();
+    }
+  }, [reportModalOpen, reportTimeframe, reportStartDate, reportEndDate]);
+
+  const handlePrintReport = () => {
+    if (!reportData) return;
+
+    const { summary, packageBreakdown = [], buyersList = [], timeframe, startDate, endDate } = reportData;
+    const { totalRevenue = 0, successOrdersCount = 0, mostPopularPlan, topBuyer } = summary || {};
+
+    const timeframeTextMap = {
+      TODAY: 'Hôm nay',
+      THIS_WEEK: 'Tuần này',
+      THIS_MONTH: `Tháng ${new Date().getMonth() + 1}/${new Date().getFullYear()}`,
+      THIS_YEAR: `Năm ${new Date().getFullYear()}`,
+      ALL: 'Tất cả thời gian',
+      CUSTOM: `Từ ${startDate ? new Date(startDate).toLocaleDateString('vi-VN') : '...'} đến ${endDate ? new Date(endDate).toLocaleDateString('vi-VN') : '...'}`
+    };
+
+    const timeframeTitle = timeframeTextMap[timeframe] || 'Tất cả thời gian';
+    const exportedAt = new Date().toLocaleString('vi-VN');
+
+    const printWindow = window.open('', '_blank', 'width=1100,height=900');
+    if (!printWindow) return;
+
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html lang="vi">
+      <head>
+        <meta charset="UTF-8">
+        <title>Báo Cáo Doanh Thu FlexiDoc</title>
+        <style>
+          @page {
+            size: A4 portrait;
+            margin: 12mm;
+          }
+          body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: #0f172a;
+            margin: 0;
+            padding: 0;
+            background: #ffffff;
+            font-size: 12px;
+            line-height: 1.5;
+          }
+          .header-banner {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 3px solid #0284c7;
+            padding-bottom: 10px;
+            margin-bottom: 16px;
+          }
+          .brand-title {
+            font-size: 22px;
+            font-weight: 900;
+            color: #0f172a;
+            margin: 0;
+          }
+          .report-subtitle {
+            font-size: 13px;
+            font-weight: 800;
+            color: #0284c7;
+            margin-top: 2px;
+          }
+          .meta-info {
+            text-align: right;
+            font-size: 11px;
+            color: #64748b;
+          }
+          .meta-badge {
+            display: inline-block;
+            background: #e0f2fe;
+            color: #0369a1;
+            font-weight: 800;
+            padding: 3px 10px;
+            border-radius: 12px;
+            margin-bottom: 4px;
+          }
+          .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            margin-bottom: 20px;
+          }
+          .kpi-card {
+            border: 1px solid #cbd5e1;
+            border-radius: 10px;
+            padding: 10px 12px;
+            background: #f8fafc;
+          }
+          .kpi-title {
+            font-size: 10.5px;
+            font-weight: 700;
+            color: #64748b;
+            text-transform: uppercase;
+          }
+          .kpi-value {
+            font-size: 17px;
+            font-weight: 900;
+            margin-top: 2px;
+          }
+          .section-heading {
+            font-size: 13px;
+            font-weight: 800;
+            color: #0f172a;
+            border-left: 4px solid #0284c7;
+            padding-left: 8px;
+            margin-top: 18px;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+          }
+          table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 16px;
+            font-size: 11.5px;
+          }
+          th {
+            background-color: #0f172a;
+            color: #ffffff;
+            font-weight: 800;
+            text-align: left;
+            padding: 8px 10px;
+            text-transform: uppercase;
+            font-size: 10.5px;
+          }
+          td {
+            padding: 8px 10px;
+            border-bottom: 1px solid #e2e8f0;
+          }
+          tr:nth-child(even) td {
+            background-color: #f8fafc;
+          }
+          .badge-plan {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-weight: 800;
+            font-size: 10px;
+          }
+          .plan-vip { background: #f3e8ff; color: #7e22ce; border: 1px solid #d8b4fe; }
+          .plan-pro { background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; }
+          .plan-basic { background: #dcfce7; color: #15803d; border: 1px solid #86efac; }
+          .plan-free { background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; }
+          .page-break {
+            page-break-before: always;
+            break-before: page;
+            margin-top: 20px;
+          }
+          .footer-sign {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 35px;
+            text-align: center;
+          }
+          .sign-box {
+            width: 40%;
+          }
+        </style>
+      </head>
+      <body>
+        <!-- PAGE 1: EXECUTIVE OVERVIEW & PLAN BREAKDOWN -->
+        <div class="header-banner">
+          <div>
+            <h1 class="brand-title">FlexiDoc Enterprise</h1>
+            <div class="report-subtitle">BÁO CÁO DOANH THU & PHÂN TÍCH GÓI CƯỚC DỊCH VỤ</div>
+          </div>
+          <div class="meta-info">
+            <div class="meta-badge">Khung thời gian: ${timeframeTitle}</div>
+            <div>Ngày xuất báo cáo: ${exportedAt}</div>
+            <div>Người xuất: Super Admin</div>
+          </div>
+        </div>
+
+        <div class="kpi-grid">
+          <div class="kpi-card">
+            <div class="kpi-title">Tổng Doanh Thu</div>
+            <div class="kpi-value" style="color: #16a34a;">${totalRevenue.toLocaleString('vi-VN')} đ</div>
+            <div style="font-size: 10px; color: #64748b;">Đơn đã thanh toán</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-title">Đơn Thành Công</div>
+            <div class="kpi-value" style="color: #0284c7;">${successOrdersCount} đơn</div>
+            <div style="font-size: 10px; color: #64748b;">Kích hoạt gói dịch vụ</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-title">Gói Mua Nhiều Nhất</div>
+            <div class="kpi-value" style="color: #9333ea;">${mostPopularPlan ? mostPopularPlan.plan : 'N/A'}</div>
+            <div style="font-size: 10px; color: #64748b;">${mostPopularPlan ? `${mostPopularPlan.count} lượt mua` : 'Chưa có'}</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-title">Khách Chi Nhiều Nhất</div>
+            <div class="kpi-value" style="font-size: 13px; color: #d97706; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+              ${topBuyer ? topBuyer.orgName : 'N/A'}
+            </div>
+            <div style="font-size: 10px; color: #64748b;">${topBuyer ? `${topBuyer.totalSpent.toLocaleString('vi-VN')} đ` : 'Chưa có'}</div>
+          </div>
+        </div>
+
+        <div class="section-heading">Bảng 1: Phân Tích Doanh Thu & Lượt Mua Theo Gói Cước</div>
+        <table>
+          <thead>
+            <tr>
+              <th style="width: 8%;">STT</th>
+              <th style="width: 20%;">Gói Cước</th>
+              <th style="width: 22%;">Số Lần Đặt Mua</th>
+              <th style="width: 25%;">Tỷ Lệ % Doanh Thu</th>
+              <th style="width: 25%; text-align: right;">Tổng Doanh Thu (VNĐ)</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${packageBreakdown.length === 0 ? `
+              <tr>
+                <td colspan="5" style="text-align: center; color: #94a3b8; padding: 15px;">Chưa có dữ liệu giao dịch trong khoảng thời gian này.</td>
+              </tr>
+            ` : packageBreakdown.map((p, idx) => `
+              <tr>
+                <td style="font-weight: bold; color: #64748b;">#${idx + 1}</td>
+                <td>
+                  <span class="badge-plan ${p.plan === 'VIP' ? 'plan-vip' : p.plan === 'PRO' ? 'plan-pro' : p.plan === 'BASIC' ? 'plan-basic' : 'plan-free'}">
+                    ${p.plan}
+                  </span>
+                </td>
+                <td style="font-weight: bold;">${p.count} lượt mua</td>
+                <td>
+                  <div style="display: flex; align-items: center; gap: 6px;">
+                    <div style="width: 50px; height: 6px; background: #e2e8f0; border-radius: 3px; overflow: hidden;">
+                      <div style="width: ${p.percentage}%; height: 100%; background: #0284c7;"></div>
+                    </div>
+                    <span>${p.percentage}%</span>
+                  </div>
+                </td>
+                <td style="font-weight: 900; text-align: right; color: #16a34a;">${p.totalRevenue.toLocaleString('vi-VN')} đ</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+
+        <div class="footer-sign">
+          <div class="sign-box">
+            <div style="font-weight: 800; font-size: 11px;">NGƯỜI LẬP BÁO CÁO</div>
+            <div style="font-size: 10px; color: #64748b; font-style: italic; margin-bottom: 45px;">(Ký & ghi rõ họ tên)</div>
+            <div style="font-weight: bold;">Quản Trị Viên Hệ Thống</div>
+          </div>
+          <div class="sign-box">
+            <div style="font-weight: 800; font-size: 11px;">ĐẠI DIỆN PHÊ DUYỆT</div>
+            <div style="font-size: 10px; color: #64748b; font-style: italic; margin-bottom: 45px;">(Ký & đóng dấu)</div>
+            <div style="font-weight: bold;">FlexiDoc Management</div>
+          </div>
+        </div>
+
+        <!-- PAGE BREAK TO PAGE 2 FOR DETAILED BUYERS LIST -->
+        <div class="page-break"></div>
+
+        <!-- PAGE 2: DETAILED BUYERS LIST TABLE -->
+        <div class="header-banner">
+          <div>
+            <h1 class="brand-title">FlexiDoc Enterprise - Trang 2</h1>
+            <div class="report-subtitle">DANH SÁCH CHI TIẾT KHÁCH HÀNG & TỔ CHỨC CHI TIÊU</div>
+          </div>
+          <div class="meta-info">
+            <div class="meta-badge">Thời gian: ${timeframeTitle}</div>
+            <div>Tổng số khách hàng: ${buyersList.length} tổ chức</div>
+          </div>
+        </div>
+
+        <div class="section-heading">Bảng 2: Danh Sách Chi Tiết Khách Hàng / Tổ Chức Đã Mua Gói Cước</div>
+        <table>
+          <thead>
+            <tr>
+              <th style="width: 5%;">STT</th>
+              <th style="width: 28%;">Tên Tổ Chức (Mã Org)</th>
+              <th style="width: 27%;">Người Đại Diện (Email / SĐT)</th>
+              <th style="width: 15%;">Gói Đã Mua</th>
+              <th style="width: 8%; text-align: center;">Số Đơn</th>
+              <th style="width: 17%; text-align: right;">Tổng Tiền Chi (VNĐ)</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${buyersList.length === 0 ? `
+              <tr>
+                <td colspan="6" style="text-align: center; color: #94a3b8; padding: 15px;">Không có dữ liệu người mua trong khoảng thời gian được chọn.</td>
+              </tr>
+            ` : buyersList.map((b, idx) => `
+              <tr>
+                <td style="font-weight: bold; color: #64748b;">#${idx + 1}</td>
+                <td>
+                  <div style="font-weight: 800; color: #0f172a;">${b.orgName}</div>
+                  <div style="font-size: 10px; color: #0284c7; font-family: monospace;">Mã: ${b.orgCode}</div>
+                </td>
+                <td>
+                  <div style="font-weight: bold;">${b.userFullName}</div>
+                  <div style="font-size: 10px; color: #64748b;">${b.userEmail} ${b.userPhone ? ' | ' + b.userPhone : ''}</div>
+                </td>
+                <td>
+                  ${b.plansPurchased.map(plan => `
+                    <span class="badge-plan ${plan === 'VIP' ? 'plan-vip' : plan === 'PRO' ? 'plan-pro' : plan === 'BASIC' ? 'plan-basic' : 'plan-free'}" style="margin-right: 2px;">
+                      ${plan}
+                    </span>
+                  `).join('')}
+                </td>
+                <td style="font-weight: bold; text-align: center;">${b.ordersCount} đơn</td>
+                <td style="font-weight: 900; text-align: right; color: #16a34a; font-size: 12.5px;">
+                  ${b.totalSpent.toLocaleString('vi-VN')} đ
+                </td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+
+        <div style="background: #f1f5f9; padding: 10px 14px; border-radius: 8px; border: 1px solid #cbd5e1; display: flex; justify-content: space-between; align-items: center; font-weight: bold; margin-top: 15px;">
+          <span>TỔNG CỘNG TOÀN BỘ DOANH THU KHÁCH HÀNG:</span>
+          <span style="font-size: 15px; font-weight: 900; color: #16a34a;">${totalRevenue.toLocaleString('vi-VN')} VNĐ</span>
+        </div>
+      </body>
+      </html>
+    `;
+
+    printWindow.document.open();
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
+    setTimeout(() => {
+      printWindow.print();
+    }, 400);
+  };
 
   useEffect(() => {
     fetchPaymentConfig();
@@ -252,26 +613,35 @@ export const AdminOrdersRevenuePage = () => {
           </p>
         </div>
 
-        {/* Tab Switcher */}
-        <div className="flex items-center gap-2 bg-slate-100 p-1 rounded-xl">
+        {/* Header Action Buttons & Tab Switcher */}
+        <div className="flex flex-wrap items-center gap-2.5">
           <button
-            onClick={() => setActiveTab('orders')}
-            className={`px-4 py-2 rounded-lg text-xs font-extrabold transition-all cursor-pointer flex items-center gap-1.5 ${activeTab === 'orders'
-              ? 'bg-white text-sky-700 shadow-xs'
-              : 'text-slate-600 hover:text-slate-900'
-              }`}
+            onClick={() => setReportModalOpen(true)}
+            className="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-extrabold text-xs shadow-md shadow-emerald-600/20 hover:shadow-emerald-600/35 transition-all cursor-pointer flex items-center gap-1.5 active:scale-95"
           >
-            <Clock size={15} /> Danh Sách Đơn Hàng ({stats.totalOrdersCount || 0})
+            <Printer size={15} /> Xuất Báo Cáo Doanh Thu
           </button>
-          <button
-            onClick={() => setActiveTab('settings')}
-            className={`px-4 py-2 rounded-lg text-xs font-extrabold transition-all cursor-pointer flex items-center gap-1.5 ${activeTab === 'settings'
-              ? 'bg-white text-sky-700 shadow-xs'
-              : 'text-slate-600 hover:text-slate-900'
-              }`}
-          >
-            <Settings size={15} /> Cấu Hình Thanh Toán & Webhook
-          </button>
+
+          <div className="flex items-center gap-2 bg-slate-100 p-1 rounded-xl">
+            <button
+              onClick={() => setActiveTab('orders')}
+              className={`px-4 py-2 rounded-lg text-xs font-extrabold transition-all cursor-pointer flex items-center gap-1.5 ${activeTab === 'orders'
+                ? 'bg-white text-sky-700 shadow-xs'
+                : 'text-slate-600 hover:text-slate-900'
+                }`}
+            >
+              <Clock size={15} /> Danh Sách Đơn Hàng ({stats.totalOrdersCount || 0})
+            </button>
+            <button
+              onClick={() => setActiveTab('settings')}
+              className={`px-4 py-2 rounded-lg text-xs font-extrabold transition-all cursor-pointer flex items-center gap-1.5 ${activeTab === 'settings'
+                ? 'bg-white text-sky-700 shadow-xs'
+                : 'text-slate-600 hover:text-slate-900'
+                }`}
+            >
+              <Settings size={15} /> Cấu Hình Thanh Toán & Webhook
+            </button>
+          </div>
         </div>
       </div>
 
@@ -1057,6 +1427,287 @@ export const AdminOrdersRevenuePage = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* 7. MODAL: XUẤT BÁO CÁO DOANH THU & PHÂN TÍCH (Rendered via Portal) */}
+      {reportModalOpen && createPortal(
+        <div
+          onClick={() => setReportModalOpen(false)}
+          className="fixed inset-0 z-[100000] bg-slate-950/80 backdrop-blur-md p-4 flex items-center justify-center animate-fade-in select-none"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white rounded-3xl p-6 md:p-8 max-w-4xl w-[95vw] max-h-[90vh] overflow-y-auto shadow-2xl border border-slate-200 text-slate-900 animate-modal-pop relative z-10"
+          >
+            {/* Modal Header */}
+            <div className="flex items-center justify-between pb-4 border-b border-slate-100 mb-5">
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-extrabold px-2.5 py-0.5 rounded-full flex items-center gap-1">
+                    <BarChart3 size={13} /> Báo Cáo Doanh Thu Hệ Thống
+                  </span>
+                </div>
+                <h2 className="text-xl font-black text-slate-900">Báo Cáo Doanh Thu & Phân Tích Gói Dịch Vụ</h2>
+              </div>
+
+              <button
+                onClick={() => setReportModalOpen(false)}
+                className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition-all cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Timeframe Filter Bar */}
+            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 mb-6 flex flex-col md:flex-row items-center justify-between gap-3">
+              <div className="flex items-center gap-2 w-full md:w-auto overflow-x-auto">
+                <span className="text-xs font-bold text-slate-500 flex items-center gap-1">
+                  <Calendar size={14} /> Khung thời gian:
+                </span>
+                {[
+                  { id: 'THIS_MONTH', label: 'Tháng này' },
+                  { id: 'TODAY', label: 'Hôm nay' },
+                  { id: 'THIS_WEEK', label: 'Tuần này' },
+                  { id: 'THIS_YEAR', label: 'Năm nay' },
+                  { id: 'ALL', label: 'Tất cả' },
+                  { id: 'CUSTOM', label: 'Tùy chọn' }
+                ].map((tf) => (
+                  <button
+                    key={tf.id}
+                    onClick={() => setReportTimeframe(tf.id)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                      reportTimeframe === tf.id
+                        ? 'bg-sky-600 text-white shadow-xs'
+                        : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-100'
+                    }`}
+                  >
+                    {tf.label}
+                  </button>
+                ))}
+              </div>
+
+              {reportTimeframe === 'CUSTOM' && (
+                <div className="flex items-center gap-2 w-full md:w-auto">
+                  <input
+                    type="date"
+                    value={reportStartDate}
+                    onChange={(e) => setReportStartDate(e.target.value)}
+                    className="px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-medium focus:ring-2 focus:ring-sky-500 outline-none bg-white"
+                  />
+                  <span className="text-xs text-slate-400">đến</span>
+                  <input
+                    type="date"
+                    value={reportEndDate}
+                    onChange={(e) => setReportEndDate(e.target.value)}
+                    className="px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-medium focus:ring-2 focus:ring-sky-500 outline-none bg-white"
+                  />
+                </div>
+              )}
+            </div>
+
+            {reportLoading ? (
+              <div className="py-16 text-center text-xs text-slate-400 font-bold flex items-center justify-center gap-2">
+                <Loader2 size={20} className="animate-spin text-sky-600" /> Đang tổng hợp dữ liệu báo cáo...
+              </div>
+            ) : !reportData ? (
+              <div className="py-12 text-center text-xs text-slate-400">Chưa có dữ liệu báo cáo.</div>
+            ) : (
+              <div className="space-y-6">
+                {/* Summary Cards */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                  <div className="bg-emerald-50/60 border border-emerald-200 p-4 rounded-2xl">
+                    <span className="text-[11px] font-bold text-emerald-800 uppercase block mb-1">Tổng Doanh Thu</span>
+                    <div className="text-xl font-black text-emerald-700">
+                      {reportData.summary.totalRevenue.toLocaleString('vi-VN')} đ
+                    </div>
+                    <span className="text-[10px] text-emerald-600 font-medium">Trong khung thời gian đã chọn</span>
+                  </div>
+
+                  <div className="bg-sky-50/60 border border-sky-200 p-4 rounded-2xl">
+                    <span className="text-[11px] font-bold text-sky-800 uppercase block mb-1">Đơn Hàng Thành Công</span>
+                    <div className="text-xl font-black text-sky-700">
+                      {reportData.summary.successOrdersCount} đơn
+                    </div>
+                    <span className="text-[10px] text-sky-600 font-medium">Đã thanh toán & kích hoạt</span>
+                  </div>
+
+                  <div className="bg-purple-50/60 border border-purple-200 p-4 rounded-2xl">
+                    <span className="text-[11px] font-bold text-purple-800 uppercase block mb-1">Gói Mua Nhiều Nhất</span>
+                    <div className="text-xl font-black text-purple-700">
+                      {reportData.summary.mostPopularPlan ? reportData.summary.mostPopularPlan.plan : 'N/A'}
+                    </div>
+                    <span className="text-[10px] text-purple-600 font-medium">
+                      {reportData.summary.mostPopularPlan ? `${reportData.summary.mostPopularPlan.count} lượt mua (${reportData.summary.mostPopularPlan.totalRevenue.toLocaleString('vi-VN')}đ)` : 'Chưa có lượt mua nào'}
+                    </span>
+                  </div>
+
+                  <div className="bg-amber-50/60 border border-amber-200 p-4 rounded-2xl">
+                    <span className="text-[11px] font-bold text-amber-900 uppercase block mb-1">Khách Chi Nhiều Nhất</span>
+                    <div className="text-sm font-black text-amber-800 truncate" title={reportData.summary.topBuyer?.orgName}>
+                      {reportData.summary.topBuyer ? reportData.summary.topBuyer.orgName : 'N/A'}
+                    </div>
+                    <span className="text-[10px] text-amber-700 font-bold block mt-0.5">
+                      {reportData.summary.topBuyer ? `${reportData.summary.topBuyer.totalSpent.toLocaleString('vi-VN')} đ` : 'Chưa có'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* PAGE 1 PREVIEW: Package Breakdown Table */}
+                <div className="border border-slate-200 rounded-2xl p-5 bg-white shadow-2xs">
+                  <div className="flex items-center justify-between mb-3">
+                    <h4 className="text-sm font-black text-slate-900 flex items-center gap-1.5">
+                      <PieChart size={16} className="text-sky-600" /> Bảng 1: Doanh Thu & Lượt Mua Theo Gói Cước (Trang 1)
+                    </h4>
+                    <span className="text-[11px] font-extrabold bg-sky-50 text-sky-700 border border-sky-200 px-2 py-0.5 rounded-full">
+                      Trang 1 / Executive Overview
+                    </span>
+                  </div>
+
+                  <div className="w-full overflow-x-auto">
+                    <table className="w-full text-left border-collapse text-xs">
+                      <thead>
+                        <tr className="border-b border-slate-200 bg-slate-50 text-[11px] font-extrabold text-slate-500 uppercase">
+                          <th className="py-2.5 px-3">STT</th>
+                          <th className="py-2.5 px-3">Gói Cước</th>
+                          <th className="py-2.5 px-3">Số Lần Đặt Mua</th>
+                          <th className="py-2.5 px-3">Tỷ Lệ % Doanh Thu</th>
+                          <th className="py-2.5 px-3 text-right">Tổng Doanh Thu (VNĐ)</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 font-medium">
+                        {reportData.packageBreakdown.length === 0 ? (
+                          <tr>
+                            <td colSpan={5} className="py-6 text-center text-slate-400 font-normal">Chưa có giao dịch trong thời gian này.</td>
+                          </tr>
+                        ) : (
+                          reportData.packageBreakdown.map((p, idx) => (
+                            <tr key={p.plan} className="hover:bg-slate-50/80">
+                              <td className="py-2.5 px-3 font-bold text-slate-400">#{idx + 1}</td>
+                              <td className="py-2.5 px-3 font-extrabold">
+                                <span className={`px-2 py-0.5 rounded-md text-[11px] font-extrabold border ${
+                                  p.plan === 'VIP' ? 'bg-purple-50 text-purple-700 border-purple-200' :
+                                  p.plan === 'PRO' ? 'bg-sky-50 text-sky-700 border-sky-200' :
+                                  p.plan === 'BASIC' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                                  'bg-slate-100 text-slate-700 border-slate-200'
+                                }`}>
+                                  {p.plan}
+                                </span>
+                              </td>
+                              <td className="py-2.5 px-3 font-bold text-slate-900">{p.count} lượt</td>
+                              <td className="py-2.5 px-3">
+                                <div className="flex items-center gap-2">
+                                  <div className="w-16 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                    <div className="h-full bg-sky-500 rounded-full" style={{ width: `${p.percentage}%` }} />
+                                  </div>
+                                  <span className="font-bold text-slate-700 text-[11px]">{p.percentage}%</span>
+                                </div>
+                              </td>
+                              <td className="py-2.5 px-3 text-right font-black text-emerald-600 text-sm">
+                                {p.totalRevenue.toLocaleString('vi-VN')}đ
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* PAGE BREAK INDICATOR */}
+                <div className="relative py-2 text-center">
+                  <div className="absolute inset-0 flex items-center">
+                    <div className="w-full border-t-2 border-dashed border-sky-300" />
+                  </div>
+                  <div className="relative inline-flex items-center gap-1.5 bg-sky-600 text-white font-black text-[11px] px-4 py-1 rounded-full uppercase shadow-xs">
+                    <Sparkles size={12} /> Tự Động Ngắt Trang Khi Xuất Báo Cáo (Page Break &rarr; Trang 2)
+                  </div>
+                </div>
+
+                {/* PAGE 2 PREVIEW: Detailed Buyers List Table */}
+                <div className="border border-slate-200 rounded-2xl p-5 bg-white shadow-2xs">
+                  <div className="flex items-center justify-between mb-3">
+                    <h4 className="text-sm font-black text-slate-900 flex items-center gap-1.5">
+                      <UserCheck size={16} className="text-emerald-600" /> Bảng 2: Danh Sách Chi Tiết Khách Hàng & Tổ Chức (Trang 2)
+                    </h4>
+                    <span className="text-[11px] font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-full">
+                      Trang 2 / Detailed Buyers List
+                    </span>
+                  </div>
+
+                  <div className="w-full overflow-x-auto max-h-60 overflow-y-auto">
+                    <table className="w-full text-left border-collapse text-xs">
+                      <thead>
+                        <tr className="border-b border-slate-200 bg-slate-50 text-[11px] font-extrabold text-slate-500 uppercase sticky top-0 bg-slate-50 z-10">
+                          <th className="py-2.5 px-3">STT</th>
+                          <th className="py-2.5 px-3">Tổ Chức</th>
+                          <th className="py-2.5 px-3">Người Đại Diện</th>
+                          <th className="py-2.5 px-3">Gói Mua</th>
+                          <th className="py-2.5 px-3 text-center">Số Đơn</th>
+                          <th className="py-2.5 px-3 text-right">Tổng Tiền Chi</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 font-medium">
+                        {reportData.buyersList.length === 0 ? (
+                          <tr>
+                            <td colSpan={6} className="py-6 text-center text-slate-400 font-normal">Chưa có khách hàng giao dịch.</td>
+                          </tr>
+                        ) : (
+                          reportData.buyersList.map((b, idx) => (
+                            <tr key={b.orgId} className="hover:bg-slate-50/80">
+                              <td className="py-2.5 px-3 font-bold text-slate-400">#{idx + 1}</td>
+                              <td className="py-2.5 px-3">
+                                <div className="font-extrabold text-slate-900">{b.orgName}</div>
+                                <span className="text-[10px] text-sky-700 font-mono">Mã: {b.orgCode}</span>
+                              </td>
+                              <td className="py-2.5 px-3">
+                                <div className="font-bold text-slate-800">{b.userFullName}</div>
+                                <span className="text-[10px] text-slate-400">{b.userEmail}</span>
+                              </td>
+                              <td className="py-2.5 px-3">
+                                {b.plansPurchased.map(p => (
+                                  <span key={p} className="inline-block px-1.5 py-0.5 rounded text-[10px] font-extrabold bg-slate-100 text-slate-700 mr-1 border border-slate-200">
+                                    {p}
+                                  </span>
+                                ))}
+                              </td>
+                              <td className="py-2.5 px-3 text-center font-bold text-slate-700">{b.ordersCount} đơn</td>
+                              <td className="py-2.5 px-3 text-right font-black text-emerald-600 text-sm">
+                                {b.totalSpent.toLocaleString('vi-VN')}đ
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* Modal Action Footer */}
+                <div className="flex items-center justify-between pt-4 border-t border-slate-100">
+                  <span className="text-xs text-slate-400 font-medium">
+                    Báo cáo sẽ được xuất dưới dạng HTML/PDF 2 trang sẵn sàng để in trực tiếp.
+                  </span>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setReportModalOpen(false)}
+                      className="px-4 py-2 rounded-xl border border-slate-200 text-slate-700 font-bold text-xs hover:bg-slate-50 cursor-pointer"
+                    >
+                      Hủy Bỏ
+                    </button>
+                    <button
+                      onClick={handlePrintReport}
+                      className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-extrabold text-xs shadow-md shadow-emerald-600/25 hover:shadow-emerald-600/40 active:scale-95 transition-all cursor-pointer flex items-center gap-2"
+                    >
+                      <Printer size={16} /> In / Xuất PDF Báo Cáo
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>,
         document.body

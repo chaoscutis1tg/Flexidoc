@@ -461,7 +461,7 @@ export const LandingPage = () => {
               <div className="text-xs font-black text-sky-600 uppercase tracking-wider">Gói Doanh Nghiệp Vừa</div>
               <h3 className="text-2xl font-black mt-1 text-slate-900">PRO</h3>
               <div className="my-4 flex items-baseline gap-1">
-                <span className="text-4xl font-black text-sky-600">499.000đ</span>
+                <span className="text-4xl font-black text-sky-600">299.000đ</span>
                 <span className="text-xs text-slate-500 font-bold">/ tháng</span>
               </div>
 

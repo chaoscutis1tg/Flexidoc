@@ -59,3 +59,13 @@ export const getAdminOrdersAndStats = async (req, res, next) => {
     next(error);
   }
 };
+
+export const getAdminReportData = async (req, res, next) => {
+  try {
+    const data = await orderService.getAdminReportData(req.query);
+    return sendSuccess(res, 200, 'Lấy dữ liệu báo cáo doanh thu thành công', data);
+  } catch (error) {
+    next(error);
+  }
+};
+

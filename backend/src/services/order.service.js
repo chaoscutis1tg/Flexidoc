@@ -263,6 +263,10 @@ export class OrderService {
     };
   }
 
+  async getAdminReportData(queryParams) {
+    return await orderRepository.getAdminReportData(queryParams || {});
+  }
+
   async _activateOrgPlan(orgId, newPlan, durationMonths = 1) {
     const org = await Organization.findById(orgId);
     if (!org) return;
