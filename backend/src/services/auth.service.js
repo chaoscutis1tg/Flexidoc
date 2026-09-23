@@ -111,11 +111,16 @@ export class AuthService {
     await user.save();
 
     const populatedUser = await userRepository.findById(user._id, null, { populate: 'organizationId' });
-    const token = this.generateToken(populatedUser);
     const userObj = populatedUser.toObject();
     delete userObj.passwordHash;
 
-    return { token, user: userObj };
+    if (!user.organizationId && user.role !== 'SUPER_ADMIN') {
+      return { token: null, user: userObj, requiresOrgSetup: true };
+    }
+
+    const token = this.generateToken(populatedUser);
+
+    return { token, user: userObj, requiresOrgSetup: false };
   }
 
   async changePassword(userId, oldPassword, newPassword) {
@@ -137,12 +142,22 @@ export class AuthService {
   async loginWithGoogle({ email, fullName, googleId, mode, orgCode, organizationName, accessToken }) {
     if (accessToken && !email) {
       try {
-        const googleRes = await fetch(`https://www.googleapis.com/oauth2/v3/userinfo?access_token=${accessToken}`);
-        const googleData = await googleRes.json();
+        let googleRes = await fetch(`https://www.googleapis.com/oauth2/v3/userinfo`, {
+          headers: { Authorization: `Bearer ${accessToken}` }
+        });
+        let googleData = await googleRes.json();
+        if (!googleData || !googleData.email) {
+          googleRes = await fetch(`https://www.googleapis.com/oauth2/v3/userinfo?access_token=${accessToken}`);
+          googleData = await googleRes.json();
+        }
+        if (!googleData || !googleData.email) {
+          googleRes = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${accessToken}`);
+          googleData = await googleRes.json();
+        }
         if (googleData && googleData.email) {
           email = googleData.email;
           fullName = googleData.name || googleData.given_name || email.split('@')[0];
-          googleId = 'GOOGLE_' + (googleData.sub || Date.now());
+          googleId = 'GOOGLE_' + (googleData.sub || googleData.user_id || Date.now());
         }
       } catch (err) {
         console.error('Server-side Google UserInfo fetch failed:', err);

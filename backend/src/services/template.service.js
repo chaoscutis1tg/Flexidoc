@@ -147,8 +147,17 @@ export class TemplateService {
       throw new AppError('Template không tồn tại.', 404);
     }
 
+    const { Contract } = await import('../models/contract.model.js');
+
     await templateRepository.deleteById(templateId, tenantContext);
     await templateRepository.deleteVersionsByTemplateId(templateId);
+
+    // Cascade: set templateId to null for contracts linked to this template
+    await Contract.updateMany(
+      { templateId },
+      { $set: { templateId: null } }
+    );
+
     return true;
   }
 

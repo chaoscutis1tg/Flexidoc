@@ -16,10 +16,12 @@ RUN npm install --production
 FROM node:20-alpine
 WORKDIR /app
 
-RUN apk add --no-cache mongodb-tools
+RUN apk add --no-cache mongodb-tools chromium nss freetype harfbuzz ca-certificates ttf-freefont font-noto-emoji
 
 ENV NODE_ENV=production
 ENV PORT=5000
+ENV CHROME_BIN=/usr/bin/chromium-browser
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 
 # Copy Backend node_modules & Source
 COPY --from=backend-builder /app/backend/node_modules ./backend/node_modules

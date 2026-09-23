@@ -28,6 +28,10 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
     return <Navigate to="/" replace />;
   }
 
+  if (!user.organizationId && user.role !== 'SUPER_ADMIN') {
+    return <Navigate to="/?setup_org=1" replace />;
+  }
+
   if (allowedRoles && !allowedRoles.includes(user.role)) {
     return <Navigate to="/dashboard" replace />;
   }

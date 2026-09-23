@@ -41,7 +41,7 @@ export const LandingPage = () => {
   const [authDefaultTab, setAuthDefaultTab] = useState('login');
   const [activeNav, setActiveNav] = useState('features');
 
-  // Auto open AuthModal if route is /login or /register
+  // Auto open AuthModal if route is /login, /register, or setup_org=1
   useEffect(() => {
     if (location.pathname === '/login') {
       setAuthDefaultTab('login');
@@ -49,8 +49,11 @@ export const LandingPage = () => {
     } else if (location.pathname === '/register') {
       setAuthDefaultTab('register');
       setAuthModalOpen(true);
+    } else if (location.search.includes('setup_org=1') || (user && !user.organizationId && user.role !== 'SUPER_ADMIN')) {
+      setAuthDefaultTab('login');
+      setAuthModalOpen(true);
     }
-  }, [location.pathname]);
+  }, [location.pathname, location.search, user]);
 
   const handleCloseAuthModal = () => {
     setAuthModalOpen(false);

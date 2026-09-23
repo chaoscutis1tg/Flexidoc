@@ -16,8 +16,40 @@ export class OrganizationService {
     }).populate('parentOrganizationId', 'name code');
   }
 
+  async cleanupDummyOrganizations() {
+    try {
+      const { Contract } = await import('../models/contract.model.js');
+      const { Template } = await import('../models/template.model.js');
+
+      // Find dummy orgs auto-generated with random code like ORG-12345
+      const dummyOrgs = await Organization.find({
+        code: { $regex: /^ORG-\d{5}$/ },
+        deletedAt: null
+      });
+
+      for (const org of dummyOrgs) {
+        // Check if this org has any contracts or templates created
+        const hasContracts = await Contract.exists({ organizationId: org._id });
+        const hasTemplates = await Template.exists({ organizationId: org._id });
+
+        if (!hasContracts && !hasTemplates) {
+          console.log(`[Cleanup] Resetting dummy auto-created org ${org.name} (${org.code})`);
+          await userRepository.updateMany(
+            { organizationId: org._id },
+            { $set: { organizationId: null } }
+          );
+          await Organization.findByIdAndDelete(org._id);
+        }
+      }
+    } catch (e) {
+      console.error('cleanupDummyOrganizations error:', e);
+    }
+  }
+
   async syncOrganizationManagers() {
     try {
+      await this.cleanupDummyOrganizations();
+
       const orgsWithoutManager = await Organization.find({
         $or: [
           { managerEmail: { $in: ['', null] } },
@@ -425,11 +457,68 @@ export class OrganizationService {
     if (!org) {
       throw new AppError('Tổ chức không tồn tại.', 404);
     }
-    const children = await organizationRepository.findDirectChildren(orgId);
-    if (children && children.length > 0) {
-      throw new AppError('Không thể xóa tổ chức đang chứa các chi nhánh con phía dưới. Vui lòng xóa hoặc chuyển chi nhánh con trước.', 400);
-    }
-    return await organizationRepository.deleteById(orgId, tenantContext);
+
+    // Find target org and all descendant organizations
+    const descendants = await Organization.find({ ancestors: org._id, deletedAt: null });
+    const allOrgIds = [org._id, ...descendants.map(d => d._id)];
+
+    const now = new Date();
+
+    // Dynamically import models for cascade deletion
+    const { User } = await import('../models/user.model.js');
+    const { Template } = await import('../models/template.model.js');
+    const { TemplateVersion } = await import('../models/template-version.model.js');
+    const { Contract } = await import('../models/contract.model.js');
+    const { ContractVersion } = await import('../models/contract-version.model.js');
+    const { MasterData } = await import('../models/master-data.model.js');
+
+    // 1. Soft-delete / Lock all users belonging to target organizations
+    await User.updateMany(
+      { organizationId: { $in: allOrgIds } },
+      { $set: { deletedAt: now, status: 'LOCKED' } }
+    );
+
+    // 2. Soft-delete templates and template versions
+    await Template.updateMany(
+      { organizationId: { $in: allOrgIds } },
+      { $set: { deletedAt: now, status: 'ARCHIVED' } }
+    );
+    await TemplateVersion.updateMany(
+      { organizationId: { $in: allOrgIds } },
+      { $set: { deletedAt: now } }
+    );
+
+    // 3. Soft-delete contracts and contract versions
+    await Contract.updateMany(
+      { organizationId: { $in: allOrgIds } },
+      { $set: { deletedAt: now, status: 'TERMINATED' } }
+    );
+    await ContractVersion.updateMany(
+      { organizationId: { $in: allOrgIds } },
+      { $set: { deletedAt: now } }
+    );
+
+    // 4. Delete permission grants involving these orgs
+    await PermissionGrant.deleteMany({
+      $or: [
+        { granterOrganizationId: { $in: allOrgIds } },
+        { granteeOrganizationId: { $in: allOrgIds } }
+      ]
+    });
+
+    // 5. Soft-delete MasterData
+    await MasterData.updateMany(
+      { organizationId: { $in: allOrgIds } },
+      { $set: { deletedAt: now } }
+    );
+
+    // 6. Soft-delete all organizations in subtree
+    await Organization.updateMany(
+      { _id: { $in: allOrgIds } },
+      { $set: { deletedAt: now, status: 'TERMINATED' } }
+    );
+
+    return true;
   }
 
   async grantPermission(granterOrgId, granteeOrgId, resource, action, scope, userId) {

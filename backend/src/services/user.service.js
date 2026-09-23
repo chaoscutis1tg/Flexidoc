@@ -81,6 +81,17 @@ export class UserService {
       }
     }
 
+    // Cascade: Clear manager fields in Organization if this user was manager
+    const { Organization } = await import('../models/organization.model.js');
+    await Organization.updateMany(
+      { managerUserId: id },
+      { $set: { managerUserId: null } }
+    );
+
+    // Cascade: Delete permission grants created by this user
+    const { PermissionGrant } = await import('../models/permission-grant.model.js');
+    await PermissionGrant.deleteMany({ grantedBy: id });
+
     return await userRepository.softDeleteById(id, tenantContext);
   }
 }

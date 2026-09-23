@@ -12,9 +12,13 @@ let browserPromise = null;
 
 async function getPuppeteerBrowser() {
   if (!browserPromise) {
-    let executablePath = process.env.CHROME_PATH;
+    let executablePath = process.env.CHROME_PATH || process.env.CHROME_BIN;
     if (!executablePath) {
-      if (fs.existsSync('C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe')) {
+      if (fs.existsSync('/usr/bin/chromium-browser')) {
+        executablePath = '/usr/bin/chromium-browser';
+      } else if (fs.existsSync('/usr/bin/chromium')) {
+        executablePath = '/usr/bin/chromium';
+      } else if (fs.existsSync('C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe')) {
         executablePath = 'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe';
       } else if (fs.existsSync('C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe')) {
         executablePath = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';

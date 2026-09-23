@@ -64,7 +64,7 @@ const showcaseSlides = [
 ];
 
 export const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
-  const { login, register, loginWithGoogle, setupGoogleOrg, checkOrgCode } = useAuth();
+  const { user, login, register, loginWithGoogle, setupGoogleOrg, checkOrgCode } = useAuth();
   const navigate = useNavigate();
 
   const [activeTab, setActiveTab] = useState(defaultTab); // 'login' | 'register'
@@ -103,8 +103,11 @@ export const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
     if (isOpen) {
       setActiveTab(defaultTab);
       setErrorMessage('');
+      if (user && !user.organizationId && user.role !== 'SUPER_ADMIN') {
+        setGoogleOrgSetupUser(user);
+      }
     }
-  }, [isOpen, defaultTab]);
+  }, [isOpen, defaultTab, user]);
 
   // Debounced check for Google Org Code
   useEffect(() => {
@@ -171,9 +174,14 @@ export const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
     setErrorMessage('');
     setLoading(true);
     try {
-      await login(loginEmail, loginPassword);
-      onClose();
-      navigate('/dashboard');
+      const res = await login(loginEmail, loginPassword);
+      const responseData = res?.data || res;
+      if (responseData && responseData.requiresOrgSetup) {
+        setGoogleOrgSetupUser(responseData.user);
+      } else {
+        onClose();
+        navigate('/dashboard');
+      }
     } catch (err) {
       setErrorMessage(err.message || 'Đăng nhập thất bại.');
     } finally {
@@ -264,52 +272,61 @@ export const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
     }
   };
 
-  // Check for access_token in URL hash (Redirect/Popup Flow Callback)
+  // Check for access_token / id_token in URL hash or search (Redirect/Popup Flow Callback)
   useEffect(() => {
     const handleHashAuth = async () => {
-      if (window.location.hash && window.location.hash.includes('access_token=')) {
-        const hashParams = new URLSearchParams(window.location.hash.substring(1));
-        const accessToken = hashParams.get('access_token');
-        const state = hashParams.get('state');
+      const hasHash = window.location.hash && window.location.hash.length > 1;
+      const hasSearch = window.location.search && window.location.search.length > 1;
 
-        const isPopup = state === 'is_popup_1' || Boolean(window.opener) || window.name === 'FlexiDocGoogleAuthPopup';
+      if (!hasHash && !hasSearch) return;
 
-        if (accessToken) {
-          window.history.replaceState(null, '', window.location.pathname);
+      const hashStr = hasHash ? window.location.hash.substring(1) : '';
+      const searchStr = hasSearch ? window.location.search.substring(1) : '';
+      const params = new URLSearchParams(hashStr + '&' + searchStr);
 
-          // Broadcast token to main window via BroadcastChannel
-          try {
-            const channel = new BroadcastChannel('flexidoc_oauth_channel');
-            channel.postMessage({ type: 'GOOGLE_OAUTH_TOKEN', accessToken });
-            channel.close();
-          } catch (e) {
-            console.warn('BroadcastChannel error:', e);
-          }
+      const accessToken = params.get('access_token') || params.get('id_token') || params.get('token');
+      const state = params.get('state');
 
-          // Broadcast token to main window via window.opener
-          if (window.opener && window.opener !== window) {
-            try {
-              window.opener.postMessage({ type: 'GOOGLE_OAUTH_TOKEN', accessToken }, '*');
-            } catch (e) { }
-          }
+      const isPopup = state === 'is_popup_1' || Boolean(window.opener && window.opener !== window) || window.name === 'FlexiDocGoogleAuthPopup';
 
-          // Broadcast token to main window via localStorage signal
-          localStorage.setItem('flexidoc_pending_google_token', accessToken);
-          localStorage.removeItem('flexidoc_pending_google_token');
+      if (accessToken) {
+        window.history.replaceState(null, '', window.location.pathname);
 
-          // If running inside popup window, force close immediately!
-          if (isPopup) {
-            document.body.style.display = 'none';
-            window.close();
-            setTimeout(() => {
-              window.close();
-            }, 100);
-            return;
-          }
-
-          // Direct full-page redirect flow
-          await executeGoogleAuth(null, null, accessToken, null);
+        // Broadcast token to main window via BroadcastChannel
+        try {
+          const channel = new BroadcastChannel('flexidoc_oauth_channel');
+          channel.postMessage({ type: 'GOOGLE_OAUTH_TOKEN', accessToken });
+          channel.close();
+        } catch (e) {
+          console.warn('BroadcastChannel error:', e);
         }
+
+        // Broadcast token to main window via window.opener
+        if (window.opener && window.opener !== window) {
+          try {
+            window.opener.postMessage({ type: 'GOOGLE_OAUTH_TOKEN', accessToken }, '*');
+          } catch (e) { }
+        }
+
+        // Broadcast token to main window via localStorage signal
+        localStorage.setItem('flexidoc_pending_google_token', accessToken);
+        localStorage.removeItem('flexidoc_pending_google_token');
+
+        // If running inside popup window, force close immediately!
+        if (isPopup) {
+          document.body.style.display = 'none';
+          window.close();
+          setTimeout(() => {
+            window.close();
+          }, 100);
+          return;
+        }
+
+        // Direct full-page redirect flow
+        await executeGoogleAuth(null, null, accessToken, null);
+      } else if (isPopup && (params.get('error') || params.get('iss'))) {
+        // If inside popup window and error/callback arrived without token, close popup
+        window.close();
       }
     };
     handleHashAuth();
