@@ -344,7 +344,7 @@ export const AdminSettingsPage = () => {
                       className="px-2.5 py-1 rounded-lg bg-emerald-50 border border-emerald-200 hover:border-emerald-500 text-emerald-800 font-bold text-[11px] shadow-2xs transition-all cursor-pointer flex items-center gap-1"
                       title={`Lấy trực tiếp từ tệp .env (${envServerUrl})`}
                     >
-                      🌿 Từ .env ({envServerUrl})
+                      <Globe size={13} className="inline text-emerald-600 mr-1" /> Từ .env ({envServerUrl})
                     </button>
                     <button
                       type="button"
@@ -352,7 +352,7 @@ export const AdminSettingsPage = () => {
                       className="px-2.5 py-1 rounded-lg bg-white border border-slate-200 hover:border-sky-500 text-slate-700 font-bold text-[11px] shadow-2xs hover:text-sky-600 transition-all cursor-pointer"
                       title="Sử dụng Host IP/Domain hiện tại trên trình duyệt"
                     >
-                      ⚡ Auto Host (:5000)
+                      <Zap size={13} className="inline text-amber-500 mr-1" /> Auto Host (:5000)
                     </button>
                     <button
                       type="button"
@@ -500,7 +500,7 @@ export const AdminSettingsPage = () => {
             <div>
               <div className="flex items-center gap-2 mb-3">
                 <div className="w-9 h-9 rounded-xl bg-sky-500/20 text-sky-400 flex items-center justify-center font-bold shadow-xs">
-                  ⚡
+                  <Zap size={18} />
                 </div>
                 <div>
                   <h4 className="text-base font-black text-white">Kết Nối SePay Webhook Auto</h4>

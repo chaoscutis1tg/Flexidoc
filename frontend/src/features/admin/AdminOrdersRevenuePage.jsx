@@ -1286,7 +1286,7 @@ export const AdminOrdersRevenuePage = () => {
                   <ShieldCheck size={14} className="text-emerald-600" /> Hình Thức & Lịch Sử
                 </span>
                 <div className="space-y-1 text-slate-800">
-                  <div>Hình thức: <strong>{selectedOrderDetails.paymentMethod === 'SEPAY_WEBHOOK' ? '⚡ SePay Webhook' : '👤 Duyệt Bằng Tay'}</strong></div>
+                  <div>Hình thức: <strong>{selectedOrderDetails.paymentMethod === 'SEPAY_WEBHOOK' ? 'SePay Webhook (Tự Động)' : 'Duyệt Thủ Công'}</strong></div>
                   <div>Ngày tạo đơn: {selectedOrderDetails.createdAt ? new Date(selectedOrderDetails.createdAt).toLocaleString('vi-VN') : 'N/A'}</div>
                   {selectedOrderDetails.approvedAt && (
                     <div>Ngày duyệt: {new Date(selectedOrderDetails.approvedAt).toLocaleString('vi-VN')}</div>
@@ -1380,7 +1380,7 @@ export const AdminOrdersRevenuePage = () => {
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl border border-slate-200 text-slate-900 animate-modal-pop relative z-10"
+            className="bg-white rounded-3xl p-6 max-w-md w-full max-h-[90vh] overflow-y-auto custom-scrollbar shadow-2xl border border-slate-200 text-slate-900 animate-modal-pop relative z-10"
           >
             <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
               <h3 className="text-base font-black text-red-700 flex items-center gap-2">

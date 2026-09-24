@@ -56,7 +56,7 @@ export const PendingInvitationsBanner = ({ onStatusChange }) => {
       setErrorMsg('');
       const res = await api.post(`/organizations/${inv._id}/approve`);
       if (res.success) {
-        setSuccessMsg(`🎉 Chúc mừng ${user?.fullName || ''}! Bạn đã xác nhận thành công và được nâng quyền lên Quản Lý Tổ Chức '${inv.name}' (Mã: ${inv.code}).`);
+        setSuccessMsg(`Chúc mừng ${user?.fullName || ''}! Bạn đã xác nhận thành công và được nâng quyền lên Quản Lý Tổ Chức '${inv.name}' (Mã: ${inv.code}).`);
         await refreshUser();
         if (onStatusChange) onStatusChange();
         fetchPendingInvitations();

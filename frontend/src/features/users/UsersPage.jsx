@@ -309,7 +309,7 @@ export const UsersPage = () => {
       {/* Modal 1: Create User */}
       {showCreateModal && createPortal(
         <div className="fixed inset-0 z-[99999] bg-slate-950/70 backdrop-blur-sm p-4 flex items-center justify-center animate-backdrop">
-          <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl w-full max-w-lg p-6 sm:p-8 space-y-6 animate-modal-pop">
+          <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto custom-scrollbar p-6 sm:p-8 space-y-6 animate-modal-pop">
             {/* Modal Header */}
             <div className="flex items-center justify-between border-b border-slate-100 pb-4">
               <div className="flex items-center gap-3">
@@ -458,7 +458,7 @@ export const UsersPage = () => {
       {/* Modal 2: Edit User */}
       {showEditModal && createPortal(
         <div className="fixed inset-0 z-[99999] bg-slate-950/70 backdrop-blur-sm p-4 flex items-center justify-center animate-backdrop">
-          <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl w-full max-w-lg p-6 sm:p-8 space-y-6 animate-modal-pop">
+          <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto custom-scrollbar p-6 sm:p-8 space-y-6 animate-modal-pop">
             {/* Modal Header */}
             <div className="flex items-center justify-between border-b border-slate-100 pb-4">
               <div className="flex items-center gap-3">

@@ -1470,7 +1470,7 @@ export const OrganizationsPage = () => {
                 className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-full transition-colors cursor-pointer"
                 title="Đóng"
               >
-                ✕
+                <X size={18} />
               </button>
             </div>
 
@@ -1699,7 +1699,7 @@ export const OrganizationsPage = () => {
                   <div className="p-3 bg-gradient-to-r from-sky-50 to-indigo-50 border border-sky-200 rounded-2xl flex items-center justify-between gap-3 shadow-2xs animate-fade-in">
                     <div className="flex items-center gap-2.5 min-w-0">
                       <div className="w-7 h-7 rounded-xl bg-sky-600 text-white flex items-center justify-center font-black text-xs shrink-0 shadow-xs">
-                        ✓
+                        <Check size={16} strokeWidth={3} />
                       </div>
                       <div className="min-w-0">
                         <div className="text-xs font-extrabold text-sky-900 truncate">
@@ -1763,7 +1763,7 @@ export const OrganizationsPage = () => {
                 className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-full transition-colors cursor-pointer"
                 title="Đóng"
               >
-                ✕
+                <X size={18} />
               </button>
             </div>
 
@@ -1985,7 +1985,7 @@ export const OrganizationsPage = () => {
                   <div className="p-3.5 bg-gradient-to-r from-amber-50 via-orange-50 to-amber-50 border border-amber-200 rounded-2xl flex items-center justify-between gap-3 shadow-2xs animate-fade-in">
                     <div className="flex items-center gap-3 min-w-0">
                       <div className="w-8 h-8 rounded-xl bg-amber-500 text-white flex items-center justify-center font-black text-sm shrink-0 shadow-sm">
-                        ✓
+                        <Check size={18} strokeWidth={3} />
                       </div>
                       <div className="min-w-0">
                         <div className="text-xs font-black text-amber-900 truncate">
@@ -2053,7 +2053,7 @@ export const OrganizationsPage = () => {
       {/* SUPER ADMIN DYNAMIC GRANT PLAN MODAL */}
       {showGrantPlanModal && selectedOrgForGrant && createPortal(
         <div className="fixed inset-0 z-[99999] bg-slate-950/80 backdrop-blur-md p-4 flex items-center justify-center animate-backdrop select-none">
-          <div className="bg-white rounded-3xl p-6 sm:p-7 max-w-lg w-[94vw] shadow-2xl border border-slate-200 animate-modal-pop text-slate-900">
+          <div className="bg-white rounded-3xl p-6 sm:p-7 max-w-lg w-[94vw] max-h-[90vh] overflow-y-auto custom-scrollbar shadow-2xl border border-slate-200 animate-modal-pop text-slate-900">
             
             <div className="flex items-center justify-between pb-4 border-b border-slate-100 mb-4">
               <div>

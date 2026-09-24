@@ -95,7 +95,7 @@ export const ConfirmProvider = ({ children }) => {
               onClick={() => handleClose(false)}
             >
               <div 
-                className="bg-white rounded-3xl overflow-hidden shadow-2xl border border-slate-200 w-full max-w-md animate-scale-in relative z-50 pointer-events-auto"
+                className="bg-white rounded-3xl overflow-hidden shadow-2xl border border-slate-200 w-full max-w-md max-h-[90vh] overflow-y-auto custom-scrollbar animate-scale-in relative z-50 pointer-events-auto"
                 onClick={(e) => e.stopPropagation()}
               >
                 {/* Header */}

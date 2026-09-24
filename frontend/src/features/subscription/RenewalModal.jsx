@@ -262,11 +262,11 @@ export const RenewalModal = ({ isOpen, onClose, targetOrg = null }) => {
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="bg-white rounded-3xl p-4 sm:p-5 max-w-5xl w-[95vw] shadow-2xl border border-slate-200 animate-modal-pop text-slate-900 relative z-10 overflow-hidden"
+        className="bg-white rounded-3xl p-4 sm:p-5 max-w-5xl w-[95vw] max-h-[90vh] overflow-y-auto custom-scrollbar shadow-2xl border border-slate-200 animate-modal-pop text-slate-900 relative z-10"
       >
 
         {/* Header */}
-        <div className="flex items-center justify-between pb-2.5 border-b border-slate-200 mb-3">
+        <div className="flex items-center justify-between pb-2.5 border-b border-slate-200 mb-3 sticky top-0 bg-white z-20">
           <div>
             <h2 className="text-base sm:text-lg font-black text-slate-900 flex items-center gap-2">
               <Crown className="text-purple-600 shrink-0" size={20} />
@@ -308,12 +308,13 @@ export const RenewalModal = ({ isOpen, onClose, targetOrg = null }) => {
               </div>
             </div>
 
-            <span className="text-xs font-black text-emerald-700 uppercase tracking-widest bg-emerald-50 px-3 py-0.5 rounded-full border border-emerald-200/90 mb-2 shadow-2xs">
-              ⚡ Giao Dịch Đã Xác Nhận Thành Công
+            <span className="text-xs font-black text-emerald-700 uppercase tracking-widest bg-emerald-50 px-3 py-1 rounded-full border border-emerald-200/90 mb-2 shadow-2xs inline-flex items-center gap-1.5">
+              <Zap size={14} className="text-amber-500 shrink-0" /> Giao Dịch Đã Xác Nhận Thành Công
             </span>
 
-            <h3 className="text-xl md:text-2xl font-black text-slate-900 mb-1.5 tracking-tight">
-              🎉 Kích Hoạt Gói {createdOrder?.plan || selectedPlan} Thành Công!
+            <h3 className="text-xl md:text-2xl font-black text-slate-900 mb-1.5 tracking-tight flex items-center justify-center gap-2">
+              <Sparkles size={24} className="text-amber-500 shrink-0" />
+              <span>Kích Hoạt Gói {createdOrder?.plan || selectedPlan} Thành Công!</span>
             </h3>
 
             <p className="text-xs text-slate-600 font-medium max-w-md mb-4 leading-relaxed">
