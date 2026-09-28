@@ -384,23 +384,29 @@ h1, h2, h3, h4, h5, h6 {
   border-collapse: collapse;
   margin-top: 8px;
   margin-bottom: 16px;
+  table-layout: auto !important;
 }
 
 .word-paper-sheet td,
 .word-paper-sheet th,
 .word-paper-sheet div td,
 .word-paper-sheet div th {
+  border: 1px solid #000000;
   vertical-align: top;
   padding: 6px 8px;
-  word-wrap: break-word;
-  overflow-wrap: break-word;
+  word-break: normal !important;
+  overflow-wrap: normal !important;
+  word-wrap: normal !important;
 }
 
 .word-paper-sheet p,
 .word-paper-sheet div p {
   line-height: 1.5;
-  margin-top: 2px;
+  margin-top: 4px;
   margin-bottom: 6px;
+  word-break: normal !important;
+  overflow-wrap: normal !important;
+  word-wrap: normal !important;
 }
 
 .word-paper-sheet mark {

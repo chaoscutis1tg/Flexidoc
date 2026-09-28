@@ -209,18 +209,34 @@ export class ContractService {
             table {
               width: 100% !important;
               border-collapse: collapse !important;
-              table-layout: fixed !important;
+              table-layout: auto !important;
+              margin-top: 8px;
               margin-bottom: 12px;
             }
-            td, th {
+            table:not([style*="border: none"]) td,
+            table:not([style*="border: none"]) th {
+              border: 1px solid #000000;
               vertical-align: top;
-              padding: 4px 6px;
-              word-break: break-word;
+              padding: 6px 8px;
+              word-break: normal !important;
+              overflow-wrap: normal !important;
+            }
+            td[style*="border: none"],
+            th[style*="border: none"] {
+              border: none !important;
             }
             p {
               margin-top: 4px;
-              margin-bottom: 4px;
+              margin-bottom: 6px;
+              line-height: 1.5;
+              word-break: normal !important;
+              overflow-wrap: normal !important;
             }
+            .text-center { text-align: center !important; text-indent: 0 !important; }
+            .text-right { text-align: right !important; text-indent: 0 !important; }
+            .text-justify { text-align: justify !important; }
+            .text-indent { text-indent: 1cm !important; text-align: justify !important; }
+            .text-indent-justify { text-indent: 1cm !important; text-align: justify !important; }
             mark {
               background: transparent !important;
               color: inherit !important;
