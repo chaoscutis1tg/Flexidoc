@@ -164,7 +164,12 @@ export class ContractService {
     if (templateContentHtml) {
       let content = templateContentHtml;
       fields.forEach(field => {
-        const val = inputData[field.key] !== undefined ? inputData[field.key] : '';
+        let val = inputData[field.key] !== undefined ? inputData[field.key] : '';
+        // Format DATE_VN: yyyy-mm-dd → "ngày DD tháng MM năm YYYY"
+        if (field.type === 'DATE_VN' && val && /^\d{4}-\d{2}-\d{2}$/.test(val)) {
+          const [year, month, day] = val.split('-');
+          val = `ngày ${day} tháng ${month} năm ${year}`;
+        }
         const regex = new RegExp(`\\{\\{${field.key}\\}\\}`, 'g');
         content = content.replace(regex, val);
       });
@@ -441,6 +446,42 @@ export class ContractService {
 
     return { contract, contractVersion };
   }
+
+  async generateDocxBuffer(contractId, tenantContext = null) {
+    const details = await this.getContractDetails(contractId, tenantContext);
+    const contract = details.contract;
+    const versionData = details.currentVersionData;
+    const inputData = versionData.inputData || {};
+
+    const templateVersionObj = await templateRepository.findVersion(contract.templateId, contract.templateVersion);
+
+    if (templateVersionObj && templateVersionObj.originalFileKey && fs.existsSync(templateVersionObj.originalFileKey)) {
+      const fileBuffer = fs.readFileSync(templateVersionObj.originalFileKey);
+      const zip = new PizZip(fileBuffer);
+      const doc = new Docxtemplater(zip, { paragraphLoop: true, linebreaks: true });
+
+      const formattedData = {};
+      (templateVersionObj.fields || []).forEach(f => {
+        let val = inputData[f.key] !== undefined ? inputData[f.key] : '';
+        if (f.type === 'DATE_VN' && val && /^\d{4}-\d{2}-\d{2}$/.test(val)) {
+          const [year, month, day] = val.split('-');
+          val = `ngày ${day} tháng ${month} năm ${year}`;
+        } else if (f.type === 'CURRENCY' && val && !isNaN(Number(val))) {
+          val = Number(val).toLocaleString('vi-VN') + ' VNĐ';
+        } else if (f.type === 'NUMBER' && val && !isNaN(Number(val))) {
+          val = Number(val).toLocaleString('vi-VN');
+        }
+        formattedData[f.key] = val;
+      });
+
+      doc.setData(formattedData);
+      doc.render();
+      return doc.getZip().generate({ type: 'nodebuffer' });
+    }
+
+    throw new AppError('Mẫu file DOCX gốc không tìm thấy để sinh file DOCX.', 404);
+  }
 }
 
 export const contractService = new ContractService();
+

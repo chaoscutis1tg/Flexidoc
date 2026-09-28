@@ -59,3 +59,20 @@ export const downloadContractPdf = async (req, res, next) => {
     next(error);
   }
 };
+
+export const downloadContractDocx = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const details = await contractService.getContractDetails(id, req.tenantContext);
+    const docxBuffer = await contractService.generateDocxBuffer(id, req.tenantContext);
+
+    await auditLogService.logAction(req, 'CONTRACT_DOWNLOADED_DOCX', 'contract', id);
+
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+    res.setHeader('Content-Disposition', `attachment; filename="Contract_${details.contract.code}.docx"`);
+    return res.send(docxBuffer);
+  } catch (error) {
+    next(error);
+  }
+};
+

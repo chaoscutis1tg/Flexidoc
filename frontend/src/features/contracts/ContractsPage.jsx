@@ -314,6 +314,34 @@ export const ContractsPage = () => {
     }
   };
 
+  const handleDownloadDocx = async (contractId, code) => {
+    try {
+      const res = await api.get(`/contracts/${contractId}/download-docx`, { responseType: 'blob' });
+
+      if (res && (res.type === 'application/json' || (res instanceof Blob && res.type.includes('json')))) {
+        const text = await res.text();
+        let errorMsg = 'Không thể xuất file DOCX.';
+        try {
+          const json = JSON.parse(text);
+          errorMsg = json.message || errorMsg;
+        } catch (e) {}
+        throw new Error(errorMsg);
+      }
+
+      const blob = res instanceof Blob ? res : new Blob([res], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `HD_${code || contractId}.docx`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      alert('Không thể tải DOCX: ' + err.message);
+    }
+  };
+
   const renderViewContractModal = () => {
     if (!viewingContract) return null;
     const { contract, currentVersionData } = viewingContract;
@@ -363,6 +391,14 @@ export const ContractsPage = () => {
               <button
                 type="button"
                 className="btn-action btn-create"
+                onClick={() => handleDownloadDocx(contract._id, contract.code)}
+                style={{ padding: '8px 18px', background: '#0284c7' }}
+              >
+                <Download size={16} /> Tải File Word (.DOCX)
+              </button>
+              <button
+                type="button"
+                className="btn-action btn-create"
                 onClick={() => handlePrintContract(viewingContract)}
                 style={{ padding: '8px 18px' }}
               >
@@ -375,6 +411,7 @@ export const ContractsPage = () => {
       </div>
     );
   };
+
 
   const renderModalContent = () => (
     <div className="modal-overlay">
@@ -620,7 +657,7 @@ export const ContractsPage = () => {
                               <span className="text-[10px] font-mono text-slate-400">Key: {field.key}</span>
                             </div>
                             <input
-                              type={field.type === 'DATE' ? 'date' : field.type === 'NUMBER' || field.type === 'CURRENCY' ? 'number' : 'text'}
+                              type={field.type === 'DATE' || field.type === 'DATE_VN' ? 'date' : field.type === 'NUMBER' || field.type === 'CURRENCY' ? 'number' : 'text'}
                               required={field.required}
                               className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-medium bg-white text-slate-900 focus:outline-none focus:border-sky-500 transition-all"
                               placeholder={`Nhập ${field.label.toLowerCase()}...`}
@@ -982,12 +1019,20 @@ export const ContractsPage = () => {
                           <Eye size={13} /> Xem
                         </button>
                         <button
+                          onClick={() => handleDownloadDocx(c._id, c.code)}
+                          className="px-2.5 py-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold text-[11px] transition-all cursor-pointer flex items-center gap-1 border border-blue-200"
+                          title="Tải file Word (.DOCX)"
+                        >
+                          <Download size={13} /> DOCX
+                        </button>
+                        <button
                           onClick={() => handleDownloadPdf(c._id, c.code)}
                           className="px-2.5 py-1.5 rounded-lg bg-sky-50 hover:bg-sky-100 text-sky-700 font-bold text-[11px] transition-all cursor-pointer flex items-center gap-1 border border-sky-200"
                           title="Tải PDF"
                         >
                           <Download size={13} /> PDF
                         </button>
+
                       </div>
                     </td>
                   </tr>

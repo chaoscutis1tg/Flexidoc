@@ -78,10 +78,25 @@ const templateVersionSchema = new mongoose.Schema({
     type: String,
     default: '',
   },
+  originalFileKey: {
+    type: String,
+    default: '',
+  },
+  documentModel: {
+    type: mongoose.Schema.Types.Mixed,
+    default: null,
+  },
   templateContentHtml: {
     type: String,
     default: '',
   },
+  images: [{
+    relationshipId: String,
+    fileKey: String,
+    contentType: String,
+    width: Number,
+    height: Number,
+  }],
   createdBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',

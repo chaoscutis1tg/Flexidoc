@@ -4,6 +4,7 @@ import api from '../../services/api';
 import { useAuth } from '../../app/AuthContext';
 import { useConfirm } from '../../app/ConfirmContext';
 import mammoth from 'mammoth';
+import { DocumentRenderer } from './editor/DocumentRenderer.jsx';
 import {
   FilePlus,
   Plus,
@@ -29,6 +30,7 @@ import {
   AlertTriangle,
   Lock
 } from 'lucide-react';
+
 
 // Smart DOM-based Pagination Engine to break Word HTML into authentic A4 Pages
 const splitContentIntoPages = (htmlContent) => {
@@ -119,7 +121,11 @@ export const TemplatesPage = () => {
   const [templates, setTemplates] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [activeTab, setActiveTab] = useState('editor'); // 'editor' | 'preview'
+  const [activeTab, setActiveTab] = useState('document'); // 'document' | 'editor' | 'preview'
+
+  // Document Model & File State
+  const [documentModel, setDocumentModel] = useState(null);
+  const [uploadedFile, setUploadedFile] = useState(null);
 
   // Template Form State
   const [createForm, setCreateForm] = useState({
@@ -129,6 +135,7 @@ export const TemplatesPage = () => {
     templateContentHtml: '',
     templateContentText: '',
   });
+
 
   const [fields, setFields] = useState([]);
   const [newField, setNewField] = useState({
@@ -329,6 +336,236 @@ export const TemplatesPage = () => {
     return text.trim();
   };
 
+  // Extract multiple XML files from a .docx ZIP archive using browser-native DecompressionStream
+  const extractDocxFiles = async (arrayBuffer, fileNames) => {
+    try {
+      const uint8 = new Uint8Array(arrayBuffer);
+      const view = new DataView(arrayBuffer);
+      let eocd = -1;
+      for (let i = uint8.length - 22; i >= Math.max(0, uint8.length - 65557); i--) {
+        if (view.getUint32(i, true) === 0x06054b50) { eocd = i; break; }
+      }
+      if (eocd === -1) return {};
+      const cdOff = view.getUint32(eocd + 16, true);
+      const cdCount = view.getUint16(eocd + 10, true);
+      const results = {};
+      const remaining = new Set(fileNames);
+      let off = cdOff;
+      for (let i = 0; i < cdCount && remaining.size > 0; i++) {
+        if (view.getUint32(off, true) !== 0x02014b50) break;
+        const method = view.getUint16(off + 10, true);
+        const cSize = view.getUint32(off + 20, true);
+        const nLen = view.getUint16(off + 28, true);
+        const eLen = view.getUint16(off + 30, true);
+        const cLen = view.getUint16(off + 32, true);
+        const locOff = view.getUint32(off + 42, true);
+        const name = new TextDecoder().decode(uint8.slice(off + 46, off + 46 + nLen));
+        if (remaining.has(name)) {
+          const lnLen = view.getUint16(locOff + 26, true);
+          const leLen = view.getUint16(locOff + 28, true);
+          const dataOff = locOff + 30 + lnLen + leLen;
+          const raw = uint8.slice(dataOff, dataOff + cSize);
+          if (method === 0) {
+            results[name] = new TextDecoder('utf-8').decode(raw);
+          } else if (method === 8) {
+            const ds = new DecompressionStream('deflate-raw');
+            const readable = new Blob([raw]).stream().pipeThrough(ds);
+            const reader = readable.getReader();
+            const chunks = [];
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) break;
+              chunks.push(value);
+            }
+            const total = chunks.reduce((s, c) => s + c.length, 0);
+            const result = new Uint8Array(total);
+            let p = 0;
+            for (const c of chunks) { result.set(c, p); p += c.length; }
+            results[name] = new TextDecoder('utf-8').decode(result);
+          }
+          remaining.delete(name);
+        }
+        off += 46 + nLen + eLen + cLen;
+      }
+      return results;
+    } catch { return {}; }
+  };
+
+  // Parse <w:ind> attributes from an XML string fragment
+  const parseIndFromXml = (xmlFragment) => {
+    const m = xmlFragment.match(/<w:ind\s+([^/>]*)\/?\s*>/i);
+    if (!m) return null;
+    const a = m[1];
+    return {
+      left: parseFloat((a.match(/w:left="(\d+)"/i) || a.match(/w:start="(\d+)"/i) || [0, 0])[1]),
+      firstLine: parseFloat((a.match(/w:firstLine="(\d+)"/i) || [0, 0])[1]),
+      hanging: parseFloat((a.match(/w:hanging="(\d+)"/i) || [0, 0])[1]),
+    };
+  };
+
+  // Build styleId → indent map from word/styles.xml
+  const buildStyleIndentMap = (stylesXml) => {
+    if (!stylesXml) return {};
+    const map = {};
+    const styleRegex = /<w:style\s[^>]*w:styleId="([^"]*)"[^>]*>([\s\S]*?)<\/w:style>/gi;
+    let m;
+    while ((m = styleRegex.exec(stylesXml)) !== null) {
+      const styleId = m[1];
+      const content = m[2];
+      const pPrM = content.match(/<w:pPr>([\s\S]*?)<\/w:pPr>/i);
+      if (pPrM) {
+        const ind = parseIndFromXml(pPrM[1]);
+        if (ind) map[styleId] = ind;
+      }
+      // Also check for basedOn to build inheritance chain later
+      const basedOnM = content.match(/<w:basedOn\s+w:val="([^"]*)"/i);
+      if (basedOnM) {
+        if (!map[styleId]) map[styleId] = { left: 0, firstLine: 0, hanging: 0, basedOn: basedOnM[1] };
+        else map[styleId].basedOn = basedOnM[1];
+      }
+    }
+    // Resolve style inheritance (up to 5 levels deep)
+    for (let depth = 0; depth < 5; depth++) {
+      for (const id of Object.keys(map)) {
+        const style = map[id];
+        if (style.basedOn && style.left === 0 && style.firstLine === 0 && style.hanging === 0) {
+          const parent = map[style.basedOn];
+          if (parent) {
+            style.left = parent.left || 0;
+            style.firstLine = parent.firstLine || 0;
+            style.hanging = parent.hanging || 0;
+          }
+        }
+      }
+    }
+    return map;
+  };
+
+  // Build numId:ilvl → indent map from word/numbering.xml
+  const buildNumberingIndentMap = (numberingXml) => {
+    if (!numberingXml) return {};
+    const map = {};
+    // Parse abstractNum definitions
+    const absNumMap = {};
+    const absRegex = /<w:abstractNum\s[^>]*w:abstractNumId="(\d+)"[^>]*>([\s\S]*?)<\/w:abstractNum>/gi;
+    let m;
+    while ((m = absRegex.exec(numberingXml)) !== null) {
+      const absId = m[1];
+      const content = m[2];
+      const lvlRegex = /<w:lvl\s[^>]*w:ilvl="(\d+)"[^>]*>([\s\S]*?)<\/w:lvl>/gi;
+      let lm;
+      while ((lm = lvlRegex.exec(content)) !== null) {
+        const ilvl = lm[1];
+        const lvlContent = lm[2];
+        const pPrM = lvlContent.match(/<w:pPr>([\s\S]*?)<\/w:pPr>/i);
+        if (pPrM) {
+          const ind = parseIndFromXml(pPrM[1]);
+          if (ind) absNumMap[`${absId}:${ilvl}`] = ind;
+        }
+      }
+    }
+    // Map numId → abstractNumId
+    const numRegex = /<w:num\s[^>]*w:numId="(\d+)"[^>]*>([\s\S]*?)<\/w:num>/gi;
+    while ((m = numRegex.exec(numberingXml)) !== null) {
+      const numId = m[1];
+      const content = m[2];
+      const absIdM = content.match(/<w:abstractNumId\s+w:val="(\d+)"/i);
+      if (absIdM) {
+        const absId = absIdM[1];
+        // Copy all levels from abstractNum to this numId
+        for (let lvl = 0; lvl < 10; lvl++) {
+          const key = `${absId}:${lvl}`;
+          if (absNumMap[key]) map[`${numId}:${lvl}`] = absNumMap[key];
+        }
+      }
+    }
+    return map;
+  };
+
+  // Parse ALL paragraph indents from word/document.xml using style + numbering maps
+  const parseAllParaIndents = (docXml, styleMap, numMap) => {
+    if (!docXml) return [];
+    const result = [];
+    const paraRegex = /<w:p\b[^>]*>([\s\S]*?)<\/w:p>/gi;
+    let m;
+    while ((m = paraRegex.exec(docXml)) !== null) {
+      const paraContent = m[1];
+      let indent = { left: 0, firstLine: 0, hanging: 0 };
+
+      const pPrM = paraContent.match(/<w:pPr>([\s\S]*?)<\/w:pPr>/i);
+      if (pPrM) {
+        const pPr = pPrM[1];
+
+        // Priority 1: Direct <w:ind> on the paragraph
+        const directInd = parseIndFromXml(pPr);
+
+        // Priority 2: Style-based indent
+        let styleInd = null;
+        const styleM = pPr.match(/<w:pStyle\s+w:val="([^"]*)"/i);
+        if (styleM && styleMap[styleM[1]]) {
+          styleInd = styleMap[styleM[1]];
+        }
+
+        // Priority 3: Numbering-based indent
+        let numInd = null;
+        const numPrM = pPr.match(/<w:numPr>([\s\S]*?)<\/w:numPr>/i);
+        if (numPrM) {
+          const numIdM = numPrM[1].match(/<w:numId\s+w:val="(\d+)"/i);
+          const ilvlM = numPrM[1].match(/<w:ilvl\s+w:val="(\d+)"/i);
+          if (numIdM) {
+            const lvl = ilvlM ? ilvlM[1] : '0';
+            numInd = numMap[`${numIdM[1]}:${lvl}`];
+            // Fallback: estimate from level if numbering XML didn't have indent
+            if (!numInd) {
+              const level = parseInt(lvl);
+              numInd = { left: level * 720 + 360, firstLine: 0, hanging: 360 };
+            }
+          }
+        }
+
+        // Merge: direct > numbering > style (higher priority wins)
+        if (directInd) {
+          indent = directInd;
+        } else if (numInd) {
+          indent = numInd;
+        } else if (styleInd) {
+          indent = styleInd;
+        }
+      }
+
+      result.push(indent);
+    }
+    return result;
+  };
+
+  // Parse table border visibility from Word XML (reads <w:tblBorders> for each <w:tbl>)
+  const parseTableBorders = (xmlStr) => {
+    if (!xmlStr) return [];
+    const result = [];
+    const tblPrRegex = /<w:tbl\b[^>]*>\s*<w:tblPr\b[^>]*>([\s\S]*?)<\/w:tblPr>/gi;
+    let m;
+    while ((m = tblPrRegex.exec(xmlStr)) !== null) {
+      const tblPr = m[1];
+      let hasBorders = false;
+      // Check table style (e.g., TableGrid = bordered)
+      const styleM = tblPr.match(/<w:tblStyle\s+w:val="([^"]*)"/i);
+      if (styleM && /grid/i.test(styleM[1])) hasBorders = true;
+      // Check explicit <w:tblBorders> (overrides style)
+      const bordersM = tblPr.match(/<w:tblBorders>([\s\S]*?)<\/w:tblBorders>/i);
+      if (bordersM) {
+        const bXml = bordersM[1];
+        const bp = /<w:\w+[^>]*w:val="([^"]*)"/gi;
+        let bm, anyVisible = false;
+        while ((bm = bp.exec(bXml)) !== null) {
+          if (bm[1] !== 'none' && bm[1] !== 'nil') { anyVisible = true; break; }
+        }
+        hasBorders = anyVisible;
+      }
+      result.push(hasBorders);
+    }
+    return result;
+  };
+
   // Helper to format table cell tag styles cleanly without broken attributes or stray > characters
   const formatTagStyles = (htmlStr, defaultStyles) => {
     return htmlStr.replace(/<(td|th)([^>]*)>/gi, (fullMatch, tagName, attrs) => {
@@ -373,7 +610,7 @@ export const TemplatesPage = () => {
   };
 
   // Clean Word HTML artifacts while preserving 100% exact DOCX formatting, table borders & paragraph alignment
-  const cleanWordHtml = (html) => {
+  const cleanWordHtml = (html, tableBorderInfo = []) => {
     if (!html) return '';
     let cleaned = html;
 
@@ -404,103 +641,56 @@ export const TemplatesPage = () => {
     cleaned = applyClassStyle(cleaned, 'text-indent', 'text-indent: 1cm; text-align: justify;');
     cleaned = applyClassStyle(cleaned, 'text-indent-justify', 'text-indent: 1cm; text-align: justify;');
 
-    // Reset text-indent: 0 on numbered headings so section titles don't inherit paragraph indent
-    cleaned = cleaned.replace(/<p([^>]*)>\s*(\d+[\.\)])/gi, (match, attrs, num) => {
-      let cleanAttrs = attrs || '';
-      if (cleanAttrs.includes('style="')) {
-        cleanAttrs = cleanAttrs.replace(/style="([^"]*)"/i, 'style="text-indent: 0 !important; $1"');
-      } else {
-        cleanAttrs = ' style="text-indent: 0 !important;"' + cleanAttrs;
-      }
-      return `<p${cleanAttrs}>${num}`;
-    });
-
-    // 3. Organization Names & Quốc Hiệu Formatting
+    // 3. Organization Names & Quốc Hiệu Formatting (Preserving original font weight from DOCX)
     cleaned = cleaned.replace(/(TRƯỜNG ĐẠI HỌC [^<\n]+|BỘ GIÁO DỤC [^<\n]+|SỞ GIÁO DỤC [^<\n]+)/gi, (m) => {
-      return `<span style="white-space: nowrap; font-weight: bold;">${m.trim()}</span>`;
+      return `<span style="white-space: nowrap;">${m.trim()}</span>`;
     });
     cleaned = cleaned.replace(/(CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM)/gi, '<span style="white-space: nowrap; font-weight: bold;">$1</span>');
     cleaned = cleaned.replace(/(Độc lập – Tự do – Hạnh phúc|Độc lập - Tự do - Hạnh phúc)/gi, '<span style="white-space: nowrap; font-weight: bold; border-bottom: 1.5px solid #000000; padding-bottom: 1px; display: inline-block;">$1</span>');
 
-    // 4. Smart Table Processor: Detect borderless layout tables vs bordered data tables
+    // 4. Table Processor: Use actual border data from docx XML, fallback to content-based detection
+    let tblIdx = 0;
     cleaned = cleaned.replace(/<table([\s\S]*?)<\/table>/gi, (tableHtml) => {
-      const isQuocHieuTable = tableHtml.includes('CỘNG HÒA') || tableHtml.includes('Độc lập') || tableHtml.includes('TRƯỜNG') || tableHtml.includes('VICTORIA') || tableHtml.includes('BỘ GIÁO DỤC') || tableHtml.includes('SỞ GIÁO DỤC');
-      const isSignatureTable = tableHtml.includes('trách nhiệm') || tableHtml.includes('ghi rõ họ tên') || tableHtml.includes('Ký, đóng dấu') || tableHtml.includes('Ký và ghi') || tableHtml.includes('Giảng viên 1') || tableHtml.includes('Giảng viên 2');
-      const isCheckboxTable = tableHtml.includes('☐') || tableHtml.includes('☒') || tableHtml.includes('☑') || tableHtml.includes('[ ]') || tableHtml.includes('[x]');
-      const isFormTable = tableHtml.includes('Đơn vị công tác:') || tableHtml.includes('Số điện thoại:') || tableHtml.includes('Họ và tên:') || tableHtml.includes('................') || tableHtml.includes('.......');
-      const isExplicitBorderless = tableHtml.includes('border: none') || tableHtml.includes('border:none') || tableHtml.includes('border="0"') || tableHtml.includes('dashed') || tableHtml.includes('dotted');
+      // Use exact border info from docx XML if available
+      const docxHasBorders = tableBorderInfo && tblIdx < tableBorderInfo.length ? tableBorderInfo[tblIdx] : undefined;
+      tblIdx++;
 
-      // Quốc hiệu header tables & Signature tables (2-column layout tables split 50/50)
+      // Detect special table types for layout (50/50 split, etc.)
+      const isQuocHieuTable = tableHtml.includes('CỘNG HÒA') || tableHtml.includes('Độc lập') || tableHtml.includes('TRƯỜNG') || tableHtml.includes('VICTORIA') || tableHtml.includes('BỘ GIÁO DỤC') || tableHtml.includes('SỞ GIÁO DỤC');
+      const isSignatureTable = tableHtml.includes('trách nhiệm') || tableHtml.includes('ghi rõ họ tên') || tableHtml.includes('Ký, đóng dấu') || tableHtml.includes('Ký và ghi') || tableHtml.includes('Chữ ký') || tableHtml.includes('họ tên và đóng dấu') || tableHtml.includes('NGƯỜI SỬ DỤNG') || tableHtml.includes('NGƯỜI LAO ĐỘNG') || tableHtml.includes('Giảng viên');
+
+      // Quốc hiệu / Signature layout tables (2-column 50/50)
       if (isQuocHieuTable || isSignatureTable) {
-        let tableFormatted = tableHtml.replace(/<table[^>]*>/i, () => {
-          return '<table style="width: 100%; border-collapse: collapse; margin: 8px 0 16px 0; table-layout: fixed; border: none;">';
-        });
+        let tableFormatted = tableHtml.replace(/<table[^>]*>/i, () =>
+          '<table style="width: 100%; border-collapse: collapse; margin: 8px 0 16px 0; table-layout: fixed; border: none;">'
+        );
         tableFormatted = formatTagStyles(tableFormatted, { border: 'none', padding: '4px 6px', 'vertical-align': 'top', width: '50%' });
         return tableFormatted;
       }
 
-      const isBorderless = isCheckboxTable || isFormTable || isExplicitBorderless;
+      // Determine if table has borders using docx XML data or fallback heuristic
+      let hasBorders;
+      if (docxHasBorders !== undefined) {
+        hasBorders = docxHasBorders;
+      } else {
+        // Fallback: assume bordered unless explicitly borderless
+        const isExplicitBorderless = tableHtml.includes('border: none') || tableHtml.includes('border:none') || tableHtml.includes('border="0"');
+        hasBorders = !isExplicitBorderless;
+      }
 
-      if (isBorderless) {
-        let tableFormatted = tableHtml.replace(/<table[^>]*>/i, (m) => {
-          if (m.includes('style=')) {
-            return m.replace(/style="([^"]*)"/i, (sm, s) => `style="width: 100%; border-collapse: collapse; margin: 8px 0 12px 0; table-layout: auto; border: none; ${s}"`);
-          }
-          return '<table style="width: 100%; border-collapse: collapse; margin: 8px 0 12px 0; table-layout: auto; border: none;">';
-        });
-
+      if (hasBorders) {
+        let tableFormatted = tableHtml.replace(/<table[^>]*>/i, () =>
+          '<table style="width: 100%; border-collapse: collapse; margin: 12px 0; table-layout: auto; border: 1px solid #000000;">'
+        );
+        tableFormatted = formatTagStyles(tableFormatted, { border: '1px solid #000000', padding: '6px 8px', 'vertical-align': 'top', 'word-break': 'normal' });
+        return tableFormatted;
+      } else {
+        let tableFormatted = tableHtml.replace(/<table[^>]*>/i, () =>
+          '<table style="width: 100%; border-collapse: collapse; margin: 8px 0 12px 0; table-layout: auto; border: none;">'
+        );
         tableFormatted = formatTagStyles(tableFormatted, { border: 'none', padding: '4px 6px', 'vertical-align': 'top' });
         return tableFormatted;
       }
-
-      // Bordered Data Table
-      let tableFormatted = tableHtml.replace(/<table[^>]*>/i, (m) => {
-        if (m.includes('style=')) {
-          return m.replace(/style="([^"]*)"/i, (sm, s) => `style="width: 100%; border-collapse: collapse; margin: 12px 0; table-layout: auto; border: 1px solid #000000; ${s}"`);
-        }
-        return '<table style="width: 100%; border-collapse: collapse; margin: 12px 0; table-layout: auto; border: 1px solid #000000;">';
-      });
-
-      tableFormatted = formatTagStyles(tableFormatted, { border: '1px solid #000000', padding: '6px 8px', 'vertical-align': 'top', 'word-break': 'normal' });
-      return tableFormatted;
-    });
-
-    // 5. Sequential List Fixer: Ensure continuous numbering across <ol> lists split by tables or block elements
-    let olSequenceCounter = 0;
-    cleaned = cleaned.replace(/<ol([^>]*)>([\s\S]*?)<\/ol>/gi, (match, attrs, content) => {
-      const liCount = (content.match(/<li[\s>]/gi) || []).length;
-      let newAttrs = attrs || '';
-      if (olSequenceCounter > 0) {
-        const startVal = olSequenceCounter + 1;
-        if (/start="[^"]*"/i.test(newAttrs)) {
-          newAttrs = newAttrs.replace(/start="[^"]*"/i, `start="${startVal}"`);
-        } else {
-          newAttrs = ` start="${startVal}"${newAttrs}`;
-        }
-      }
-      olSequenceCounter += liCount;
-      return `<ol${newAttrs}>${content}</ol>`;
-    });
-
-    // 6. Fix paragraph section numbers if docx outputted hardcoded numbered paragraphs that reset after tables
-    let maxSectionNum = 0;
-    cleaned = cleaned.replace(/<p([^>]*)>\s*(<strong>|<b>)?\s*(\d+)[\.\)]\s*(?:<\/strong>|<\/b>)?\s*([^<\n]+)/gi, (match, attrs, boldOpen, numStr, textRest) => {
-      let num = parseInt(numStr, 10);
-      if (num <= maxSectionNum && num === 1 && maxSectionNum >= 2) {
-        num = maxSectionNum + 1;
-      }
-      if (num > maxSectionNum) {
-        maxSectionNum = num;
-      }
-      let cleanAttrs = attrs || '';
-      if (cleanAttrs.includes('style="')) {
-        cleanAttrs = cleanAttrs.replace(/style="([^"]*)"/i, 'style="text-indent: 0 !important; $1"');
-      } else {
-        cleanAttrs = ' style="text-indent: 0 !important;"' + cleanAttrs;
-      }
-      const boldPrefix = boldOpen || '<strong>';
-      const boldSuffix = boldOpen ? (boldOpen.includes('strong') ? '</strong>' : '</b>') : '</strong>';
-      return `<p${cleanAttrs}>${boldPrefix}${num}.${boldSuffix} ${textRest}`;
     });
 
     return cleaned;
@@ -560,6 +750,29 @@ export const TemplatesPage = () => {
       if (file.name.endsWith('.docx')) {
         const arrayBuffer = await file.arrayBuffer();
 
+        // Extract all needed XML files from the docx ZIP in a single pass
+        let tableBorderInfo = [];
+        let paragraphIndents = [];
+        try {
+          const docxFiles = await extractDocxFiles(arrayBuffer, [
+            'word/document.xml',
+            'word/styles.xml',
+            'word/numbering.xml',
+          ]);
+          const docXml = docxFiles['word/document.xml'];
+          const stylesXml = docxFiles['word/styles.xml'];
+          const numberingXml = docxFiles['word/numbering.xml'];
+
+          tableBorderInfo = parseTableBorders(docXml);
+
+          // Build comprehensive indent maps from styles + numbering XML
+          const styleIndentMap = buildStyleIndentMap(stylesXml);
+          const numberingIndentMap = buildNumberingIndentMap(numberingXml);
+
+          // Parse effective indent for every paragraph (direct > numbering > style)
+          paragraphIndents = parseAllParaIndents(docXml, styleIndentMap, numberingIndentMap);
+        } catch { /* fallback: empty indent data */ }
+
         const mammothOptions = {
           styleMap: [
             "p[style-name='Centered'] => p.text-center:fresh",
@@ -576,11 +789,6 @@ export const TemplatesPage = () => {
             const isCenter = paragraph.alignment === 'center';
             const isRight = paragraph.alignment === 'right';
             const isJustify = paragraph.alignment === 'justify' || paragraph.alignment === 'both';
-            const hasIndent = paragraph.indent && (
-              (paragraph.indent.firstLine && parseFloat(paragraph.indent.firstLine) !== 0) ||
-              (paragraph.indent.left && parseFloat(paragraph.indent.left) !== 0) ||
-              (paragraph.indent.start && parseFloat(paragraph.indent.start) !== 0)
-            );
 
             if (isCenter) {
               return { ...paragraph, styleId: 'Centered', styleName: 'Centered' };
@@ -588,14 +796,8 @@ export const TemplatesPage = () => {
             if (isRight) {
               return { ...paragraph, styleId: 'RightAligned', styleName: 'RightAligned' };
             }
-            if (isJustify && hasIndent) {
-              return { ...paragraph, styleId: 'IndentedJustified', styleName: 'IndentedJustified' };
-            }
             if (isJustify) {
               return { ...paragraph, styleId: 'Justified', styleName: 'Justified' };
-            }
-            if (hasIndent) {
-              return { ...paragraph, styleId: 'Indented', styleName: 'Indented' };
             }
             return paragraph;
           })
@@ -605,7 +807,51 @@ export const TemplatesPage = () => {
         const htmlResult = await mammoth.convertToHtml({ arrayBuffer }, mammothOptions);
         const rawTextResult = await mammoth.extractRawText({ arrayBuffer });
 
-        const richHtml = cleanWordHtml(htmlResult.value || '');
+        // Inject exact indent values from docx XML as inline styles on each paragraph/heading/list element
+        // The paragraphIndents array is built from XML <w:p> elements in document order (same as Mammoth output)
+        let rawHtml = htmlResult.value || '';
+        let paraIdx = 0;
+        rawHtml = rawHtml.replace(/<(p|h[1-6]|li)(\s[^>]*)?>/gi, (match, tag, attrs) => {
+          if (paraIdx >= paragraphIndents.length) return match;
+          const indent = paragraphIndents[paraIdx++];
+          if (!indent) return match;
+
+          // Skip text-indent injection for centered/right-aligned paragraphs
+          const isCentered = attrs && /class="[^"]*\btext-center\b/i.test(attrs);
+          const isRightAligned = attrs && /class="[^"]*\btext-right\b/i.test(attrs);
+
+          const inlineStyles = [];
+
+          // Left margin from docx indent.left (handle hanging: effective left = left - hanging)
+          const effectiveLeft = indent.hanging > 0 ? Math.max(0, indent.left - indent.hanging) : indent.left;
+          if (effectiveLeft > 0) {
+            inlineStyles.push(`margin-left: ${(effectiveLeft / 567).toFixed(2)}cm`);
+          }
+
+          // First-line indent or hanging indent (skip for centered/right paragraphs)
+          if (!isCentered && !isRightAligned) {
+            if (indent.firstLine > 0) {
+              inlineStyles.push(`text-indent: ${(indent.firstLine / 567).toFixed(2)}cm`);
+            } else if (indent.hanging > 0) {
+              // Hanging indent: text-indent negative but padding covers the "gutter" for number
+              inlineStyles.push(`padding-left: ${(indent.hanging / 567).toFixed(2)}cm`);
+              inlineStyles.push(`text-indent: -${(indent.hanging / 567).toFixed(2)}cm`);
+            }
+          }
+
+          if (inlineStyles.length === 0) return match;
+
+          const styleStr = inlineStyles.join('; ');
+          attrs = attrs || '';
+          if (attrs.includes('style="')) {
+            attrs = attrs.replace(/style="([^"]*)"/i, (m, s) => `style="${styleStr}; ${s}"`);
+          } else {
+            attrs = ` style="${styleStr}"${attrs}`;
+          }
+          return `<${tag}${attrs}>`;
+        });
+
+        const richHtml = cleanWordHtml(rawHtml, tableBorderInfo);
         const cleanText = cleanRawText(rawTextResult.value || richHtml);
 
         setCreateForm(prev => ({
@@ -750,7 +996,7 @@ export const TemplatesPage = () => {
       showNotification('Thiếu Thông Tin', 'Vui lòng nhập Tên Mẫu Hợp Đồng!', 'warning');
       return;
     }
-    if (!createForm.templateContentText && !createForm.templateContentHtml) {
+    if (!createForm.templateContentText && !createForm.templateContentHtml && !documentModel) {
       showNotification('Thiếu Nội Dung', 'Vui lòng chọn file Word (.docx) hoặc dán nội dung văn bản hợp đồng!', 'warning');
       return;
     }
@@ -759,17 +1005,28 @@ export const TemplatesPage = () => {
       const finalHtml = createForm.templateContentHtml ||
         `<div style="font-family: 'Times New Roman', Times, serif; font-size: 13pt; line-height: 1.6; color: #000; padding: 24px; white-space: pre-wrap;">${createForm.templateContentText}</div>`;
 
-      await api.post('/templates', {
-        name: createForm.name,
-        category: createForm.category,
-        description: createForm.description,
-        templateContentHtml: finalHtml,
-        fields,
+      const formData = new FormData();
+      formData.append('name', createForm.name);
+      formData.append('category', createForm.category);
+      formData.append('description', createForm.description);
+      formData.append('templateContentHtml', finalHtml);
+      formData.append('fields', JSON.stringify(fields));
+      if (documentModel) {
+        formData.append('documentModel', JSON.stringify(documentModel));
+      }
+      if (uploadedFile) {
+        formData.append('file', uploadedFile);
+      }
+
+      await api.post('/templates', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
       });
 
       setShowCreateModal(false);
       setCreateForm({ name: '', category: 'Lao động', description: '', templateContentHtml: '', templateContentText: '' });
       setFields([]);
+      setDocumentModel(null);
+      setUploadedFile(null);
       setUploadedFileName('');
       fetchTemplates();
       showNotification('Thành Công', 'Đã lưu Mẫu Hợp Đồng mới vào hệ thống!', 'success');
@@ -777,6 +1034,7 @@ export const TemplatesPage = () => {
       showNotification('Lỗi Lưu Mẫu', err.message, 'error');
     }
   };
+
 
   const handleAddField = () => {
     if (!newField || !newField.key || !newField.label) {
@@ -1097,6 +1355,7 @@ export const TemplatesPage = () => {
                       <option value="TEXT">Văn bản thường</option>
                       <option value="CURRENCY">Số tiền (VNĐ)</option>
                       <option value="DATE">Ngày tháng</option>
+                      <option value="DATE_VN">Ngày tháng (chữ)</option>
                       <option value="NUMBER">Số đếm</option>
                     </select>
                     <button type="button" className="btn-action btn-create" style={{ padding: '5px 12px', fontSize: '11.5px', borderRadius: '6px', fontWeight: '700' }} onClick={handleAddField}>
@@ -1234,6 +1493,7 @@ export const TemplatesPage = () => {
                   <option value="TEXT">Văn bản chữ</option>
                   <option value="CURRENCY">Số tiền (VNĐ)</option>
                   <option value="DATE">Ngày tháng</option>
+                  <option value="DATE_VN">Ngày tháng (chữ)</option>
                   <option value="NUMBER">Số đếm</option>
                 </select>
               </div>

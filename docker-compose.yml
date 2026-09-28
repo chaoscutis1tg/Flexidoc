@@ -22,6 +22,8 @@ services:
       - SEPAY_WEBHOOK_PATH=/api/v1/payments/sepay-webhook
     depends_on:
       - webhopdong_mongodb
+    volumes:
+      - webhopdong_uploads:/app/backend/uploads
 
   # Database MongoDB
   webhopdong_mongodb:
@@ -35,3 +37,5 @@ services:
 
 volumes:
   webhopdong_mongo_data:
+  webhopdong_uploads:
+

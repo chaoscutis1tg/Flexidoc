@@ -1,14 +1,21 @@
+import path from 'path';
+import fs from 'fs';
 import { templateService } from '../services/template.service.js';
 import { auditLogService } from '../services/audit-log.service.js';
 import { sendSuccess } from '../utils/response.util.js';
 
 export const createTemplate = async (req, res, next) => {
   try {
-    const { name, category, description, templateContentHtml, fields } = req.body;
+    const { name, category, description, templateContentHtml, fields, documentModel } = req.body;
+    const fileBuffer = req.file ? req.file.buffer : null;
+    const fileName = req.file ? req.file.originalname : null;
+
     const result = await templateService.createTemplate(
-      { name, category, description, templateContentHtml },
-      fields || [],
-      req.tenantContext
+      { name, category, description, templateContentHtml, documentModel: typeof documentModel === 'string' ? JSON.parse(documentModel) : documentModel },
+      fields ? (typeof fields === 'string' ? JSON.parse(fields) : fields) : [],
+      req.tenantContext,
+      fileBuffer,
+      fileName
     );
 
     await auditLogService.logAction(req, 'TEMPLATE_CREATED', 'template', result.template._id);
@@ -26,6 +33,19 @@ export const addFieldsToTemplate = async (req, res, next) => {
 
     await auditLogService.logAction(req, 'TEMPLATE_FIELDS_UPDATED', 'template', id);
     return sendSuccess(res, 200, 'Cập nhật danh sách Dynamic Field cho Template thành công', result);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const updateTemplateDocument = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { documentModel, fields } = req.body;
+    const result = await templateService.updateTemplateDocument(id, documentModel, fields, req.tenantContext);
+
+    await auditLogService.logAction(req, 'TEMPLATE_DOCUMENT_UPDATED', 'template', id);
+    return sendSuccess(res, 200, 'Cập nhật Document Model của Template thành công', result);
   } catch (error) {
     next(error);
   }
@@ -91,9 +111,29 @@ export const parseDocx = async (req, res, next) => {
     if (!req.file) {
       return res.status(400).json({ success: false, message: 'Vui lòng cung cấp file DOCX' });
     }
-    const placeholders = templateService.parseDocxPlaceholders(req.file.buffer);
-    return sendSuccess(res, 200, 'Parse file DOCX thành công', { placeholders });
+    const result = templateService.parseDocxFile(req.file.buffer);
+    return sendSuccess(res, 200, 'Parse file DOCX thành công', {
+      documentModel: result.documentModel,
+      images: result.images,
+      placeholders: result.placeholders,
+    });
   } catch (error) {
     next(error);
   }
 };
+
+export const getTemplateImage = async (req, res, next) => {
+  try {
+    const { templateId, versionId, imageName } = req.params;
+    const imgPath = path.resolve(process.cwd(), 'uploads', 'templates', 'images', `${templateId}_${versionId}`, imageName);
+
+    if (!fs.existsSync(imgPath)) {
+      return res.status(404).json({ success: false, message: 'Ảnh không tồn tại' });
+    }
+
+    return res.sendFile(imgPath);
+  } catch (error) {
+    next(error);
+  }
+};
+
