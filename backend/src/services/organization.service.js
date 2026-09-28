@@ -472,10 +472,9 @@ export class OrganizationService {
     const { ContractVersion } = await import('../models/contract-version.model.js');
     const { MasterData } = await import('../models/master-data.model.js');
 
-    // 1. Soft-delete / Lock all users belonging to target organizations
-    await User.updateMany(
-      { organizationId: { $in: allOrgIds } },
-      { $set: { deletedAt: now, status: 'LOCKED' } }
+    // 1. Hard-delete all users belonging to target organizations so their emails/login credentials are fully released
+    await User.deleteMany(
+      { organizationId: { $in: allOrgIds } }
     );
 
     // 2. Soft-delete templates and template versions

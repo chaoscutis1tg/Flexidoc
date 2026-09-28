@@ -23,7 +23,11 @@ export class AuthService {
       throw new AppError('Vui lòng điền đầy đủ họ tên, email và mật khẩu.', 400);
     }
 
-    const existingUser = await userRepository.findByEmail(email.trim().toLowerCase());
+    const cleanEmail = email.trim().toLowerCase();
+    const { User } = await import('../models/user.model.js');
+    await User.deleteMany({ email: cleanEmail, deletedAt: { $ne: null } });
+
+    const existingUser = await userRepository.findByEmail(cleanEmail);
     if (existingUser) {
       throw new AppError('Email này đã được đăng ký tài khoản. Vui lòng đăng nhập!', 400);
     }
@@ -171,51 +175,49 @@ export class AuthService {
     const cleanEmail = email.trim().toLowerCase();
     const cleanName = (fullName || cleanEmail.split('@')[0]).trim();
 
-    let user = await userRepository.findByEmail(cleanEmail, false);
+    const { User } = await import('../models/user.model.js');
+    const { Organization } = await import('../models/organization.model.js');
+
+    // Purge any old soft-deleted user record with this email so it never blocks lookup
+    await User.deleteMany({ email: cleanEmail, deletedAt: { $ne: null } });
+
+    // Look up user directly in MongoDB collection
+    let user = await User.findOne({ email: cleanEmail });
 
     if (user) {
-      if (user.status !== 'ACTIVE' || user.deletedAt) {
-        throw new AppError('Tài khoản của bạn đã bị khóa hoặc ngừng hoạt động.', 401);
+      // Re-activate user if it was inactive/deleted
+      user.deletedAt = null;
+      if (user.status === 'LOCKED') {
+        user.status = 'ACTIVE';
       }
       user.lastLoginAt = new Date();
       user.authProvider = 'GOOGLE';
       if (googleId) user.googleId = googleId;
-      await user.save();
 
-      // If user has no organization yet
-      if (!user.organizationId) {
-        let organization = null;
-        if (mode === 'JOIN_ORG' && orgCode) {
-          const upperCode = orgCode.trim().toUpperCase();
-          organization = await organizationRepository.findByCode(upperCode);
-          if (organization) {
-            user.organizationId = organization._id;
-            user.role = 'STAFF';
-            await user.save();
-          }
-        } else if (organizationName && orgCode) {
-          const name = organizationName.trim();
-          const code = orgCode.trim().toUpperCase();
-          const existingOrg = await organizationRepository.findByCode(code);
-          if (existingOrg) {
-            throw new AppError(`Mã Tổ chức '${code}' đã được sử dụng. Vui lòng chọn Mã Tổ chức khác!`, 400);
-          }
-          organization = await organizationRepository.create({
-            name,
-            code,
-            plan: 'FREE',
-            status: 'ACTIVE',
-          });
-          user.organizationId = organization._id;
-          user.role = 'ORGANIZATION_ADMIN';
-          await user.save();
-        }
+      // Verify if user's assigned organization is still active (not deleted)
+      let validOrg = null;
+      if (user.organizationId) {
+        const orgId = user.organizationId._id || user.organizationId;
+        validOrg = await Organization.findOne({ _id: orgId, deletedAt: null });
+      }
 
-        if (!user.organizationId) {
-          const userObj = user.toObject();
-          delete userObj.passwordHash;
-          return { token: null, user: userObj, requiresOrgSetup: true };
-        }
+      if (validOrg) {
+        user.organizationId = validOrg._id;
+        await user.save();
+
+        const populatedUser = await userRepository.findById(user._id, null, { populate: 'organizationId' });
+        const token = this.generateToken(populatedUser);
+        const userObj = populatedUser.toObject();
+        delete userObj.passwordHash;
+        return { token, user: userObj, requiresOrgSetup: false };
+      } else {
+        // User has no org or their org was deleted -> Prompt user for Org Setup (Create or Join)
+        user.organizationId = null;
+        await user.save();
+
+        const userObj = user.toObject();
+        delete userObj.passwordHash;
+        return { token: null, user: userObj, requiresOrgSetup: true };
       }
     } else {
       // User is brand new
@@ -224,25 +226,23 @@ export class AuthService {
 
       if (mode === 'JOIN_ORG' && orgCode) {
         const upperCode = orgCode.trim().toUpperCase();
-        organization = await organizationRepository.findByCode(upperCode);
-        if (!organization) {
-          throw new AppError(`Không tìm thấy Tổ chức với Mã '${upperCode}'. Vui lòng kiểm tra lại mã!`, 404);
+        organization = await Organization.findOne({ code: upperCode, deletedAt: null });
+        if (organization) {
+          role = 'STAFF';
         }
-        role = 'STAFF';
       } else if (organizationName && orgCode) {
         const name = organizationName.trim();
         const code = orgCode.trim().toUpperCase();
-        const existingOrg = await organizationRepository.findByCode(code);
-        if (existingOrg) {
-          throw new AppError(`Mã Tổ chức '${code}' đã được sử dụng. Vui lòng chọn Mã Tổ chức khác!`, 400);
+        const existingOrg = await Organization.findOne({ code, deletedAt: null });
+        if (!existingOrg) {
+          organization = await organizationRepository.create({
+            name,
+            code,
+            plan: 'FREE',
+            status: 'ACTIVE',
+          });
+          role = 'ORGANIZATION_ADMIN';
         }
-        organization = await organizationRepository.create({
-          name,
-          code,
-          plan: 'FREE',
-          status: 'ACTIVE',
-        });
-        role = 'ORGANIZATION_ADMIN';
       }
 
       user = await userRepository.create({
@@ -256,16 +256,19 @@ export class AuthService {
         googleId: googleId || 'GOOGLE_' + Date.now(),
       });
 
-      if (!organization) {
+      if (organization) {
+        const populatedUser = await userRepository.findById(user._id, null, { populate: 'organizationId' });
+        const token = this.generateToken(populatedUser);
+        const userObj = populatedUser.toObject();
+        delete userObj.passwordHash;
+        return { token, user: userObj, requiresOrgSetup: false };
+      } else {
+        // Prompt user for Org Setup (Create or Join)
         const userObj = user.toObject();
         delete userObj.passwordHash;
         return { token: null, user: userObj, requiresOrgSetup: true };
       }
     }
-
-    const populatedUser = await userRepository.findById(user._id, null, { populate: 'organizationId' });
-    const token = this.generateToken(populatedUser);
-    const userObj = populatedUser.toObject();
     delete userObj.passwordHash;
 
     return { token, user: userObj, requiresOrgSetup: false };

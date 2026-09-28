@@ -104,15 +104,11 @@ export const OrganizationsPage = () => {
     return () => clearTimeout(timer);
   }, [managerQuery]);
 
-  // Load all candidates from Master Data & System Users (strictly scoped to target organization)
+  // Load all candidates strictly from real System Users in organization (excluding Master Data)
   const loadAllCandidates = async (searchKeyword = '', overrideOrgId = null) => {
     setIsSearchingManager(true);
     try {
-      const q = searchKeyword ? `?search=${encodeURIComponent(searchKeyword.trim())}` : '';
-      const [masterRes, usersRes] = await Promise.allSettled([
-        api.get(`/master-data${q}`),
-        api.get('/users')
-      ]);
+      const usersRes = await api.get('/users');
 
       const userOrgId = user?.organizationId ? (user.organizationId._id || user.organizationId).toString() : null;
       
@@ -142,8 +138,6 @@ export const OrganizationsPage = () => {
         }
       }
 
-      let candidates = [];
-
       const matchesOrg = (itemOrgField) => {
         if (allowedOrgIds.size === 0) return true; // Super Admin with no org context
         if (!itemOrgField) return false;
@@ -151,64 +145,28 @@ export const OrganizationsPage = () => {
         return allowedOrgIds.has(idStr);
       };
 
-      // 1. Master Data Candidates (Filtered strictly by targetOrgId)
-      if (masterRes.status === 'fulfilled' && masterRes.value?.data) {
-        const mdList = (masterRes.value.data || [])
-          .filter(item => matchesOrg(item.organizationId))
-          .map(item => {
-            const d = item.data || {};
-            const name = item.type === 'EMPLOYEE' 
-              ? (d.fullName || d.companyName || 'N/A') 
-              : (d.companyName || d.fullName || d.representative || 'N/A');
-            const email = d.email || (item.code ? `${item.code.toLowerCase()}@organization.com` : '');
-            const orgObj = item.organizationId || {};
-            const orgName = typeof orgObj === 'object' ? (orgObj.name || '') : '';
-            const orgCode = typeof orgObj === 'object' ? (orgObj.code || '') : '';
-
-            return {
-              id: `md_${item._id}`,
-              name,
-              email,
-              position: d.position || d.repPosition || (item.type === 'EMPLOYEE' ? 'Nhân viên' : 'Đại diện'),
-              department: d.department || 'Ban Quản Lý',
-              phone: d.phone || '',
-              type: item.type,
-              code: item.code || '',
-              orgName,
-              orgCode
-            };
-          });
-        candidates.push(...mdList);
-      }
-
-      // 2. System Users Candidates (Filtered strictly by targetOrgId)
-      if (usersRes.status === 'fulfilled' && usersRes.value?.data) {
-        const userList = (usersRes.value.data || [])
-          .filter(u => matchesOrg(u.organizationId))
-          .map(u => {
-            const orgObj = u.organizationId || {};
-            const orgName = typeof orgObj === 'object' ? (orgObj.name || '') : '';
-            const orgCode = typeof orgObj === 'object' ? (orgObj.code || '') : '';
-            return {
-              id: `usr_${u._id}`,
-              name: u.fullName || u.username || u.email,
-              email: u.email || '',
-              position: u.role || 'Tài khoản hệ thống',
-              department: u.department || 'Tổ chức',
-              phone: u.phone || '',
-              type: 'EMPLOYEE',
-              code: u.username || '',
-              orgName,
-              orgCode
-            };
-          });
-
-        userList.forEach(u => {
-          if (u.email && !candidates.some(c => c.email && c.email.toLowerCase() === u.email.toLowerCase())) {
-            candidates.push(u);
-          }
+      // Only real System Users in Organization
+      const rawUserList = Array.isArray(usersRes.data) ? usersRes.data : [];
+      const candidates = rawUserList
+        .filter(u => matchesOrg(u.organizationId))
+        .map(u => {
+          const orgObj = u.organizationId || {};
+          const orgName = typeof orgObj === 'object' ? (orgObj.name || '') : '';
+          const orgCode = typeof orgObj === 'object' ? (orgObj.code || '') : '';
+          const roleLabel = u.role === 'ORGANIZATION_ADMIN' ? 'Quản trị viên' : (u.role === 'STAFF' ? 'Nhân viên' : (u.role || 'Người dùng'));
+          return {
+            id: `usr_${u._id}`,
+            name: u.fullName || u.username || u.email,
+            email: u.email || '',
+            position: roleLabel,
+            department: u.department || 'Tổ chức',
+            phone: u.phone || '',
+            type: 'USER',
+            code: u.username || '',
+            orgName,
+            orgCode
+          };
         });
-      }
 
       setAllCandidatesList(candidates);
 
@@ -1551,7 +1509,7 @@ export const OrganizationsPage = () => {
                 </div>
 
                 <p className="text-[11.5px] text-slate-500 leading-relaxed">
-                  Chọn người giữ quyền từ danh sách Master Data. Hệ thống sẽ gửi yêu cầu xin <strong>Chấp nhận Quản lý (Accept)</strong> trước khi chi nhánh chính thức hoạt động.
+                  Chọn người giữ quyền từ danh sách Người Dùng Thật trong tổ chức. Hệ thống sẽ gửi yêu cầu xin <strong>Chấp nhận Quản lý (Accept)</strong> trước khi chi nhánh chính thức hoạt động.
                 </p>
 
                 {/* Autocomplete Input */}
@@ -1600,7 +1558,7 @@ export const OrganizationsPage = () => {
                   {showManagerDropdown && (
                     <div className="absolute top-full left-0 right-0 mt-1 bg-white rounded-2xl border border-slate-200 shadow-xl max-h-56 overflow-y-auto z-[9999]">
                       <div className="px-3 py-2 bg-slate-50 border-b border-slate-100 flex items-center justify-between text-[11px] font-extrabold text-slate-500 uppercase tracking-wider">
-                        <span>Gợi ý nhân sự trong tổ chức ({managerSuggestions.length})</span>
+                        <span>Gợi ý người dùng trong tổ chức ({managerSuggestions.length})</span>
                         <button 
                           type="button" 
                           onClick={() => setShowManagerDropdown(false)}
@@ -1627,7 +1585,7 @@ export const OrganizationsPage = () => {
                                     {candidate.orgName} ({candidate.orgCode})
                                   </span>
                                 )}
-                                <span>Chức vụ: {candidate.position}</span>
+                                <span>Vai trò: {candidate.position}</span>
                                 <span>•</span>
                                 <span>Phòng: {candidate.department}</span>
                                 <span>•</span>
@@ -1636,14 +1594,8 @@ export const OrganizationsPage = () => {
                             </div>
 
                             <div className="flex items-center gap-2 shrink-0">
-                              <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-md border ${
-                                candidate.type === 'EMPLOYEE'
-                                  ? 'bg-sky-50 text-sky-700 border-sky-200'
-                                  : candidate.type === 'CUSTOMER'
-                                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                                  : 'bg-purple-50 text-purple-700 border-purple-200'
-                              }`}>
-                                {candidate.type === 'EMPLOYEE' ? 'NHÂN VIÊN' : candidate.type === 'CUSTOMER' ? 'KHÁCH HÀNG' : 'ĐỐI TÁC'}
+                              <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-md border bg-sky-50 text-sky-700 border-sky-200">
+                                {candidate.position || 'NGƯỜI DÙNG'}
                               </span>
 
                               <button
@@ -1661,7 +1613,7 @@ export const OrganizationsPage = () => {
                             {createForm.managerName ? (
                               <>Không có kết quả khớp với <strong>"{createForm.managerName}"</strong></>
                             ) : (
-                              'Chưa có dữ liệu Master Data.'
+                              'Chưa có dữ liệu người dùng trong hệ thống.'
                             )}
                           </p>
                           {createForm.managerName && (
@@ -1880,7 +1832,7 @@ export const OrganizationsPage = () => {
                     {showManagerDropdown && showEditModal && (
                       <div className="absolute top-full left-0 mt-1 bg-white rounded-2xl border border-slate-200 shadow-2xl max-h-64 overflow-y-auto z-[9999] w-[140%] sm:w-[170%] min-w-[320px] max-w-[560px]">
                         <div className="px-3.5 py-2.5 bg-slate-50 border-b border-slate-100 flex items-center justify-between text-[11px] font-black text-slate-500 uppercase tracking-wider">
-                          <span>Gợi ý nhân sự trong tổ chức ({managerSuggestions.length})</span>
+                          <span>Gợi ý người dùng trong tổ chức ({managerSuggestions.length})</span>
                           <button 
                             type="button" 
                             onClick={() => setShowManagerDropdown(false)}
@@ -1900,14 +1852,8 @@ export const OrganizationsPage = () => {
                               <div className="min-w-0 flex-1">
                                 <div className="font-extrabold text-xs text-slate-900 group-hover:text-amber-700 transition-colors flex items-center gap-2">
                                   <span>{candidate.name}</span>
-                                  <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-md border ${
-                                    candidate.type === 'EMPLOYEE'
-                                      ? 'bg-amber-50 text-amber-700 border-amber-200'
-                                      : candidate.type === 'CUSTOMER'
-                                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                                      : 'bg-purple-50 text-purple-700 border-purple-200'
-                                  }`}>
-                                    {candidate.type === 'EMPLOYEE' ? 'NHÂN VIÊN' : candidate.type === 'CUSTOMER' ? 'KHÁCH HÀNG' : 'ĐỐI TÁC'}
+                                  <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-md border bg-amber-50 text-amber-700 border-amber-200">
+                                    {candidate.position || 'NGƯỜI DÙNG'}
                                   </span>
                                 </div>
                                 <div className="text-[11.5px] text-slate-600 mt-1 flex flex-wrap items-center gap-x-2">
@@ -1916,7 +1862,7 @@ export const OrganizationsPage = () => {
                                       {candidate.orgName} ({candidate.orgCode})
                                     </span>
                                   )}
-                                  <span>Chức vụ: {candidate.position}</span>
+                                  <span>Vai trò: {candidate.position}</span>
                                   <span>•</span>
                                   <span>Phòng: {candidate.department}</span>
                                   <span>•</span>
@@ -1936,9 +1882,9 @@ export const OrganizationsPage = () => {
                           <div className="p-4 text-center space-y-2">
                             <p className="text-xs text-slate-500 font-medium">
                               {editForm.managerName ? (
-                                <>Không tìm thấy nhân sự nào khớp với <strong>"{editForm.managerName}"</strong></>
+                                <>Không tìm thấy người dùng nào khớp với <strong>"{editForm.managerName}"</strong></>
                               ) : (
-                                'Chưa có dữ liệu nhân sự.'
+                                'Chưa có dữ liệu người dùng trong hệ thống.'
                               )}
                             </p>
                             {editForm.managerName && (

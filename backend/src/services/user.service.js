@@ -92,7 +92,7 @@ export class UserService {
     const { PermissionGrant } = await import('../models/permission-grant.model.js');
     await PermissionGrant.deleteMany({ grantedBy: id });
 
-    return await userRepository.softDeleteById(id, tenantContext);
+    return await userRepository.deleteById(id, tenantContext);
   }
 }
 
