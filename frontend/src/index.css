@@ -449,6 +449,16 @@ h1, h2, h3, h4, h5, h6 {
   text-align: justify !important;
 }
 
+/* Ensure Word Underlines (<u>) and Decorative Lines display properly despite Tailwind Reset */
+.word-paper-sheet u,
+.word-paper-sheet ins,
+.word-paper-sheet span[style*="text-decoration: underline"],
+.word-paper-sheet span[style*="text-decoration:underline"] {
+  text-decoration: underline !important;
+  text-underline-offset: 3px !important;
+  text-decoration-thickness: 1px !important;
+}
+
 /* Modal Slide & Tab Switch Animations */
 @keyframes slideNextIn {
   0% { opacity: 0; transform: scale(0.96) translateX(24px); }

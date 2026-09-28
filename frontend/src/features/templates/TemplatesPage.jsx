@@ -239,6 +239,47 @@ export const TemplatesPage = () => {
     return text.trim();
   };
 
+  // Helper to format table cell tag styles cleanly without broken attributes or stray > characters
+  const formatTagStyles = (htmlStr, defaultStyles) => {
+    return htmlStr.replace(/<(td|th)([^>]*)>/gi, (fullMatch, tagName, attrs) => {
+      let attrString = attrs || '';
+      let existingStyle = '';
+      
+      const styleMatch = attrString.match(/style="([^"]*)"/i);
+      if (styleMatch) {
+        existingStyle = styleMatch[1];
+        attrString = attrString.replace(/style="[^"]*"/gi, '');
+      }
+
+      const styleMap = {};
+      if (existingStyle) {
+        existingStyle.split(';').forEach(rule => {
+          const parts = rule.split(':');
+          if (parts.length === 2) {
+            const key = parts[0].trim().toLowerCase();
+            const val = parts[1].trim();
+            if (key && val) styleMap[key] = val;
+          }
+        });
+      }
+
+      Object.keys(defaultStyles).forEach(key => {
+        if (!styleMap[key]) {
+          styleMap[key] = defaultStyles[key];
+        }
+      });
+
+      const newStyleStr = Object.keys(styleMap)
+        .map(k => `${k}: ${styleMap[k]}`)
+        .join('; ');
+
+      const cleanAttrs = attrString.trim();
+      const attrsFormatted = cleanAttrs ? ` ${cleanAttrs}` : '';
+
+      return `<${tagName}${attrsFormatted} style="${newStyleStr}">`;
+    });
+  };
+
   // Clean Word HTML artifacts while preserving 100% exact DOCX formatting, table borders & paragraph alignment
   const cleanWordHtml = (html) => {
     if (!html) return '';
@@ -254,13 +295,13 @@ export const TemplatesPage = () => {
     const applyClassStyle = (htmlStr, className, styleStr) => {
       const tagRegex = new RegExp(`<(p|h1|h2|h3|h4|h5|h6|div|td|th)([^>]*)class="([^"]*\\b${className}\\b[^"]*)"([^>]*)>`, 'gi');
       return htmlStr.replace(tagRegex, (match, tag, before, classAttr, after) => {
-        let fullAttrs = (before + ' ' + after).trim();
-        if (/style="[^"]*"/i.test(fullAttrs)) {
-          fullAttrs = fullAttrs.replace(/style="([^"]*)"/i, (m, s) => `style="${styleStr} ${s}"`);
+        let combined = (before + ' ' + after).replace(/\s+/g, ' ').trim();
+        if (/style="[^"]*"/i.test(combined)) {
+          combined = combined.replace(/style="([^"]*)"/i, (m, s) => `style="${styleStr} ${s}"`);
         } else {
-          fullAttrs = `style="${styleStr}" ${fullAttrs}`;
+          combined = combined ? `style="${styleStr}" ${combined}` : `style="${styleStr}"`;
         }
-        return `<${tag} class="${classAttr}" ${fullAttrs}>`;
+        return `<${tag} class="${classAttr}" ${combined}>`;
       });
     };
 
@@ -270,9 +311,9 @@ export const TemplatesPage = () => {
     cleaned = applyClassStyle(cleaned, 'text-indent', 'text-indent: 1cm; text-align: justify;');
     cleaned = applyClassStyle(cleaned, 'text-indent-justify', 'text-indent: 1cm; text-align: justify;');
 
-    // 3. Prevent 'CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM' and 'Độc lập – Tự do – Hạnh phúc' from wrapping onto multiple lines
+    // 3. Prevent 'CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM' and 'Độc lập – Tự do – Hạnh phúc' from wrapping onto multiple lines & format underline
     cleaned = cleaned.replace(/(CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM)/gi, '<span style="white-space: nowrap; font-weight: bold;">$1</span>');
-    cleaned = cleaned.replace(/(Độc lập – Tự do – Hạnh phúc|Độc lập - Tự do - Hạnh phúc)/gi, '<span style="white-space: nowrap; font-weight: bold;">$1</span>');
+    cleaned = cleaned.replace(/(Độc lập – Tự do – Hạnh phúc|Độc lập - Tự do - Hạnh phúc)/gi, '<span style="white-space: nowrap; font-weight: bold; border-bottom: 1.5px solid #000000; padding-bottom: 1px; display: inline-block;">$1</span>');
 
     // 4. Smart Table Processor: Detect borderless layout tables vs bordered data tables
     cleaned = cleaned.replace(/<table([\s\S]*?)<\/table>/gi, (tableHtml) => {
@@ -283,51 +324,20 @@ export const TemplatesPage = () => {
       const isBorderless = isQuocHieuTable || isCheckboxTable || isExplicitBorderless;
 
       if (isQuocHieuTable) {
-        // Top Quốc Hiệu / School Header Table (2 columns, 46% / 54% width)
-        let tableFormatted = tableHtml
-          .replace(/<table[^>]*>/i, '<table style="width: 100%; border-collapse: collapse; margin: 8px 0 16px 0; table-layout: auto; border: none;">')
-          .replace(/<td([^>]*)style="([^"]*)"/gi, (m, prefix, styles) => {
-            let s = styles.replace(/border\s*:[^;]+;?/gi, '') + '; border: none; padding: 4px 6px; vertical-align: top;';
-            return `<td${prefix}style="${s}"`;
-          })
-          .replace(/<td(?![^>]*style=)/gi, '<td style="border: none; vertical-align: top; padding: 4px 6px;">');
-
-        tableFormatted = tableFormatted.replace(/<tr([^>]*)>\s*<td([^>]*)>([\s\S]*?)<\/td>\s*<td([^>]*)>([\s\S]*?)<\/td>\s*<\/tr>/gi, (m, trAttr, td1Attr, td1Content, td2Attr, td2Content) => {
-          return `<tr${trAttr}><td style="width: 46%; text-align: center; vertical-align: top; padding: 4px; border: none;">${td1Content}</td><td style="width: 54%; text-align: center; vertical-align: top; padding: 4px; border: none; white-space: nowrap;">${td2Content}</td></tr>`;
-        });
+        let tableFormatted = tableHtml.replace(/<table[^>]*>/i, '<table style="width: 100%; border-collapse: collapse; margin: 8px 0 16px 0; table-layout: auto; border: none;">');
+        tableFormatted = formatTagStyles(tableFormatted, { border: 'none', padding: '4px 6px', 'vertical-align': 'top' });
         return tableFormatted;
       }
 
       if (isBorderless) {
-        // Borderless Layout / Checkbox Grid Table
-        return tableHtml
-          .replace(/<table[^>]*>/i, '<table style="width: 100%; border-collapse: collapse; margin: 8px 0 12px 0; table-layout: auto; border: none;">')
-          .replace(/<td([^>]*)style="([^"]*)"/gi, (m, prefix, styles) => {
-            let s = styles.replace(/border\s*:[^;]+;?/gi, '') + '; border: none; padding: 4px 8px; vertical-align: top; word-break: normal;';
-            return `<td${prefix}style="${s}"`;
-          })
-          .replace(/<td(?![^>]*style=)/gi, '<td style="border: none; padding: 4px 8px; vertical-align: top; word-break: normal;">');
+        let tableFormatted = tableHtml.replace(/<table[^>]*>/i, '<table style="width: 100%; border-collapse: collapse; margin: 8px 0 12px 0; table-layout: auto; border: none;">');
+        tableFormatted = formatTagStyles(tableFormatted, { border: 'none', padding: '4px 8px', 'vertical-align': 'top', 'word-break': 'normal' });
+        return tableFormatted;
       }
 
-      // Bordered Data Table (like Section 9 Student data list)
-      return tableHtml
-        .replace(/<table[^>]*>/i, '<table style="width: 100%; border-collapse: collapse; margin: 12px 0; table-layout: auto; border: 1px solid #000000;">')
-        .replace(/<td([^>]*)style="([^"]*)"/gi, (m, prefix, styles) => {
-          let s = styles.replace(/word-break\s*:[^;]+;?/gi, 'word-break: normal;');
-          if (!s.includes('border')) s += '; border: 1px solid #000000';
-          if (!s.includes('vertical-align')) s += '; vertical-align: top';
-          if (!s.includes('padding')) s += '; padding: 6px 8px';
-          return `<td${prefix}style="${s}"`;
-        })
-        .replace(/<td(?![^>]*style=)/gi, '<td style="border: 1px solid #000000; vertical-align: top; padding: 6px 8px; word-break: normal;">')
-        .replace(/<th([^>]*)style="([^"]*)"/gi, (m, prefix, styles) => {
-          let s = styles.replace(/word-break\s*:[^;]+;?/gi, 'word-break: normal;');
-          if (!s.includes('border')) s += '; border: 1px solid #000000';
-          if (!s.includes('vertical-align')) s += '; vertical-align: top';
-          if (!s.includes('padding')) s += '; padding: 6px 8px';
-          return `<th${prefix}style="${s}"`;
-        })
-        .replace(/<th(?![^>]*style=)/gi, '<th style="border: 1px solid #000000; vertical-align: top; padding: 6px 8px; font-weight: bold; background-color: #f8fafc; word-break: normal;">');
+      let tableFormatted = tableHtml.replace(/<table[^>]*>/i, '<table style="width: 100%; border-collapse: collapse; margin: 12px 0; table-layout: auto; border: 1px solid #000000;">');
+      tableFormatted = formatTagStyles(tableFormatted, { border: '1px solid #000000', padding: '6px 8px', 'vertical-align': 'top', 'word-break': 'normal' });
+      return tableFormatted;
     });
 
     return cleaned;
