@@ -343,43 +343,150 @@ h1, h2, h3, h4, h5, h6 {
   background: #cbd5e1;
   border: 1px solid #94a3b8;
   border-radius: 10px;
-  padding: 24px 16px;
+  padding: 28px 16px;
+  flex: 1;
+  width: 100%;
   height: 100%;
-  min-height: 520px;
-  max-height: 640px;
+  min-height: 480px;
+  max-height: none;
   overflow-y: auto;
   overflow-x: auto;
   display: flex;
-  justify-content: center;
-  align-items: flex-start;
-  box-shadow: inset 0 2px 8px rgba(0,0,0,0.15);
+  flex-direction: column;
+  align-items: center;
+  gap: 32px;
+  box-shadow: inset 0 2px 8px rgba(0,0,0,0.12);
+  scrollbar-width: thin;
+  scrollbar-color: #94a3b8 #cbd5e1;
+  box-sizing: border-box;
 }
 
-.word-paper-sheet {
+/* Individual A4 Page Card (Trang A4 Tách Biệt Nhờ Nét Góc Như Word / WPS) */
+.word-paper-sheet,
+.word-paper-page {
   width: 100%;
-  max-width: 820px;
-  min-height: 1000px;
+  max-width: 816px;
+  min-height: 1080px;
   background: #ffffff;
-  padding: 36px 44px;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.25), 0 2px 6px rgba(0,0,0,0.08);
+  padding: 60px 80px 60px 85px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.16), 0 2px 6px rgba(0, 0, 0, 0.08);
+  border: 1px solid #cbd5e1;
   border-radius: 2px;
   font-family: 'Times New Roman', Times, serif;
   font-size: 13pt;
-  line-height: 1.5;
+  line-height: 1.45;
   color: #000000;
   box-sizing: border-box;
   text-align: left;
+  position: relative;
+  transition: transform 0.2s ease, width 0.2s ease;
+  overflow: hidden;
+}
+
+/* Corner Crop Marks (Dấu Góc Trang A4 Chuẩn Word/WPS) */
+.word-paper-sheet::before,
+.word-paper-page::before {
+  content: '';
+  position: absolute;
+  top: 18px;
+  left: 20px;
+  width: 16px;
+  height: 16px;
+  border-top: 1px solid #94a3b8;
+  border-left: 1px solid #94a3b8;
+  pointer-events: none;
+}
+
+.word-paper-sheet::after,
+.word-paper-page::after {
+  content: '';
+  position: absolute;
+  top: 18px;
+  right: 20px;
+  width: 16px;
+  height: 16px;
+  border-top: 1px solid #94a3b8;
+  border-right: 1px solid #94a3b8;
+  pointer-events: none;
+}
+
+.word-page-crop-bottom-left {
+  position: absolute;
+  bottom: 18px;
+  left: 20px;
+  width: 16px;
+  height: 16px;
+  border-bottom: 1px solid #94a3b8;
+  border-left: 1px solid #94a3b8;
+  pointer-events: none;
+}
+
+.word-page-crop-bottom-right {
+  position: absolute;
+  bottom: 18px;
+  right: 20px;
+  width: 16px;
+  height: 16px;
+  border-bottom: 1px solid #94a3b8;
+  border-right: 1px solid #94a3b8;
+  pointer-events: none;
+}
+
+/* Page Badge Indicator */
+.word-page-badge {
+  position: absolute;
+  top: -24px;
+  right: 0;
+  background: #475569;
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 10px;
+  border-radius: 4px;
+  font-family: var(--font-primary);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+}
+
+/* Visual Page Break Separator Line for Word A4 Multi-page Sheet Preview */
+.word-paper-sheet .word-page-break,
+.word-paper-page .word-page-break,
+.word-paper-sheet hr.page-break,
+.word-paper-page hr.page-break {
+  border: none !important;
+  border-top: 2px dashed #94a3b8 !important;
+  margin: 40px -52px !important;
+  position: relative;
+  clear: both;
+}
+
+.word-paper-sheet .word-page-break::after,
+.word-paper-page .word-page-break::after {
+  content: '─── Ngắt Trang A4 (Page Break) ───';
+  display: block;
+  width: max-content;
+  margin: -11px auto 0 auto;
+  background: #cbd5e1;
+  color: #334155;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 14px;
+  border-radius: 12px;
+  border: 1px solid #94a3b8;
+  font-family: var(--font-primary);
 }
 
 @media (max-width: 1280px) {
-  .word-paper-sheet {
-    padding: 28px 32px;
+  .word-paper-sheet,
+  .word-paper-page {
+    padding: 36px 40px;
     font-size: 12.5pt;
   }
 }
 
 .word-paper-sheet table,
-.word-paper-sheet div table {
+.word-paper-page table,
+.word-paper-sheet div table,
+.word-paper-page div table {
   width: 100%;
   border-collapse: collapse;
   margin-top: 8px;
@@ -388,9 +495,13 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .word-paper-sheet td,
+.word-paper-page td,
 .word-paper-sheet th,
+.word-paper-page th,
 .word-paper-sheet div td,
-.word-paper-sheet div th {
+.word-paper-page div td,
+.word-paper-sheet div th,
+.word-paper-page div th {
   border: 1px solid #000000;
   vertical-align: top;
   padding: 6px 8px;
@@ -400,16 +511,66 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .word-paper-sheet p,
-.word-paper-sheet div p {
+.word-paper-page p,
+.word-paper-sheet div p,
+.word-paper-page div p {
   line-height: 1.5;
   margin-top: 4px;
   margin-bottom: 6px;
+  text-align: justify;
+  text-indent: 1cm;
   word-break: normal !important;
   overflow-wrap: normal !important;
   word-wrap: normal !important;
 }
 
-.word-paper-sheet mark {
+/* Reset text-indent for paragraphs inside table cells or list items */
+.word-paper-sheet td p,
+.word-paper-page td p,
+.word-paper-sheet th p,
+.word-paper-page th p,
+.word-paper-sheet li p,
+.word-paper-page li p {
+  text-indent: 0 !important;
+  margin-top: 2px !important;
+  margin-bottom: 2px !important;
+}
+
+/* Word Numbering & Bulleted Lists Restoration (Overriding Tailwind reset) */
+.word-paper-sheet ol,
+.word-paper-page ol {
+  list-style-type: decimal !important;
+  margin-left: 28px !important;
+  padding-left: 0 !important;
+  margin-top: 6px !important;
+  margin-bottom: 6px !important;
+}
+
+.word-paper-sheet ul,
+.word-paper-page ul {
+  list-style-type: disc !important;
+  margin-left: 28px !important;
+  padding-left: 0 !important;
+  margin-top: 6px !important;
+  margin-bottom: 6px !important;
+}
+
+.word-paper-sheet li,
+.word-paper-page li {
+  margin-top: 4px !important;
+  margin-bottom: 4px !important;
+  line-height: 1.5 !important;
+  text-indent: 0 !important;
+}
+
+.word-paper-sheet li::marker,
+.word-paper-page li::marker {
+  font-weight: bold !important;
+  color: #000000 !important;
+}
+
+.word-paper-sheet mark,
+.word-paper-page mark {
   background: #fef08a !important;
   color: #854d0e !important;
   padding: 2px 6px !important;
@@ -421,39 +582,57 @@ h1, h2, h3, h4, h5, h6 {
 
 /* Word Alignment & Paragraph Formatting Classes */
 .word-paper-sheet .text-center,
+.word-paper-page .text-center,
 .word-paper-sheet p.text-center,
+.word-paper-page p.text-center,
 .word-paper-sheet h1.text-center,
+.word-paper-page h1.text-center,
 .word-paper-sheet h2.text-center,
+.word-paper-page h2.text-center,
 .word-paper-sheet h3.text-center,
-.word-paper-sheet h4.text-center {
+.word-paper-page h3.text-center,
+.word-paper-sheet h4.text-center,
+.word-paper-page h4.text-center {
   text-align: center !important;
   text-indent: 0 !important;
 }
 
 .word-paper-sheet .text-right,
-.word-paper-sheet p.text-right {
+.word-paper-page .text-right,
+.word-paper-sheet p.text-right,
+.word-paper-page p.text-right {
   text-align: right !important;
   text-indent: 0 !important;
 }
 
 .word-paper-sheet .text-justify,
-.word-paper-sheet p.text-justify {
+.word-paper-page .text-justify,
+.word-paper-sheet p.text-justify,
+.word-paper-page p.text-justify {
   text-align: justify !important;
 }
 
 .word-paper-sheet .text-indent,
+.word-paper-page .text-indent,
 .word-paper-sheet p.text-indent,
+.word-paper-page p.text-indent,
 .word-paper-sheet .text-indent-justify,
-.word-paper-sheet p.text-indent-justify {
+.word-paper-page .text-indent-justify,
+.word-paper-sheet p.text-indent-justify,
+.word-paper-page p.text-indent-justify {
   text-indent: 1cm !important;
   text-align: justify !important;
 }
 
 /* Ensure Word Underlines (<u>) and Decorative Lines display properly despite Tailwind Reset */
 .word-paper-sheet u,
+.word-paper-page u,
 .word-paper-sheet ins,
+.word-paper-page ins,
 .word-paper-sheet span[style*="text-decoration: underline"],
-.word-paper-sheet span[style*="text-decoration:underline"] {
+.word-paper-page span[style*="text-decoration: underline"],
+.word-paper-sheet span[style*="text-decoration:underline"],
+.word-paper-page span[style*="text-decoration:underline"] {
   text-decoration: underline !important;
   text-underline-offset: 3px !important;
   text-decoration-thickness: 1px !important;

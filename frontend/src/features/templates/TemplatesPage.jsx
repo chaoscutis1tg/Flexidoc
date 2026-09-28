@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import api from '../../services/api';
 import { useAuth } from '../../app/AuthContext';
@@ -30,6 +30,88 @@ import {
   Lock
 } from 'lucide-react';
 
+// Smart DOM-based Pagination Engine to break Word HTML into authentic A4 Pages
+const splitContentIntoPages = (htmlContent) => {
+  if (!htmlContent || typeof htmlContent !== 'string') return [];
+  const trimmed = htmlContent.trim();
+  if (!trimmed) return [];
+
+  // 1. If explicit page breaks exist in HTML, split by them
+  if (trimmed.includes('word-page-break')) {
+    const rawPages = trimmed.split(/<div class="word-page-break"><\/div>/gi).filter(p => p.trim());
+    if (rawPages.length > 1) return rawPages;
+  }
+
+  if (typeof window === 'undefined' || !window.document) return [trimmed];
+
+  // 2. Parse HTML string into DOM nodes
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(`<body>${trimmed}</body>`, 'text/html');
+  const children = Array.from(doc.body.children);
+
+  if (children.length === 0) return [trimmed];
+
+  // 3. Create or reuse invisible offscreen measuring container
+  let measurer = document.getElementById('a4-page-measurer');
+  if (!measurer) {
+    measurer = document.createElement('div');
+    measurer.id = 'a4-page-measurer';
+    measurer.className = 'word-paper-sheet';
+    measurer.style.position = 'absolute';
+    measurer.style.visibility = 'hidden';
+    measurer.style.left = '-9999px';
+    measurer.style.top = '-9999px';
+    measurer.style.width = '790px';
+    measurer.style.padding = '44px 52px';
+    measurer.style.boxSizing = 'border-box';
+    measurer.style.fontFamily = "'Times New Roman', Times, serif";
+    measurer.style.fontSize = "13pt";
+    measurer.style.lineHeight = "1.5";
+    document.body.appendChild(measurer);
+  }
+
+  // Force min-height 0 and height auto so height reflects exact content size
+  measurer.style.setProperty('min-height', '0px', 'important');
+  measurer.style.setProperty('height', 'auto', 'important');
+
+  // Target printable height per A4 page inside container (approx 1000px)
+  const MAX_PAGE_HEIGHT = 1000;
+
+  const pages = [];
+  let currentPageNodes = [];
+  measurer.innerHTML = '';
+
+  for (let i = 0; i < children.length; i++) {
+    const node = children[i];
+    const clone = node.cloneNode(true);
+    measurer.appendChild(clone);
+
+    // If adding this top-level element causes printable height to exceed MAX_PAGE_HEIGHT
+    if (measurer.offsetHeight > MAX_PAGE_HEIGHT && currentPageNodes.length > 0) {
+      measurer.removeChild(measurer.lastChild);
+
+      const pageContainer = document.createElement('div');
+      currentPageNodes.forEach(n => pageContainer.appendChild(n.cloneNode(true)));
+      pages.push(pageContainer.innerHTML);
+
+      measurer.innerHTML = '';
+      currentPageNodes = [node.cloneNode(true)];
+      measurer.appendChild(node.cloneNode(true));
+    } else {
+      currentPageNodes.push(clone);
+    }
+  }
+
+  if (currentPageNodes.length > 0) {
+    const pageContainer = document.createElement('div');
+    currentPageNodes.forEach(n => pageContainer.appendChild(n.cloneNode(true)));
+    pages.push(pageContainer.innerHTML);
+  }
+
+  measurer.innerHTML = '';
+  return pages.length > 0 ? pages : [trimmed];
+};
+
 export const TemplatesPage = () => {
   const { user } = useAuth();
   const { confirm } = useConfirm();
@@ -58,7 +140,15 @@ export const TemplatesPage = () => {
 
   const [uploadedFileName, setUploadedFileName] = useState('');
   const [parsingFile, setParsingFile] = useState(false);
+  const [zoomScale, setZoomScale] = useState(1);
   const textareaRef = useRef(null);
+  const canvasRef = useRef(null);
+
+  useEffect(() => {
+    if (canvasRef.current) {
+      canvasRef.current.scrollTop = 0;
+    }
+  }, [createForm.templateContentHtml, showCreateModal]);
 
   // Custom Confirmation / Alert Dialog State (Replaces native browser alert)
   const [dialogConfig, setDialogConfig] = useState({
@@ -264,7 +354,9 @@ export const TemplatesPage = () => {
       }
 
       Object.keys(defaultStyles).forEach(key => {
-        if (!styleMap[key]) {
+        if (defaultStyles[key] === 'none' && key === 'border') {
+          styleMap[key] = 'none';
+        } else if (!styleMap[key]) {
           styleMap[key] = defaultStyles[key];
         }
       });
@@ -285,11 +377,12 @@ export const TemplatesPage = () => {
     if (!html) return '';
     let cleaned = html;
 
-    // 1. Remove Word bookmark anchor tags & empty spans
+    // 1. Remove Word bookmark anchor tags & empty spans, convert Page Breaks to visual A4 dividers
     cleaned = cleaned.replace(/<a\s+id="[^"]*"\s*><\/a>/gi, '');
     cleaned = cleaned.replace(/<a\s+id="[^"]*"\s*>/gi, '');
     cleaned = cleaned.replace(/<\/a>/gi, '');
     cleaned = cleaned.replace(/<span>\s*<\/span>/gi, '');
+    cleaned = cleaned.replace(/<(div|hr|br|p)[^>]*(page-break-after|page-break-before)[^>]*>/gi, '<div class="word-page-break"></div>');
 
     // 2. Convert paragraph alignment classes generated by Mammoth into inline CSS styles & preserve classes
     const applyClassStyle = (htmlStr, className, styleStr) => {
@@ -311,33 +404,103 @@ export const TemplatesPage = () => {
     cleaned = applyClassStyle(cleaned, 'text-indent', 'text-indent: 1cm; text-align: justify;');
     cleaned = applyClassStyle(cleaned, 'text-indent-justify', 'text-indent: 1cm; text-align: justify;');
 
-    // 3. Prevent 'CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM' and 'Độc lập – Tự do – Hạnh phúc' from wrapping onto multiple lines & format underline
+    // Reset text-indent: 0 on numbered headings so section titles don't inherit paragraph indent
+    cleaned = cleaned.replace(/<p([^>]*)>\s*(\d+[\.\)])/gi, (match, attrs, num) => {
+      let cleanAttrs = attrs || '';
+      if (cleanAttrs.includes('style="')) {
+        cleanAttrs = cleanAttrs.replace(/style="([^"]*)"/i, 'style="text-indent: 0 !important; $1"');
+      } else {
+        cleanAttrs = ' style="text-indent: 0 !important;"' + cleanAttrs;
+      }
+      return `<p${cleanAttrs}>${num}`;
+    });
+
+    // 3. Organization Names & Quốc Hiệu Formatting
+    cleaned = cleaned.replace(/(TRƯỜNG ĐẠI HỌC [^<\n]+|BỘ GIÁO DỤC [^<\n]+|SỞ GIÁO DỤC [^<\n]+)/gi, (m) => {
+      return `<span style="white-space: nowrap; font-weight: bold;">${m.trim()}</span>`;
+    });
     cleaned = cleaned.replace(/(CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM)/gi, '<span style="white-space: nowrap; font-weight: bold;">$1</span>');
     cleaned = cleaned.replace(/(Độc lập – Tự do – Hạnh phúc|Độc lập - Tự do - Hạnh phúc)/gi, '<span style="white-space: nowrap; font-weight: bold; border-bottom: 1.5px solid #000000; padding-bottom: 1px; display: inline-block;">$1</span>');
 
     // 4. Smart Table Processor: Detect borderless layout tables vs bordered data tables
     cleaned = cleaned.replace(/<table([\s\S]*?)<\/table>/gi, (tableHtml) => {
-      const isQuocHieuTable = tableHtml.includes('CỘNG HÒA') || tableHtml.includes('Độc lập') || tableHtml.includes('TRƯỜNG') || tableHtml.includes('VICTORIA');
+      const isQuocHieuTable = tableHtml.includes('CỘNG HÒA') || tableHtml.includes('Độc lập') || tableHtml.includes('TRƯỜNG') || tableHtml.includes('VICTORIA') || tableHtml.includes('BỘ GIÁO DỤC') || tableHtml.includes('SỞ GIÁO DỤC');
+      const isSignatureTable = tableHtml.includes('trách nhiệm') || tableHtml.includes('ghi rõ họ tên') || tableHtml.includes('Ký, đóng dấu') || tableHtml.includes('Ký và ghi') || tableHtml.includes('Giảng viên 1') || tableHtml.includes('Giảng viên 2');
       const isCheckboxTable = tableHtml.includes('☐') || tableHtml.includes('☒') || tableHtml.includes('☑') || tableHtml.includes('[ ]') || tableHtml.includes('[x]');
-      const isExplicitBorderless = tableHtml.includes('border: none') || tableHtml.includes('border:none') || tableHtml.includes('border="0"');
+      const isFormTable = tableHtml.includes('Đơn vị công tác:') || tableHtml.includes('Số điện thoại:') || tableHtml.includes('Họ và tên:') || tableHtml.includes('................') || tableHtml.includes('.......');
+      const isExplicitBorderless = tableHtml.includes('border: none') || tableHtml.includes('border:none') || tableHtml.includes('border="0"') || tableHtml.includes('dashed') || tableHtml.includes('dotted');
 
-      const isBorderless = isQuocHieuTable || isCheckboxTable || isExplicitBorderless;
+      // Quốc hiệu header tables & Signature tables (2-column layout tables split 50/50)
+      if (isQuocHieuTable || isSignatureTable) {
+        let tableFormatted = tableHtml.replace(/<table[^>]*>/i, () => {
+          return '<table style="width: 100%; border-collapse: collapse; margin: 8px 0 16px 0; table-layout: fixed; border: none;">';
+        });
+        tableFormatted = formatTagStyles(tableFormatted, { border: 'none', padding: '4px 6px', 'vertical-align': 'top', width: '50%' });
+        return tableFormatted;
+      }
 
-      if (isQuocHieuTable) {
-        let tableFormatted = tableHtml.replace(/<table[^>]*>/i, '<table style="width: 100%; border-collapse: collapse; margin: 8px 0 16px 0; table-layout: auto; border: none;">');
+      const isBorderless = isCheckboxTable || isFormTable || isExplicitBorderless;
+
+      if (isBorderless) {
+        let tableFormatted = tableHtml.replace(/<table[^>]*>/i, (m) => {
+          if (m.includes('style=')) {
+            return m.replace(/style="([^"]*)"/i, (sm, s) => `style="width: 100%; border-collapse: collapse; margin: 8px 0 12px 0; table-layout: auto; border: none; ${s}"`);
+          }
+          return '<table style="width: 100%; border-collapse: collapse; margin: 8px 0 12px 0; table-layout: auto; border: none;">';
+        });
+
         tableFormatted = formatTagStyles(tableFormatted, { border: 'none', padding: '4px 6px', 'vertical-align': 'top' });
         return tableFormatted;
       }
 
-      if (isBorderless) {
-        let tableFormatted = tableHtml.replace(/<table[^>]*>/i, '<table style="width: 100%; border-collapse: collapse; margin: 8px 0 12px 0; table-layout: auto; border: none;">');
-        tableFormatted = formatTagStyles(tableFormatted, { border: 'none', padding: '4px 8px', 'vertical-align': 'top', 'word-break': 'normal' });
-        return tableFormatted;
-      }
+      // Bordered Data Table
+      let tableFormatted = tableHtml.replace(/<table[^>]*>/i, (m) => {
+        if (m.includes('style=')) {
+          return m.replace(/style="([^"]*)"/i, (sm, s) => `style="width: 100%; border-collapse: collapse; margin: 12px 0; table-layout: auto; border: 1px solid #000000; ${s}"`);
+        }
+        return '<table style="width: 100%; border-collapse: collapse; margin: 12px 0; table-layout: auto; border: 1px solid #000000;">';
+      });
 
-      let tableFormatted = tableHtml.replace(/<table[^>]*>/i, '<table style="width: 100%; border-collapse: collapse; margin: 12px 0; table-layout: auto; border: 1px solid #000000;">');
       tableFormatted = formatTagStyles(tableFormatted, { border: '1px solid #000000', padding: '6px 8px', 'vertical-align': 'top', 'word-break': 'normal' });
       return tableFormatted;
+    });
+
+    // 5. Sequential List Fixer: Ensure continuous numbering across <ol> lists split by tables or block elements
+    let olSequenceCounter = 0;
+    cleaned = cleaned.replace(/<ol([^>]*)>([\s\S]*?)<\/ol>/gi, (match, attrs, content) => {
+      const liCount = (content.match(/<li[\s>]/gi) || []).length;
+      let newAttrs = attrs || '';
+      if (olSequenceCounter > 0) {
+        const startVal = olSequenceCounter + 1;
+        if (/start="[^"]*"/i.test(newAttrs)) {
+          newAttrs = newAttrs.replace(/start="[^"]*"/i, `start="${startVal}"`);
+        } else {
+          newAttrs = ` start="${startVal}"${newAttrs}`;
+        }
+      }
+      olSequenceCounter += liCount;
+      return `<ol${newAttrs}>${content}</ol>`;
+    });
+
+    // 6. Fix paragraph section numbers if docx outputted hardcoded numbered paragraphs that reset after tables
+    let maxSectionNum = 0;
+    cleaned = cleaned.replace(/<p([^>]*)>\s*(<strong>|<b>)?\s*(\d+)[\.\)]\s*(?:<\/strong>|<\/b>)?\s*([^<\n]+)/gi, (match, attrs, boldOpen, numStr, textRest) => {
+      let num = parseInt(numStr, 10);
+      if (num <= maxSectionNum && num === 1 && maxSectionNum >= 2) {
+        num = maxSectionNum + 1;
+      }
+      if (num > maxSectionNum) {
+        maxSectionNum = num;
+      }
+      let cleanAttrs = attrs || '';
+      if (cleanAttrs.includes('style="')) {
+        cleanAttrs = cleanAttrs.replace(/style="([^"]*)"/i, 'style="text-indent: 0 !important; $1"');
+      } else {
+        cleanAttrs = ' style="text-indent: 0 !important;"' + cleanAttrs;
+      }
+      const boldPrefix = boldOpen || '<strong>';
+      const boldSuffix = boldOpen ? (boldOpen.includes('strong') ? '</strong>' : '</b>') : '</strong>';
+      return `<p${cleanAttrs}>${boldPrefix}${num}.${boldSuffix} ${textRest}`;
     });
 
     return cleaned;
@@ -675,154 +838,189 @@ export const TemplatesPage = () => {
     const hasHtmlTags = /<[a-z][\s\S]*>/i.test(createForm.templateContentText || '');
 
     return (
-      <div className="modal-overlay">
-        <div className="modal-content animate-fade-in" style={{ maxWidth: '1360px', width: '95vw', maxHeight: '94vh', padding: '22px 26px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+      <div className="modal-overlay" style={{ padding: '16px' }}>
+        <div className="modal-content animate-fade-in" style={{ maxWidth: '1440px', width: '95vw', height: '92vh', maxHeight: '92vh', padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: '12px', borderRadius: '16px', boxShadow: '0 25px 60px rgba(15, 23, 42, 0.28)' }}>
 
           {/* Modal Header */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e2e8f0', paddingBottom: '12px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e2e8f0', paddingBottom: '10px', flexShrink: 0 }}>
             <div>
-              <h2 style={{ fontSize: '20px', fontWeight: '800', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <FilePlus size={24} color="#0284c7" /> Thêm Mẫu Hợp Đồng Từ File Word (.DOCX)
+              <h2 style={{ fontSize: '19px', fontWeight: '800', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <FilePlus size={22} color="#0284c7" /> Số Hóa Mẫu Hợp Đồng Từ File Word (.DOCX)
               </h2>
-              <p style={{ fontSize: '12.5px', color: '#64748b', marginTop: '2px' }}>
-                Tải file Word lên, hệ thống giữ nguyên phông chữ Times New Roman & hỗ trợ cài đặt các vị trí thay đổi thông tin.
+              <p style={{ fontSize: '12px', color: '#64748b', marginTop: '1px' }}>
+                Hệ thống tự động giữ nguyên phông chữ Times New Roman & định dạng bảng biểu 100% gốc Word.
               </p>
             </div>
             <button
               onClick={() => setShowCreateModal(false)}
-              style={{ background: '#f1f5f9', border: 'none', color: '#64748b', borderRadius: '8px', padding: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              style={{ background: '#f1f5f9', border: 'none', color: '#64748b', borderRadius: '8px', padding: '6px 10px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s ease' }}
               title="Đóng cửa sổ"
             >
               <X size={20} />
             </button>
           </div>
 
-          <form onSubmit={handleCreateTemplate} style={{ display: 'flex', flexDirection: 'column', gap: '14px', flex: 1, minHeight: 0 }}>
+          <form onSubmit={handleCreateTemplate} style={{ display: 'flex', flexDirection: 'column', gap: '12px', flex: 1, minHeight: 0 }}>
 
-            {/* Top Toolbar: Compact Upload + Presets + Metadata Inputs */}
-            <div style={{ background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '12px', padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            {/* Top Compact Metadata Bar */}
+            <div style={{ background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '10px', padding: '10px 14px', display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap', flexShrink: 0 }}>
 
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-
-                {/* File Upload Trigger Button */}
-                <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', gap: '10px' }}>
-                  <label
-                    className="btn-action btn-info"
-                    style={{ padding: '8px 16px', fontSize: '12.5px', borderRadius: '8px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-                  >
-                    <Upload size={16} />
-                    {parsingFile ? 'Đang đọc Word...' : uploadedFileName ? `Đổi File Word (${uploadedFileName})` : 'Tải File Word (.DOCX)'}
-                    <input
-                      type="file"
-                      accept=".docx,.pdf,.txt"
-                      onChange={handleFileUpload}
-                      style={{ display: 'none' }}
-                    />
-                  </label>
-                  {uploadedFileName && (
-                    <span style={{ fontSize: '12px', color: '#0284c7', fontWeight: '700', background: '#e0f2fe', padding: '4px 10px', borderRadius: '6px', border: '1px solid #bae6fd', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                      <FileText size={14} /> {uploadedFileName}
-                    </span>
-                  )}
-                </div>
-
-                {/* Presets Quick Loaders */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span style={{ fontSize: '12px', color: '#0369a1', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    <Sparkles size={14} color="#0284c7" /> Nạp Mẫu Thử:
+              {/* Upload Trigger Button */}
+              <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+                <label
+                  className="btn-action btn-info"
+                  style={{ padding: '7px 15px', fontSize: '12px', borderRadius: '8px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '6px', fontWeight: '700' }}
+                >
+                  <Upload size={15} />
+                  {parsingFile ? 'Đang đọc Word...' : uploadedFileName ? `Đổi File Word` : 'Tải File Word (.DOCX)'}
+                  <input
+                    type="file"
+                    accept=".docx,.pdf,.txt"
+                    onChange={handleFileUpload}
+                    style={{ display: 'none' }}
+                  />
+                </label>
+                {uploadedFileName && (
+                  <span style={{ fontSize: '11.5px', color: '#0284c7', fontWeight: '700', background: '#e0f2fe', padding: '4px 10px', borderRadius: '6px', border: '1px solid #bae6fd', display: 'inline-flex', alignItems: 'center', gap: '4px', maxWidth: '180px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={uploadedFileName}>
+                    <FileText size={13} /> {uploadedFileName}
                   </span>
-                  <button type="button" className="btn-action btn-secondary" style={{ padding: '6px 12px', fontSize: '11.5px', borderRadius: '6px' }} onClick={() => handleLoadPreset('LABOR')}>
-                    Mẫu Hợp Đồng Lao Động
-                  </button>
-                  <button type="button" className="btn-action btn-secondary" style={{ padding: '6px 12px', fontSize: '11.5px', borderRadius: '6px' }} onClick={() => handleLoadPreset('SERVICE')}>
-                    Mẫu Hợp Đồng Dịch Vụ
-                  </button>
-                </div>
-
+                )}
               </div>
 
-              {/* Template Metadata Row */}
-              <div style={{ display: 'grid', gridTemplateColumns: '2.8fr 1fr', gap: '14px' }}>
-                <div>
-                  <input
-                    type="text"
-                    required
-                    className="glass-input"
-                    style={{ fontSize: '13.5px', padding: '8px 12px', background: '#ffffff' }}
-                    placeholder="Tên Mẫu Hợp Đồng * (Ví dụ: Hợp Đồng Lao Động Công Ty 2026)"
-                    value={createForm.name}
-                    onChange={(e) => setCreateForm({ ...createForm, name: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <select className="glass-input" style={{ fontSize: '13.5px', padding: '8px 12px', background: '#ffffff' }} value={createForm.category} onChange={(e) => setCreateForm({ ...createForm, category: e.target.value })}>
-                    <option value="Lao động">Loại: Lao động</option>
-                    <option value="Dịch vụ">Loại: Dịch vụ</option>
-                    <option value="Mua bán">Loại: Mua bán</option>
-                    <option value="Hợp tác">Loại: Hợp tác</option>
-                  </select>
-                </div>
+              {/* Template Name Input */}
+              <div style={{ flex: 1, minWidth: '240px' }}>
+                <input
+                  type="text"
+                  required
+                  className="glass-input"
+                  style={{ fontSize: '12.5px', padding: '7px 12px', background: '#ffffff', border: '1px solid #cbd5e1' }}
+                  placeholder="Tên Mẫu Hợp Đồng * (Ví dụ: Hợp Đồng Lao Động Công Ty 2026)"
+                  value={createForm.name}
+                  onChange={(e) => setCreateForm({ ...createForm, name: e.target.value })}
+                />
+              </div>
+
+              {/* Category Select */}
+              <div style={{ width: '160px' }}>
+                <select className="glass-input" style={{ fontSize: '12.5px', padding: '7px 10px', background: '#ffffff', border: '1px solid #cbd5e1' }} value={createForm.category} onChange={(e) => setCreateForm({ ...createForm, category: e.target.value })}>
+                  <option value="Lao động">Loại: Lao động</option>
+                  <option value="Dịch vụ">Loại: Dịch vụ</option>
+                  <option value="Mua bán">Loại: Mua bán</option>
+                  <option value="Hợp tác">Loại: Hợp tác</option>
+                </select>
+              </div>
+
+              {/* Presets Quick Loaders */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{ fontSize: '11.5px', color: '#0369a1', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <Sparkles size={13} color="#0284c7" /> Mẫu thử:
+                </span>
+                <button type="button" className="btn-action btn-secondary" style={{ padding: '5px 10px', fontSize: '11px', borderRadius: '6px' }} onClick={() => handleLoadPreset('LABOR')}>
+                  HĐ Lao Động
+                </button>
+                <button type="button" className="btn-action btn-secondary" style={{ padding: '5px 10px', fontSize: '11px', borderRadius: '6px' }} onClick={() => handleLoadPreset('SERVICE')}>
+                  HĐ Dịch Vụ
+                </button>
               </div>
 
             </div>
 
-            {/* Workspace Grid: Document Canvas (Left) & Dynamic Fields Panel (Right) */}
-            <div style={{ display: 'grid', gridTemplateColumns: '2.3fr 1fr', gap: '16px', flex: 1, minHeight: 0 }}>
+            {/* Main Studio Workspace Grid: Paper Canvas (Left 1fr) & Sidebar (Right 340px) */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: '14px', flex: 1, minHeight: 0 }}>
 
-              {/* Left Column: Editor & A4 Document Viewer */}
-              <div style={{ background: '#ffffff', border: '1px solid #cbd5e1', borderRadius: '12px', padding: '14px', display: 'flex', flexDirection: 'column', gap: '10px', height: '100%', minHeight: 0 }}>
+              {/* Left Column: Paper Studio Canvas */}
+              <div style={{ background: '#ffffff', border: '1px solid #cbd5e1', borderRadius: '12px', padding: '12px', display: 'flex', flexDirection: 'column', gap: '10px', height: '100%', minHeight: 0 }}>
 
-                {/* Tab Header & Action Controls */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                  <div style={{ display: 'flex', gap: '6px', background: '#f1f5f9', padding: '4px', borderRadius: '8px' }}>
+                {/* Studio Toolbar Bar */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', flexWrap: 'wrap', background: '#f8fafc', padding: '6px 10px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+
+                  <div style={{ display: 'flex', gap: '6px', background: '#e2e8f0', padding: '3px', borderRadius: '6px' }}>
                     <button
                       type="button"
                       onClick={() => setActiveTab('preview')}
                       style={{
-                        padding: '6px 12px',
-                        borderRadius: '6px',
+                        padding: '5px 10px',
+                        borderRadius: '5px',
                         border: 'none',
                         background: activeTab === 'preview' ? '#ffffff' : 'transparent',
                         color: activeTab === 'preview' ? '#0284c7' : '#64748b',
                         fontWeight: '700',
-                        fontSize: '12px',
+                        fontSize: '11.5px',
                         cursor: 'pointer',
                         display: 'flex',
                         alignItems: 'center',
-                        gap: '6px',
+                        gap: '5px',
                         boxShadow: activeTab === 'preview' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
                       }}
                     >
-                      <Eye size={14} /> Xem Trước Định Dạng Gốc (Word Format A4)
+                      <Eye size={13} /> Xem Bản Gốc (Word A4)
                     </button>
                     <button
                       type="button"
                       onClick={() => setActiveTab('editor')}
                       style={{
-                        padding: '6px 12px',
-                        borderRadius: '6px',
+                        padding: '5px 10px',
+                        borderRadius: '5px',
                         border: 'none',
                         background: activeTab === 'editor' ? '#ffffff' : 'transparent',
                         color: activeTab === 'editor' ? '#0284c7' : '#64748b',
                         fontWeight: '700',
-                        fontSize: '12px',
+                        fontSize: '11.5px',
                         cursor: 'pointer',
                         display: 'flex',
                         alignItems: 'center',
-                        gap: '6px',
+                        gap: '5px',
                         boxShadow: activeTab === 'editor' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
                       }}
                     >
-                      <Edit3 size={14} /> Xem Giấy Word A4 ({fields.length} vị trí)
+                      <Edit3 size={13} /> Giấy Số Hóa ({fields.length} vị trí)
                     </button>
                   </div>
 
-                  <div style={{ display: 'flex', gap: '6px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    {/* Responsive A4 Zoom Scaling Controls */}
+                    <div style={{ display: 'flex', alignItems: 'center', background: '#ffffff', padding: '2px 6px', borderRadius: '6px', border: '1px solid #cbd5e1', gap: '4px' }}>
+                      <span style={{ fontSize: '11px', fontWeight: '700', color: '#475569', paddingRight: '2px' }}>Thu nhỏ A4:</span>
+                      {[1, 0.9, 0.8, 0.75].map((scale) => (
+                        <button
+                          key={scale}
+                          type="button"
+                          onClick={() => setZoomScale(scale)}
+                          style={{
+                            padding: '2px 7px',
+                            fontSize: '10.5px',
+                            fontWeight: '700',
+                            borderRadius: '4px',
+                            border: 'none',
+                            background: zoomScale === scale ? '#0284c7' : 'transparent',
+                            color: zoomScale === scale ? '#ffffff' : '#475569',
+                            cursor: 'pointer',
+                            transition: 'all 0.15s ease'
+                          }}
+                        >
+                          {Math.round(scale * 100)}%
+                        </button>
+                      ))}
+                    </div>
+
                     <button
                       type="button"
                       onClick={handleConvertSelectionToVariable}
-                      className="btn-action btn-warning"
-                      style={{ padding: '6px 14px', fontSize: '12px', borderRadius: '6px', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 'bold' }}
+                      className="btn-action"
+                      style={{
+                        padding: '6px 14px',
+                        fontSize: '12px',
+                        borderRadius: '6px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        fontWeight: '800',
+                        background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+                        color: '#ffffff',
+                        border: 'none',
+                        boxShadow: '0 2px 8px rgba(245, 158, 11, 0.35)',
+                        cursor: 'pointer'
+                      }}
                       title="Bôi đen chữ trên tờ giấy Word rồi bấm nút này để cài đặt ô nhập liệu"
                     >
                       <Zap size={15} /> Bôi Đen Đổi Thành Ô Nhập Liệu
@@ -830,81 +1028,102 @@ export const TemplatesPage = () => {
                   </div>
                 </div>
 
-                {/* Authentic Word A4 Document Paper Sheet Preview & Visual Editor Canvas */}
-                <div className="word-paper-canvas" style={{ flex: 1, minHeight: '380px' }}>
-                  <div className="word-paper-sheet">
-                    {createForm.templateContentHtml ? (
-                      <div
-                        dangerouslySetInnerHTML={{
-                          __html: createForm.templateContentHtml.replace(/\{\{([a-zA-Z0-9_\.]+)\}\}/g, '<mark style="background:#fef08a;color:#854d0e;padding:2px 6px;border-radius:4px;font-weight:bold;border:1px solid #fde047;">{{$1}}</mark>')
-                        }}
-                      />
-                    ) : createForm.templateContentText ? (
-                      <div style={{ whiteSpace: 'pre-wrap' }}>{createForm.templateContentText}</div>
-                    ) : (
-                      <div style={{ textAlign: 'center', color: '#94a3b8', padding: '60px 20px' }}>
-                        <FileText size={48} color="#cbd5e1" style={{ marginBottom: '12px' }} />
-                        <p style={{ fontWeight: '600', fontSize: '14px', color: '#64748b' }}>Chưa Có Nội Dung Hợp Đồng</p>
-                        <p style={{ fontSize: '12px', marginTop: '4px' }}>Bấm nút <strong>"Tải File Word Mẫu"</strong> bên trên hoặc bấm <strong>"Nạp mẫu có sẵn (Presets)"</strong> để bắt đầu!</p>
-                      </div>
-                    )}
-                  </div>
-                </div>
+                {/* Authentic Word A4 Document Paper Sheet Preview Canvas */}
+                <div ref={canvasRef} className="word-paper-canvas" style={{ flex: 1, minHeight: 0 }}>
+                  {(() => {
+                    const rawHtml = createForm.templateContentHtml || (
+                      createForm.templateContentText
+                        ? createForm.templateContentText.split('\n\n').map(p => `<p class="text-justify">${p.trim()}</p>`).join('')
+                        : ''
+                    );
 
-                <div style={{ fontSize: '11.5px', color: '#64748b', background: '#f8fafc', padding: '8px 12px', borderRadius: '6px', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <Lightbulb size={15} color="#eab308" />
-                  <span><strong>Hướng dẫn cài đặt vị trí điền thông tin:</strong> Dùng chuột bôi đen đoạn chữ trên tờ giấy Word ➔ Bấm nút màu cam <strong>"Bôi Đen Đổi Thành Ô Nhập Liệu"</strong>. Định dạng gốc sẽ được giữ nguyên 100%.</span>
+                    if (!rawHtml.trim()) {
+                      return (
+                        <div className="word-paper-page word-paper-sheet" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '400px', color: '#94a3b8' }}>
+                          <FileText size={48} color="#cbd5e1" style={{ marginBottom: '12px' }} />
+                          <p style={{ fontWeight: '600', fontSize: '14px', color: '#64748b' }}>Chưa Có Nội Dung Hợp Đồng</p>
+                          <p style={{ fontSize: '12px', marginTop: '4px' }}>Bấm nút <strong>"Tải File Word Mẫu"</strong> bên trên hoặc bấm <strong>"Nạp mẫu có sẵn (Presets)"</strong> để bắt đầu!</p>
+                        </div>
+                      );
+                    }
+
+                    const pages = splitContentIntoPages(rawHtml);
+
+                    return pages.map((pageHtml, idx) => (
+                      <div
+                        key={idx}
+                        className="word-paper-page word-paper-sheet"
+                        style={{
+                          transform: zoomScale !== 1 ? `scale(${zoomScale})` : 'none',
+                          transformOrigin: 'top center',
+                          marginBottom: zoomScale !== 1 ? `-${(1 - zoomScale) * 450}px` : '0'
+                        }}
+                      >
+                        <div className="word-page-badge">Trang A4 {idx + 1} / {pages.length}</div>
+                        <div className="word-page-crop-bottom-left"></div>
+                        <div className="word-page-crop-bottom-right"></div>
+                        <div
+                          dangerouslySetInnerHTML={{
+                            __html: pageHtml.replace(/\{\{([a-zA-Z0-9_\.]+)\}\}/g, '<mark style="background:#fef08a;color:#854d0e;padding:2px 6px;border-radius:4px;font-weight:bold;border:1px solid #fde047;">{{$1}}</mark>')
+                          }}
+                        />
+                      </div>
+                    ));
+                  })()}
                 </div>
 
               </div>
 
-              {/* Right Column: Dynamic Fields Sidebar */}
-              <div style={{ background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '12px', padding: '14px', display: 'flex', flexDirection: 'column', gap: '10px', height: '100%', minHeight: 0 }}>
+              {/* Right Column: Dynamic Fields Sidebar (Fixed 340px Width) */}
+              <div style={{ background: '#ffffff', border: '1px solid #cbd5e1', borderRadius: '12px', padding: '12px', display: 'flex', flexDirection: 'column', gap: '10px', height: '100%', minHeight: 0 }}>
 
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <h3 style={{ fontSize: '14px', fontWeight: '800', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <Sliders size={16} color="#0284c7" /> Ô Nhập Liệu Cần Thay Đổi ({fields.length})
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e2e8f0', paddingBottom: '8px' }}>
+                  <h3 style={{ fontSize: '13.5px', fontWeight: '800', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <Sliders size={15} color="#0284c7" /> Ô Nhập Liệu Thay Đổi
                   </h3>
+                  <span style={{ fontSize: '11px', fontWeight: '700', color: '#0284c7', background: '#e0f2fe', padding: '2px 8px', borderRadius: '10px', border: '1px solid #bae6fd' }}>
+                    {fields.length} ô
+                  </span>
                 </div>
 
                 {/* Manual Field Addition Input Group */}
-                <div style={{ background: '#ffffff', border: '1px solid #cbd5e1', padding: '10px', borderRadius: '8px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  <div style={{ display: 'flex', gap: '6px' }}>
-                    <input type="text" className="glass-input" style={{ fontSize: '12px', padding: '6px 8px' }} placeholder="Tên ô (Họ và Tên)" value={newField.label} onChange={(e) => setNewField({ ...newField, label: e.target.value, key: newField.key || e.target.value.toLowerCase().replace(/\s+/g, '_') })} />
-                    <input type="text" className="glass-input" style={{ fontSize: '12px', padding: '6px 8px' }} placeholder="Mã ngắn (ho_ten)" value={newField.key} onChange={(e) => setNewField({ ...newField, key: e.target.value })} />
+                <div style={{ background: '#f8fafc', border: '1px solid #cbd5e1', padding: '10px', borderRadius: '8px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
+                    <input type="text" className="glass-input" style={{ fontSize: '11.5px', padding: '6px 8px', background: '#ffffff' }} placeholder="Tên ô (Họ và Tên)" value={newField.label} onChange={(e) => setNewField({ ...newField, label: e.target.value, key: newField.key || e.target.value.toLowerCase().replace(/\s+/g, '_') })} />
+                    <input type="text" className="glass-input" style={{ fontSize: '11.5px', padding: '6px 8px', background: '#ffffff' }} placeholder="Mã (ho_ten)" value={newField.key} onChange={(e) => setNewField({ ...newField, key: e.target.value })} />
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '6px' }}>
-                    <select className="glass-input" style={{ fontSize: '12px', padding: '5px 8px', width: 'auto' }} value={newField.type} onChange={(e) => setNewField({ ...newField, type: e.target.value })}>
+                    <select className="glass-input" style={{ fontSize: '11.5px', padding: '5px 8px', width: '150px', background: '#ffffff' }} value={newField.type} onChange={(e) => setNewField({ ...newField, type: e.target.value })}>
                       <option value="TEXT">Văn bản thường</option>
                       <option value="CURRENCY">Số tiền (VNĐ)</option>
                       <option value="DATE">Ngày tháng</option>
                       <option value="NUMBER">Số đếm</option>
                     </select>
-                    <button type="button" className="btn-action btn-create" style={{ padding: '5px 12px', fontSize: '11.5px', borderRadius: '6px' }} onClick={handleAddField}>
+                    <button type="button" className="btn-action btn-create" style={{ padding: '5px 12px', fontSize: '11.5px', borderRadius: '6px', fontWeight: '700' }} onClick={handleAddField}>
                       + Thêm Ô
                     </button>
                   </div>
                 </div>
 
                 {/* Registered Fields List Container */}
-                <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px', paddingRight: '2px' }}>
+                <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '6px', paddingRight: '2px' }}>
                   {fields.length === 0 ? (
-                    <div style={{ textAlign: 'center', padding: '24px 10px', color: '#94a3b8', fontSize: '12px' }}>
+                    <div style={{ textAlign: 'center', padding: '24px 10px', color: '#94a3b8', fontSize: '11.5px', background: '#f8fafc', borderRadius: '8px', border: '1px dashed #cbd5e1' }}>
                       <HelpCircle size={22} color="#94a3b8" style={{ marginBottom: '4px' }} />
-                      <p style={{ fontWeight: '600' }}>Chưa có ô nhập liệu nào.</p>
-                      <p style={{ fontSize: '11px', marginTop: '2px' }}>Hãy bôi đen chữ trong mẫu hoặc thêm ô ở phía trên.</p>
+                      <p style={{ fontWeight: '700', color: '#64748b' }}>Chưa có ô nhập liệu nào</p>
+                      <p style={{ fontSize: '10.5px', marginTop: '2px' }}>Hãy bôi đen chữ trong hợp đồng rồi bấm nút màu cam hoặc thêm tay ở phía trên.</p>
                     </div>
                   ) : (
                     fields.map((f) => (
-                      <div key={f.id || f.key} style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '8px 12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 1px 2px rgba(0,0,0,0.02)' }}>
+                      <div key={f.id || f.key} style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '8px 10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 1px 2px rgba(0,0,0,0.02)' }}>
                         <div>
-                          <span style={{ fontWeight: '800', color: '#0f172a', fontSize: '12.5px' }}>{f.label}</span>
-                          <span style={{ fontSize: '11px', color: '#0284c7', display: 'block', marginTop: '1px' }}>{`{{${f.key}}}`}</span>
+                          <span style={{ fontWeight: '800', color: '#0f172a', fontSize: '12px' }}>{f.label}</span>
+                          <span style={{ fontSize: '10.5px', color: '#0284c7', display: 'block', marginTop: '1px', fontWeight: '600' }}>{`{{${f.key}}}`}</span>
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <span className="badge badge-role" style={{ fontSize: '9.5px', padding: '2px 6px' }}>{f.type}</span>
+                          <span className="badge badge-role" style={{ fontSize: '9px', padding: '2px 6px' }}>{f.type}</span>
                           <button type="button" style={{ border: 'none', background: 'none', color: '#ef4444', cursor: 'pointer', padding: '3px', display: 'flex', alignItems: 'center' }} title="Xóa ô này" onClick={() => setFields(fields.filter(item => item.key !== f.key))}>
-                            <Trash2 size={14} color="#ef4444" />
+                            <Trash2 size={13} color="#ef4444" />
                           </button>
                         </div>
                       </div>
@@ -912,15 +1131,21 @@ export const TemplatesPage = () => {
                   )}
                 </div>
 
+                {/* Sidebar Bottom Guidance Banner */}
+                <div style={{ fontSize: '11px', color: '#475569', background: '#fefce8', padding: '8px 10px', borderRadius: '6px', border: '1px solid #fef08a', display: 'flex', gap: '6px', marginTop: 'auto' }}>
+                  <Lightbulb size={16} color="#eab308" style={{ flexShrink: 0, marginTop: '1px' }} />
+                  <span><strong>Hướng dẫn:</strong> Bôi đen chữ trên tờ giấy A4 ➔ Bấm nút màu cam <strong>"Bôi Đen Đổi Thành Ô Nhập Liệu"</strong>.</span>
+                </div>
+
               </div>
 
             </div>
 
             {/* Modal Actions Footer */}
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', borderTop: '1px solid #e2e8f0', paddingTop: '14px' }}>
-              <button type="button" className="btn-action btn-secondary" style={{ padding: '8px 18px', borderRadius: '8px', fontSize: '13px' }} onClick={() => setShowCreateModal(false)}>Hủy</button>
-              <button type="submit" className="btn-action btn-create" style={{ padding: '8px 22px', borderRadius: '8px', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <CheckCircle2 size={17} /> Lưu Mẫu Hợp Đồng Đã Số Hóa
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', borderTop: '1px solid #e2e8f0', paddingTop: '10px', flexShrink: 0 }}>
+              <button type="button" className="btn-action btn-secondary" style={{ padding: '7px 18px', borderRadius: '8px', fontSize: '12.5px' }} onClick={() => setShowCreateModal(false)}>Hủy</button>
+              <button type="submit" className="btn-action btn-create" style={{ padding: '7px 22px', borderRadius: '8px', fontSize: '12.5px', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: '700' }}>
+                <CheckCircle2 size={16} /> Lưu Mẫu Hợp Đồng Đã Số Hóa
               </button>
             </div>
 
