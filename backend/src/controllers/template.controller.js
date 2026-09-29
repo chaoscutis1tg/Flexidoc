@@ -3,7 +3,55 @@ import fs from 'fs';
 import { templateService } from '../services/template.service.js';
 import { auditLogService } from '../services/audit-log.service.js';
 import { sendSuccess } from '../utils/response.util.js';
+import { convertDocxToPdf } from '../utils/docx-to-pdf.util.js';
 
+export const uploadTempDocx = async (req, res, next) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: 'Vui lòng cung cấp file DOCX' });
+    }
+
+    const tempDir = path.join(process.cwd(), 'uploads', 'temp');
+    if (!fs.existsSync(tempDir)) {
+      fs.mkdirSync(tempDir, { recursive: true });
+    }
+
+    const tempFileName = `temp_${Date.now()}_${req.file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
+    const tempFilePath = path.join(tempDir, tempFileName);
+
+    fs.writeFileSync(tempFilePath, req.file.buffer);
+
+    const fileUrl = `${process.env.SERVER_BASE_URL || 'http://localhost:5000'}/uploads/temp/${tempFileName}`;
+
+    res.json({
+      success: true,
+      data: {
+        fileUrl,
+        documentKey: tempFileName,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const previewDocxAsPdf = async (req, res, next) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: 'Vui lòng cung cấp file DOCX' });
+    }
+
+    const pdfBuffer = convertDocxToPdf(req.file.buffer);
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'inline; filename="preview.pdf"');
+    res.setHeader('Content-Length', pdfBuffer.length);
+    return res.send(pdfBuffer);
+  } catch (error) {
+    console.error('DOCX to PDF conversion error:', error);
+    next(error);
+  }
+};
 export const createTemplate = async (req, res, next) => {
   try {
     const { name, category, description, templateContentHtml, fields, documentModel } = req.body;
@@ -122,6 +170,24 @@ export const parseDocx = async (req, res, next) => {
   }
 };
 
+export const getTemplateOriginalFile = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const details = await templateService.getTemplateDetails(id, req.tenantContext);
+    const version = details.currentVersionData;
+
+    if (!version || !version.originalFileKey || !fs.existsSync(version.originalFileKey)) {
+      return res.status(404).json({ success: false, message: 'File DOCX mẫu gốc không tồn tại' });
+    }
+
+    const fullPath = path.resolve(process.cwd(), version.originalFileKey);
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+    return res.sendFile(fullPath);
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const getTemplateImage = async (req, res, next) => {
   try {
     const { templateId, versionId, imageName } = req.params;
@@ -136,4 +202,6 @@ export const getTemplateImage = async (req, res, next) => {
     next(error);
   }
 };
+
+
 

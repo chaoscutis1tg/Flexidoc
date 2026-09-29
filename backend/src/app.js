@@ -61,6 +61,9 @@ app.use(mongoSanitize());
 // 4. API Routes
 app.use('/api/v1', routes);
 
+// Serve uploads
+app.use('/uploads', express.static(path.resolve(process.cwd(), 'uploads')));
+
 // Health check endpoint
 app.get('/health', (req, res) => {
   res.status(200).json({ status: 'OK', system: 'FlexiDoc API Server', version: '1.0.0' });

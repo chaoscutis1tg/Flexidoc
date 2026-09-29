@@ -16,7 +16,10 @@ RUN npm install --production
 FROM node:20-alpine
 WORKDIR /app
 
-RUN apk add --no-cache mongodb-tools chromium nss freetype harfbuzz ca-certificates ttf-freefont font-noto-emoji
+RUN apk add --no-cache mongodb-tools chromium nss freetype harfbuzz ca-certificates \
+    ttf-freefont font-noto font-noto-cjk font-noto-emoji fontconfig \
+    libreoffice \
+    && fc-cache -f
 
 ENV NODE_ENV=production
 ENV PORT=5000

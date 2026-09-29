@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # App chính (Backend Node.js tích hợp Frontend React)
   flexidoc_app:
@@ -20,10 +18,31 @@ services:
       - JWT_EXPIRES_IN=1d
       - SERVER_BASE_URL=https://flexidoc.io.vn
       - SEPAY_WEBHOOK_PATH=/api/v1/payments/sepay-webhook
+      - ONLYOFFICE_URL=http://onlyoffice_docs:80
+      - ONLYOFFICE_PUBLIC_URL=https://office.flexidoc.io.vn
+      - ONLYOFFICE_JWT_SECRET=flexidoc_onlyoffice_secret_2026
     depends_on:
       - webhopdong_mongodb
+      - onlyoffice_docs
     volumes:
       - webhopdong_uploads:/app/backend/uploads
+
+  # ONLYOFFICE Document Server — Full DOCX Editor (like Google Docs)
+  onlyoffice_docs:
+    image: onlyoffice/documentserver:latest
+    container_name: onlyoffice_docs
+    restart: unless-stopped
+    ports:
+      - "8443:443"
+      - "8080:80"
+    environment:
+      - JWT_ENABLED=true
+      - JWT_SECRET=flexidoc_onlyoffice_secret_2026
+      - JWT_HEADER=Authorization
+      - JWT_IN_BODY=true
+    volumes:
+      - onlyoffice_data:/var/www/onlyoffice/Data
+      - onlyoffice_logs:/var/log/onlyoffice
 
   # Database MongoDB
   webhopdong_mongodb:
@@ -38,4 +57,5 @@ services:
 volumes:
   webhopdong_mongo_data:
   webhopdong_uploads:
-
+  onlyoffice_data:
+  onlyoffice_logs:

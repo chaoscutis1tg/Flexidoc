@@ -684,7 +684,38 @@ textarea::placeholder {
   color: #94a3b8 !important;
 }
 
+/* ═══════════════════════════════════════════════════════════════
+   docx-preview: Container-only styling.
+   DO NOT override fonts, layout, or spacing inside docx-preview.
+   The library handles all Word fidelity internally.
+   ═══════════════════════════════════════════════════════════════ */
 
+/* Outer wrapper: centers the rendered pages */
+.docx-preview-container-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+}
 
+/* docx-preview's own wrapper div — transparent, inherits canvas bg */
+.docx-preview-container-wrapper .docx-wrapper {
+  background: transparent !important;
+  padding: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  gap: 24px !important;
+  width: 100% !important;
+  overflow: visible !important;
+}
 
-
+/* Each rendered A4 page (section.docx) - only visual card styling */
+.docx-preview-container-wrapper .docx-wrapper > section.docx {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12), 0 1px 4px rgba(0, 0, 0, 0.06) !important;
+  border: 1px solid #b0b8c4 !important;
+  border-radius: 2px !important;
+  background: #ffffff !important;
+  overflow: visible !important;
+}

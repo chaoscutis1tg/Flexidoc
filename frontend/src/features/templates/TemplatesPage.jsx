@@ -5,6 +5,9 @@ import { useAuth } from '../../app/AuthContext';
 import { useConfirm } from '../../app/ConfirmContext';
 import mammoth from 'mammoth';
 import { DocumentRenderer } from './editor/DocumentRenderer.jsx';
+import { DocxPreviewRenderer } from './editor/DocxPreviewRenderer.jsx';
+import { DocumentEditor } from '@onlyoffice/document-editor-react';
+
 import {
   FilePlus,
   Plus,
@@ -126,6 +129,7 @@ export const TemplatesPage = () => {
   // Document Model & File State
   const [documentModel, setDocumentModel] = useState(null);
   const [uploadedFile, setUploadedFile] = useState(null);
+  const [onlyofficeConfig, setOnlyofficeConfig] = useState(null);
 
   // Template Form State
   const [createForm, setCreateForm] = useState({
@@ -656,7 +660,7 @@ export const TemplatesPage = () => {
       tblIdx++;
 
       // Detect special table types for layout (50/50 split, etc.)
-      const isQuocHieuTable = tableHtml.includes('CỘNG HÒA') || tableHtml.includes('Độc lập') || tableHtml.includes('TRƯỜNG') || tableHtml.includes('VICTORIA') || tableHtml.includes('BỘ GIÁO DỤC') || tableHtml.includes('SỞ GIÁO DỤC');
+      const isQuocHieuTable = tableHtml.includes('CỘNG HÒA') || tableHtml.includes('Độc lập') || tableHtml.includes('TRƯỜNG') || tableHtml.includes('VICTORIA') || tableHtml.includes('BỘ GIÁO DỤC') || tableHtml.includes('SỞ GIÁO DỤC') || tableHtml.includes('MAY VIVA') || tableHtml.includes('TNHH');
       const isSignatureTable = tableHtml.includes('trách nhiệm') || tableHtml.includes('ghi rõ họ tên') || tableHtml.includes('Ký, đóng dấu') || tableHtml.includes('Ký và ghi') || tableHtml.includes('Chữ ký') || tableHtml.includes('họ tên và đóng dấu') || tableHtml.includes('NGƯỜI SỬ DỤNG') || tableHtml.includes('NGƯỜI LAO ĐỘNG') || tableHtml.includes('Giảng viên');
 
       // Quốc hiệu / Signature layout tables (2-column 50/50)
@@ -664,7 +668,14 @@ export const TemplatesPage = () => {
         let tableFormatted = tableHtml.replace(/<table[^>]*>/i, () =>
           '<table style="width: 100%; border-collapse: collapse; margin: 8px 0 16px 0; table-layout: fixed; border: none;">'
         );
-        tableFormatted = formatTagStyles(tableFormatted, { border: 'none', padding: '4px 6px', 'vertical-align': 'top', width: '50%' });
+        tableFormatted = formatTagStyles(tableFormatted, { border: 'none', padding: '2px 4px', 'vertical-align': 'top', width: '50%' });
+        // Strip paragraph margins inside borderless layout tables so text doesn't stack vertically
+        tableFormatted = tableFormatted.replace(/<p([^>]*)>/gi, (match, attrs) => {
+          if (/style="[^"]*"/i.test(attrs)) {
+            return `<p${attrs.replace(/style="([^"]*)"/i, 'style="margin: 2px 0; text-indent: 0; $1"')}>`;
+          }
+          return `<p style="margin: 2px 0; text-indent: 0;" ${attrs}>`;
+        });
         return tableFormatted;
       }
 
@@ -744,7 +755,56 @@ export const TemplatesPage = () => {
     if (!file) return;
 
     setUploadedFileName(file.name);
+    setUploadedFile(file);
+    setActiveTab('preview');
     setParsingFile(true);
+
+    // Convert DOCX to ONLYOFFICE config
+    if (file.name.endsWith('.docx')) {
+      try {
+        const formData = new FormData();
+        formData.append('file', file);
+        
+        const tempRes = await api.post('/templates/upload-temp', formData, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        });
+
+        if (tempRes.data.success) {
+          const { fileUrl, documentKey } = tempRes.data.data;
+          
+          setOnlyofficeConfig({
+            document: {
+              fileType: 'docx',
+              key: documentKey,
+              title: file.name,
+              url: fileUrl,
+              permissions: {
+                edit: true,
+                download: false,
+                print: false,
+              }
+            },
+            editorConfig: {
+              mode: 'edit',
+              lang: 'vi',
+              customization: {
+                autosave: false,
+                forcesave: false,
+                chat: false,
+                comments: false,
+                compactHeader: true,
+                compactToolbar: false,
+                help: false,
+                hideRightMenu: true,
+              }
+            }
+          });
+        }
+      } catch (err) {
+        console.warn('ONLYOFFICE temp upload failed:', err);
+        setOnlyofficeConfig(null);
+      }
+    }
 
     try {
       if (file.name.endsWith('.docx')) {
@@ -1028,6 +1088,7 @@ export const TemplatesPage = () => {
       setDocumentModel(null);
       setUploadedFile(null);
       setUploadedFileName('');
+      setOnlyofficeConfig(null);
       fetchTemplates();
       showNotification('Thành Công', 'Đã lưu Mẫu Hợp Đồng mới vào hệ thống!', 'success');
     } catch (err) {
@@ -1287,48 +1348,60 @@ export const TemplatesPage = () => {
                 </div>
 
                 {/* Authentic Word A4 Document Paper Sheet Preview Canvas */}
-                <div ref={canvasRef} className="word-paper-canvas" style={{ flex: 1, minHeight: 0 }}>
-                  {(() => {
-                    const rawHtml = createForm.templateContentHtml || (
-                      createForm.templateContentText
-                        ? createForm.templateContentText.split('\n\n').map(p => `<p class="text-justify">${p.trim()}</p>`).join('')
-                        : ''
-                    );
+                <div ref={canvasRef} className="word-paper-canvas" style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
+                  {activeTab === 'preview' && uploadedFile ? (
+                    onlyofficeConfig ? (
+                      <DocumentEditor
+                        id="docxEditor"
+                        documentServerUrl={import.meta.env.VITE_ONLYOFFICE_PUBLIC_URL || 'https://office.flexidoc.io.vn'}
+                        config={onlyofficeConfig}
+                        events_onDocumentReady={() => console.log('ONLYOFFICE is ready')}
+                        height="800px"
+                      />
+                    ) : (
+                      <DocxPreviewRenderer file={uploadedFile} zoom={zoomScale} />
+                    )
+                  ) : documentModel && activeTab === 'document' ? (
+                    <DocumentRenderer documentModel={documentModel} fields={fields} onFieldsChange={setFields} readOnly={false} />
+                  ) : (
+                    (() => {
+                      const rawHtml = createForm.templateContentHtml || (
+                        createForm.templateContentText
+                          ? createForm.templateContentText.split('\n\n').map(p => `<p class="text-justify">${p.trim()}</p>`).join('')
+                          : ''
+                      );
 
-                    if (!rawHtml.trim()) {
+                      if (!rawHtml.trim()) {
+                        return (
+                          <div className="word-paper-page word-paper-sheet" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '400px', color: '#94a3b8' }}>
+                            <FileText size={48} color="#cbd5e1" style={{ marginBottom: '12px' }} />
+                            <p style={{ fontWeight: '600', fontSize: '14px', color: '#64748b' }}>Chưa Có Nội Dung Hợp Đồng</p>
+                            <p style={{ fontSize: '12px', marginTop: '4px' }}>Bấm nút <strong>"Tải File Word Mẫu"</strong> bên trên hoặc bấm <strong>"Nạp mẫu có sẵn (Presets)"</strong> để bắt đầu!</p>
+                          </div>
+                        );
+                      }
+
                       return (
-                        <div className="word-paper-page word-paper-sheet" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '400px', color: '#94a3b8' }}>
-                          <FileText size={48} color="#cbd5e1" style={{ marginBottom: '12px' }} />
-                          <p style={{ fontWeight: '600', fontSize: '14px', color: '#64748b' }}>Chưa Có Nội Dung Hợp Đồng</p>
-                          <p style={{ fontSize: '12px', marginTop: '4px' }}>Bấm nút <strong>"Tải File Word Mẫu"</strong> bên trên hoặc bấm <strong>"Nạp mẫu có sẵn (Presets)"</strong> để bắt đầu!</p>
+                        <div
+                          className="word-paper-page word-paper-sheet"
+                          style={{
+                            transform: zoomScale !== 1 ? `scale(${zoomScale})` : 'none',
+                            transformOrigin: 'top center',
+                            marginBottom: zoomScale !== 1 ? `-${(1 - zoomScale) * 450}px` : '0',
+                            minHeight: '1122px', // Minimum A4 height
+                          }}
+                        >
+                          <div
+                            dangerouslySetInnerHTML={{
+                              __html: rawHtml.replace(/\{\{([a-zA-Z0-9_\.]+)\}\}/g, '<mark style="background:#fef08a;color:#854d0e;padding:2px 6px;border-radius:4px;font-weight:bold;border:1px solid #fde047;">{{$1}}</mark>')
+                            }}
+                          />
                         </div>
                       );
-                    }
-
-                    const pages = splitContentIntoPages(rawHtml);
-
-                    return pages.map((pageHtml, idx) => (
-                      <div
-                        key={idx}
-                        className="word-paper-page word-paper-sheet"
-                        style={{
-                          transform: zoomScale !== 1 ? `scale(${zoomScale})` : 'none',
-                          transformOrigin: 'top center',
-                          marginBottom: zoomScale !== 1 ? `-${(1 - zoomScale) * 450}px` : '0'
-                        }}
-                      >
-                        <div className="word-page-badge">Trang A4 {idx + 1} / {pages.length}</div>
-                        <div className="word-page-crop-bottom-left"></div>
-                        <div className="word-page-crop-bottom-right"></div>
-                        <div
-                          dangerouslySetInnerHTML={{
-                            __html: pageHtml.replace(/\{\{([a-zA-Z0-9_\.]+)\}\}/g, '<mark style="background:#fef08a;color:#854d0e;padding:2px 6px;border-radius:4px;font-weight:bold;border:1px solid #fde047;">{{$1}}</mark>')
-                          }}
-                        />
-                      </div>
-                    ));
-                  })()}
+                    })()
+                  )}
                 </div>
+
 
               </div>
 
