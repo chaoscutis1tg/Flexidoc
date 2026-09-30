@@ -734,7 +734,7 @@ export const OrganizationsPage = () => {
             </div>
 
             {/* Right Standard Actions */}
-            <div className="flex items-center gap-1.5 shrink-0">
+            <div className="flex flex-wrap items-center gap-1.5 w-full sm:w-auto mt-2 sm:mt-0">
               {user?.role === 'SUPER_ADMIN' && (
                 <>
                   <button
@@ -796,8 +796,8 @@ export const OrganizationsPage = () => {
 
           {/* Row 2: Manager Info & Manager Approval Actions Bar */}
           {(node.managerEmail || node.status === 'PENDING_APPROVAL' || node.status === 'REJECTED_BY_MANAGER') && (
-            <div className="pt-2.5 border-t border-slate-100 flex items-center justify-between flex-wrap gap-2 text-xs">
-              <div className="flex items-center gap-2 text-slate-600 font-medium min-w-0">
+            <div className="pt-2.5 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2 text-xs">
+              <div className="flex flex-wrap items-center gap-2 text-slate-600 font-medium min-w-0 w-full sm:w-auto">
                 {node.managerEmail && (
                   <span className="px-2.5 py-1 rounded-lg bg-slate-100/80 border border-slate-200 text-slate-700 text-[11.5px] font-semibold truncate">
                     Quản Lý Chi Nhánh: <strong className="text-slate-900">{node.managerName || 'Chưa đặt tên'}</strong> ({node.managerEmail})
