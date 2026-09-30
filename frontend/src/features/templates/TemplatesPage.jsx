@@ -727,15 +727,19 @@ export const TemplatesPage = () => {
       // Quốc hiệu / Signature layout tables (2-column 50/50)
       if (isQuocHieuTable || isSignatureTable) {
         let tableFormatted = tableHtml.replace(/<table[^>]*>/i, () =>
-          '<table style="width: 100%; border-collapse: collapse; margin: 8px 0 16px 0; table-layout: fixed; border: none;">'
+          '<table style="width: 100%; border-collapse: collapse; margin: 8px 0 16px 0; table-layout: auto; border: none;">'
         );
-        tableFormatted = formatTagStyles(tableFormatted, { border: 'none', padding: '2px 4px', 'vertical-align': 'top', width: '50%' });
-        // Strip paragraph margins inside borderless layout tables so text doesn't stack vertically
+        tableFormatted = formatTagStyles(tableFormatted, { border: 'none', padding: '2px 4px', 'vertical-align': 'top' });
+        // Strip paragraph margins inside borderless layout tables so text doesn't stack vertically or get pushed out of cells
         tableFormatted = tableFormatted.replace(/<p([^>]*)>/gi, (match, attrs) => {
           if (/style="[^"]*"/i.test(attrs)) {
-            return `<p${attrs.replace(/style="([^"]*)"/i, 'style="margin: 2px 0; text-indent: 0; $1"')}>`;
+            let newStyle = attrs.match(/style="([^"]*)"/i)[1];
+            newStyle = newStyle.replace(/margin-left:\s*[^;]+;?/gi, '')
+                               .replace(/padding-left:\s*[^;]+;?/gi, '')
+                               .replace(/text-indent:\s*[^;]+;?/gi, '');
+            return `<p${attrs.replace(/style="([^"]*)"/i, `style="margin: 2px 0; ${newStyle}"`)}>`;
           }
-          return `<p style="margin: 2px 0; text-indent: 0;" ${attrs}>`;
+          return `<p style="margin: 2px 0;" ${attrs}>`;
         });
         return tableFormatted;
       }
