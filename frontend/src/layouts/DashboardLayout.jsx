@@ -300,70 +300,43 @@ export const DashboardLayout = () => {
           <div className="flex items-center gap-2 lg:gap-4">
             {user?.role !== 'SUPER_ADMIN' && (
               <button
-                onClick={() => setShowRenewalModal(true)}
+                onClick={() => setRenewalModalOpen(true)}
+                className="hidden md:flex items-center gap-2 transition-all cursor-pointer hover:shadow-md hover:scale-[1.02]"
                 style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '10px',
-                  background: isExpired
-                    ? 'linear-gradient(135deg, #fff1f2 0%, #ffe4e6 100%)'
-                    : plan === 'FREE'
-                      ? 'linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)'
-                      : 'linear-gradient(135deg, #fbf7ff 0%, #f3e8ff 100%)',
-                  color: isExpired ? '#9f1239' : plan === 'FREE' ? '#0369a1' : '#6b21a8',
-                  padding: '4px 6px 4px 12px',
-                  borderRadius: '30px',
-                  fontSize: '12.5px',
-                  fontWeight: '600',
-                  border: isExpired
-                    ? '1px solid #fecdd3'
-                    : plan === 'FREE'
-                      ? '1px solid #bae6fd'
-                      : '1px solid #e9d5ff',
-                  cursor: 'pointer',
-                  boxShadow: '0 2px 10px rgba(0, 0, 0, 0.04)',
-                  backdropFilter: 'blur(8px)',
-                  transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+                  background: isExpired ? '#fff1f2' : plan === 'FREE' ? '#f0f9ff' : 'linear-gradient(to right, #ffffff, #faf5ff)',
+                  border: `1px solid ${isExpired ? '#fecdd3' : plan === 'FREE' ? '#bae6fd' : '#e9d5ff'}`,
+                  borderRadius: '100px',
+                  padding: '4px 4px 4px 12px',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+                  marginRight: '12px'
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = 'translateY(-1.5px)';
+                  e.currentTarget.style.transform = 'translateY(-1px)';
                   e.currentTarget.style.boxShadow = isExpired
-                    ? '0 6px 18px rgba(225, 29, 72, 0.18)'
+                    ? '0 4px 12px rgba(225, 29, 72, 0.12)'
                     : plan === 'FREE'
-                      ? '0 6px 18px rgba(2, 132, 199, 0.18)'
-                      : '0 6px 18px rgba(147, 51, 234, 0.18)';
+                      ? '0 4px 12px rgba(2, 132, 199, 0.12)'
+                      : '0 4px 12px rgba(147, 51, 234, 0.12)';
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.transform = 'translateY(0)';
-                  e.currentTarget.style.boxShadow = '0 2px 10px rgba(0, 0, 0, 0.04)';
+                  e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.05)';
                 }}
-                title={`Quản lý / gia hạn gói dịch vụ cho tổ chức '${user?.organizationId?.name || 'hiện tại'}'`}
+                title={`Quản lý / nâng cấp gói dịch vụ cho tổ chức '${user?.organizationId?.name || 'hiện tại'}'`}
               >
-                {/* Icon Container */}
-                <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  width: '26px',
-                  height: '26px',
-                  borderRadius: '50%',
-                  background: isExpired
-                    ? '#ffe4e6'
-                    : plan === 'FREE'
-                      ? '#e0f2fe'
-                      : '#ede9fe',
-                  flexShrink: 0
-                }}>
-                  {isExpired ? (
-                    <AlertTriangle size={14} color="#e11d48" />
-                  ) : (
-                    <Crown size={14} color={plan === 'FREE' ? '#0284c7' : '#8b5cf6'} />
-                  )}
-                </div>
-
-                {/* Main Content */}
-                <div className="hidden sm:flex items-center gap-[7px]">
-                  <span style={{ fontSize: '12px', color: '#64748b', fontWeight: '500' }}>Gói:</span>
+                {/* Plan Info */}
+                <div className="flex items-center gap-2">
+                  <div style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    background: isExpired ? '#ffe4e6' : plan === 'FREE' ? '#e0f2fe' : '#f3e8ff',
+                    width: '24px', height: '24px', borderRadius: '50%'
+                  }}>
+                    {isExpired ? (
+                      <AlertTriangle size={13} color="#e11d48" />
+                    ) : (
+                      <Crown size={13} color={plan === 'FREE' ? '#0284c7' : '#9333ea'} />
+                    )}
+                  </div>
                   <span style={{
                     fontWeight: '800',
                     fontSize: '13px',
@@ -372,69 +345,47 @@ export const DashboardLayout = () => {
                   }}>
                     {plan}
                   </span>
-
-                  {/* Remaining Days Pill */}
-                  {isExpired ? (
-                    <span style={{
-                      background: '#ffe4e6',
-                      color: '#e11d48',
-                      padding: '2px 8px',
-                      borderRadius: '12px',
-                      fontSize: '11px',
-                      fontWeight: '700',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '3px'
-                    }}>
-                      Hết hạn
-                    </span>
-                  ) : plan !== 'FREE' && daysRemaining > 0 ? (
-                    <span style={{
-                      background: 'rgba(255, 255, 255, 0.85)',
-                      color: '#475569',
-                      border: '1px solid rgba(203, 213, 225, 0.6)',
-                      padding: '2px 9px',
-                      borderRadius: '12px',
-                      fontSize: '11px',
-                      fontWeight: '600',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '4px',
-                      boxShadow: '0 1px 2px rgba(0,0,0,0.03)'
-                    }}>
-                      <Clock size={11} color="#64748b" />
-                      Còn {daysRemaining} ngày
-                    </span>
-                  ) : null}
                 </div>
 
-                {/* Compact Gradient Action Chip: "Gia Hạn" / "Nâng Cấp" */}
-                <span style={{
-                  fontSize: '11.5px',
-                  fontWeight: '700',
-                  background: isExpired
-                    ? 'linear-gradient(135deg, #f43f5e 0%, #e11d48 100%)'
-                    : plan === 'FREE'
-                      ? 'linear-gradient(135deg, #0ea5e9 0%, #0369a1 100%)'
+                {/* Status/Days Pill */}
+                <div style={{
+                  background: isExpired 
+                    ? 'linear-gradient(135deg, #f43f5e 0%, #e11d48 100%)' 
+                    : plan === 'FREE' 
+                      ? 'linear-gradient(135deg, #0ea5e9 0%, #0369a1 100%)' 
                       : 'linear-gradient(135deg, #a855f7 0%, #7e22ce 100%)',
-                  color: '#ffffff',
-                  padding: '5px 12px',
-                  borderRadius: '20px',
-                  display: 'inline-flex',
+                  color: 'white',
+                  borderRadius: '100px',
+                  padding: '4px 12px',
+                  display: 'flex',
                   alignItems: 'center',
-                  gap: '4px',
-                  boxShadow: isExpired
-                    ? '0 2px 8px rgba(225, 29, 72, 0.35)'
-                    : plan === 'FREE'
-                      ? '0 2px 8px rgba(2, 132, 199, 0.35)'
-                      : '0 2px 8px rgba(126, 34, 206, 0.35)',
-                  letterSpacing: '0.01em',
-                  marginLeft: '2px'
+                  gap: '5px',
+                  fontWeight: '700',
+                  fontSize: '11.5px',
+                  boxShadow: isExpired 
+                    ? '0 2px 6px rgba(225, 29, 72, 0.25)' 
+                    : plan === 'FREE' 
+                      ? '0 2px 6px rgba(2, 132, 199, 0.25)' 
+                      : '0 2px 6px rgba(126, 34, 206, 0.25)'
                 }}>
-                  <Sparkles size={12} color="#ffffff" />
-                  {isExpired ? 'Gia Hạn Ngay' : plan === 'FREE' ? 'Nâng Cấp' : 'Gia Hạn'}
-                </span>
-              </button>
+                  {isExpired ? (
+                    <>
+                      <AlertTriangle size={12} color="#ffffff" />
+                      <span>Hết Hạn</span>
+                    </>
+                  ) : plan === 'FREE' ? (
+                    <>
+                      <Sparkles size={12} color="#ffffff" />
+                      <span>Nâng Cấp</span>
+                    </>
+                  ) : (
+                    <>
+                      <Clock size={12} color="#ffffff" />
+                      <span>{daysRemaining}d</span>
+                    </>
+                  )}
+                </div>
+</button>
             )}
           </div>
         </header>
