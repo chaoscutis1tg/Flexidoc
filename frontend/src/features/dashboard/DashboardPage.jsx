@@ -168,7 +168,7 @@ export const DashboardPage = () => {
           <div className="absolute right-0 top-0 w-96 h-96 bg-sky-500/10 rounded-full blur-3xl pointer-events-none" />
 
           <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-            <div>
+            <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2 mb-3">
                 <span className="bg-sky-500/20 text-sky-300 border border-sky-400/30 text-xs font-black px-3 py-1 rounded-full uppercase tracking-wider flex items-center gap-1.5 backdrop-blur-md">
                   <Shield size={14} className="text-sky-400" />
@@ -531,7 +531,7 @@ export const DashboardPage = () => {
       
       {/* 1. Header Banner */}
       <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
+        <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2 mb-2">
             <span className="bg-sky-50 text-sky-700 border border-sky-200 text-xs font-bold px-2.5 py-0.5 rounded-md flex items-center gap-1">
               <Shield size={13} />
@@ -545,16 +545,16 @@ export const DashboardPage = () => {
             </span>
           </div>
 
-          <h1 className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2.5">
-            <Building2 size={26} className="text-sky-600" />
-            <span>{orgName}</span>
+          <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2.5 min-w-0">
+            <Building2 size={26} className="text-sky-600 shrink-0" />
+            <span className="truncate break-words whitespace-normal">{orgName}</span>
           </h1>
-          <p className="text-xs text-slate-500 mt-1">
+          <p className="text-xs text-slate-500 mt-1 break-words whitespace-normal">
             Tổng quan dữ liệu thực tế thuộc tổ chức của bạn trong hệ thống.
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2 sm:gap-2.5 mt-1 sm:mt-0">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-2.5 mt-1 sm:mt-0 min-w-0">
           <button 
             onClick={() => navigate('/contracts?action=create')}
             className="px-4 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-extrabold text-xs md:text-sm shadow-sm transition-all cursor-pointer flex items-center gap-2"
