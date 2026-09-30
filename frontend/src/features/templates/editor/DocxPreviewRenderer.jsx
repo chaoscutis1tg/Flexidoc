@@ -183,28 +183,34 @@ export const DocxPreviewRenderer = ({ file, fileUrl, zoom = 1, fields = [], onRe
       done: () => {
         if (!fields || fields.length === 0) return;
         
-        // Mark each field's original text
-        fields.forEach(field => {
-          if (field.originalText) {
-            instance.mark(field.originalText, {
-              acrossElements: true,
-              separateWordSearch: false,
-              className: 'field-highlight',
-              each: (element) => {
-                element.style.backgroundColor = '#fef08a';
-                element.style.color = '#854d0e';
-                element.style.padding = '2px 4px';
-                element.style.borderRadius = '4px';
-                element.style.fontWeight = 'bold';
-                element.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)';
-                element.title = `Biến: {{${field.key}}} (${field.label})`;
-                
-                // Also, optionally, we could replace the text content with {{key}}, 
-                // but highlighting the original text is safer and preserves the visual flow exactly as the user selected it.
+        // Pass all keywords as an array to mark.js to do a single efficient DOM pass
+        const keywords = fields.map(f => f.originalText).filter(Boolean);
+        
+        if (keywords.length > 0) {
+          instance.mark(keywords, {
+            acrossElements: true,
+            separateWordSearch: false,
+            className: 'field-highlight',
+            each: (element) => {
+              // Extract the matched text and find which field it belongs to
+              const matchedText = element.textContent;
+              const matchedField = fields.find(f => 
+                // Simple inclusion check or exact match since mark.js might split nodes
+                f.originalText === matchedText || f.originalText.includes(matchedText) || matchedText.includes(f.originalText)
+              ) || fields[0]; // fallback to first field if weird DOM split happens
+
+              element.style.backgroundColor = '#fef08a';
+              element.style.color = '#854d0e';
+              element.style.padding = '2px 4px';
+              element.style.borderRadius = '4px';
+              element.style.fontWeight = 'bold';
+              element.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)';
+              if (matchedField) {
+                element.title = `Biến: {{${matchedField.key}}} (${matchedField.label})`;
               }
-            });
-          }
-        });
+            }
+          });
+        }
       }
     });
     
