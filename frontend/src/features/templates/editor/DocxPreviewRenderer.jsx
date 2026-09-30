@@ -99,9 +99,35 @@ export const DocxPreviewRenderer = ({ file, fileUrl, zoom = 1, onRenderComplete,
             useBase64URL: true,
           });
 
-          // Only fix: convert Wingdings symbol characters to Unicode
+          // Post-process to fix specific layout quirks in docx-preview
           if (isMounted && containerRef.current) {
             fixWingdingsSymbols(containerRef.current);
+            
+            // Fix Quốc hiệu / Layout tables wrapping issues
+            const tables = containerRef.current.querySelectorAll('table');
+            tables.forEach(table => {
+              const text = table.textContent || '';
+              if (text.includes('CỘNG HÒA') || text.includes('Độc lập') || text.includes('TRƯỜNG') || text.includes('VICTORIA')) {
+                table.style.setProperty('table-layout', 'auto', 'important');
+                table.style.setProperty('width', '100%', 'important');
+                
+                table.querySelectorAll('p').forEach(p => {
+                  p.style.setProperty('margin-left', '0', 'important');
+                  p.style.setProperty('padding-left', '0', 'important');
+                  p.style.setProperty('text-indent', '0', 'important');
+                  
+                  const pText = p.textContent || '';
+                  if (pText.includes('CỘNG HÒA') || pText.includes('Độc lập') || pText.includes('VIỆT NAM')) {
+                    p.style.setProperty('white-space', 'nowrap', 'important');
+                  }
+                });
+                
+                table.querySelectorAll('td, th').forEach(cell => {
+                  cell.style.setProperty('width', 'auto', 'important');
+                });
+              }
+            });
+
             setLoading(false);
             if (onRenderComplete) onRenderComplete();
           }
