@@ -301,7 +301,7 @@ export const DashboardLayout = () => {
             {user?.role !== 'SUPER_ADMIN' && (
               <button
                 onClick={() => setShowRenewalModal(true)}
-                className="hidden md:flex items-center gap-2 transition-all cursor-pointer hover:shadow-md hover:scale-[1.02]"
+                className="flex items-center gap-1 sm:gap-2 transition-all cursor-pointer hover:shadow-md hover:scale-[1.02]"
                 style={{
                   background: isExpired ? '#fff1f2' : plan === 'FREE' ? '#f0f9ff' : 'linear-gradient(to right, #ffffff, #faf5ff)',
                   border: `1px solid ${isExpired ? '#fecdd3' : plan === 'FREE' ? '#bae6fd' : '#e9d5ff'}`,
@@ -325,7 +325,7 @@ export const DashboardLayout = () => {
                 title={`Quản lý / nâng cấp gói dịch vụ cho tổ chức '${user?.organizationId?.name || 'hiện tại'}'`}
               >
                 {/* Plan Info */}
-                <div className="flex items-center gap-2">
+                <div className="hidden sm:flex items-center gap-2">
                   <div style={{
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     background: isExpired ? '#ffe4e6' : plan === 'FREE' ? '#e0f2fe' : '#f3e8ff',

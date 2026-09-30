@@ -169,7 +169,7 @@ export const DashboardPage = () => {
 
           <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
             <div>
-              <div className="flex items-center gap-2 mb-3">
+              <div className="flex flex-wrap items-center gap-2 mb-3">
                 <span className="bg-sky-500/20 text-sky-300 border border-sky-400/30 text-xs font-black px-3 py-1 rounded-full uppercase tracking-wider flex items-center gap-1.5 backdrop-blur-md">
                   <Shield size={14} className="text-sky-400" />
                   Quản Trị Hệ Thống Tối Cao (Super Admin)
@@ -532,7 +532,7 @@ export const DashboardPage = () => {
       {/* 1. Header Banner */}
       <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2 mb-2">
+          <div className="flex flex-wrap items-center gap-2 mb-2">
             <span className="bg-sky-50 text-sky-700 border border-sky-200 text-xs font-bold px-2.5 py-0.5 rounded-md flex items-center gap-1">
               <Shield size={13} />
               {user?.role === 'ORGANIZATION_ADMIN' ? 'Quản Trị Viên Tổ Chức' : 'Nhân Viên'}
@@ -554,7 +554,7 @@ export const DashboardPage = () => {
           </p>
         </div>
 
-        <div className="flex items-center gap-2.5">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-2.5 mt-1 sm:mt-0">
           <button 
             onClick={() => navigate('/contracts?action=create')}
             className="px-4 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-extrabold text-xs md:text-sm shadow-sm transition-all cursor-pointer flex items-center gap-2"
