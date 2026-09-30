@@ -22,7 +22,8 @@ import {
   AlertTriangle,
   Settings,
   Clock,
-  KeyRound
+  Menu,
+  X
 } from 'lucide-react';
 import { getRoleInfo } from '../utils/roleFormatter';
 
@@ -34,6 +35,7 @@ export const DashboardLayout = () => {
   const [showRenewalModal, setShowRenewalModal] = useState(false);
   const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
   const [copiedCode, setCopiedCode] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     refreshUser();
@@ -105,34 +107,37 @@ export const DashboardLayout = () => {
   const RoleIcon = roleInfo.Icon;
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg-primary)' }}>
+    <div className="flex min-h-screen bg-slate-50">
+
+      {/* Mobile Menu Overlay */}
+      {isMobileMenuOpen && (
+        <div 
+          className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[90] lg:hidden"
+          onClick={() => setIsMobileMenuOpen(false)}
+        />
+      )}
 
       {/* Fixed Sidebar */}
-      <aside style={{
-        width: '260px',
-        background: '#ffffff',
-        borderRight: '1px solid #e2e8f0',
-        padding: '20px 14px',
-        display: 'flex',
-        flexDirection: 'column',
-        position: 'fixed',
-        top: 0,
-        bottom: 0,
-        left: 0,
-        zIndex: 100,
-        boxShadow: 'var(--shadow-sm)'
-      }}>
+      <aside className={`fixed inset-y-0 left-0 z-[100] w-[260px] bg-white border-r border-slate-200 p-[20px_14px] flex flex-col shadow-sm transition-transform duration-300 ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0`}>
         {/* Brand */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '0 8px 16px', borderBottom: '1px solid #e2e8f0' }}>
-          <img src="/logo.png" alt="FlexiDoc Logo" style={{ width: '38px', height: '38px', objectFit: 'contain' }} />
-          <div>
-            <h2 style={{ fontSize: '17px', fontWeight: '800', color: '#0f172a' }}>
-              FlexiDoc
-            </h2>
-            <span style={{ fontSize: '11px', color: '#64748b', display: 'block', fontWeight: '500' }}>
-              Quản Lý Hợp Đồng
-            </span>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', padding: '0 8px 16px', borderBottom: '1px solid #e2e8f0' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <img src="/logo.png" alt="FlexiDoc Logo" style={{ width: '38px', height: '38px', objectFit: 'contain' }} />
+            <div>
+              <h2 style={{ fontSize: '17px', fontWeight: '800', color: '#0f172a' }}>
+                FlexiDoc
+              </h2>
+              <span style={{ fontSize: '11px', color: '#64748b', display: 'block', fontWeight: '500' }}>
+                Quản Lý Hợp Đồng
+              </span>
+            </div>
           </div>
+          <button 
+            className="lg:hidden text-slate-500 hover:text-slate-800"
+            onClick={() => setIsMobileMenuOpen(false)}
+          >
+            <X size={20} />
+          </button>
         </div>
 
         {/* Organization Info & Copy Join Code Box */}
@@ -268,27 +273,18 @@ export const DashboardLayout = () => {
       </aside>
 
       {/* Main Container */}
-      <div style={{ marginLeft: '260px', flex: 1, display: 'flex', flexDirection: 'column' }}>
+      <div className="flex-1 flex flex-col lg:ml-[260px] transition-all duration-300 min-w-0">
 
         {/* Sleek High-End Top Header Bar */}
-        {/* Sleek High-End Top Header Bar */}
-        <header style={{
-          height: '68px',
-          background: 'rgba(255, 255, 255, 0.85)',
-          backdropFilter: 'blur(16px)',
-          WebkitBackdropFilter: 'blur(16px)',
-          borderBottom: '1px solid rgba(226, 232, 240, 0.8)',
-          padding: '0 28px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          position: 'sticky',
-          top: 0,
-          zIndex: 90,
-          boxShadow: '0 4px 20px -2px rgba(15, 23, 42, 0.04)'
-        }}>
+        <header className="h-[68px] bg-white/85 backdrop-blur-md border-b border-slate-200/80 sticky top-0 z-[80] flex items-center justify-between px-4 lg:px-7 shadow-sm">
           {/* Left: Active System Branding & Operational Status */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+            <button
+              className="lg:hidden p-2 -ml-2 text-slate-600 hover:text-slate-900 rounded-lg hover:bg-slate-100"
+              onClick={() => setIsMobileMenuOpen(true)}
+            >
+              <Menu size={22} />
+            </button>
             <div style={{ display: 'flex', flexDirection: 'column' }}>
               <span style={{
                 fontSize: '14.5px',
@@ -459,7 +455,7 @@ export const DashboardLayout = () => {
         </header>
 
         {/* Dynamic Page Content */}
-        <main style={{ padding: '28px', flex: 1, display: 'flex', flexDirection: 'column' }}>
+        <main className="p-4 lg:p-7 flex-1 flex flex-col min-w-0">
           <PendingInvitationsBanner onStatusChange={refreshUser} />
 
           {/* Sticky Expiration Banner */}

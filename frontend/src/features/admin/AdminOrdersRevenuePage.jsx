@@ -788,8 +788,8 @@ export const AdminOrdersRevenuePage = () => {
                 <p className="text-[11px] text-slate-400 mt-0.5">Không tìm thấy bản ghi đơn hàng nào với bộ lọc hiện tại.</p>
               </div>
             ) : (
-              <div className="w-full overflow-hidden">
-                <table className="w-full text-left border-collapse text-xs">
+              <div className="w-full overflow-x-auto">
+                <table className="w-full text-left border-collapse text-xs min-w-[1000px]">
                   <thead>
                     <tr className="border-b border-slate-200 text-[11px] font-extrabold text-slate-400 uppercase tracking-wider">
                       <th className="py-3 px-2">Mã Đơn</th>
@@ -1567,7 +1567,7 @@ export const AdminOrdersRevenuePage = () => {
                   </div>
 
                   <div className="w-full overflow-x-auto">
-                    <table className="w-full text-left border-collapse text-xs">
+                    <table className="w-full text-left border-collapse text-xs min-w-[600px]">
                       <thead>
                         <tr className="border-b border-slate-200 bg-slate-50 text-[11px] font-extrabold text-slate-500 uppercase">
                           <th className="py-2.5 px-3">STT</th>
@@ -1638,7 +1638,7 @@ export const AdminOrdersRevenuePage = () => {
                   </div>
 
                   <div className="w-full overflow-x-auto max-h-60 overflow-y-auto">
-                    <table className="w-full text-left border-collapse text-xs">
+                    <table className="w-full text-left border-collapse text-xs min-w-[600px]">
                       <thead>
                         <tr className="border-b border-slate-200 bg-slate-50 text-[11px] font-extrabold text-slate-500 uppercase sticky top-0 bg-slate-50 z-10">
                           <th className="py-2.5 px-3">STT</th>

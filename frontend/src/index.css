@@ -483,6 +483,28 @@ h1, h2, h3, h4, h5, h6 {
   }
 }
 
+@media (max-width: 768px) {
+  .word-paper-sheet,
+  .word-paper-page {
+    padding: 24px 16px;
+    font-size: 11pt;
+    min-height: auto; /* Allow shorter heights on mobile */
+  }
+  .modal-content {
+    max-height: 98vh; /* Maximize modal height on small screens */
+    border-radius: var(--radius-md);
+  }
+  .modal-overlay {
+    padding: 8px; /* Less padding on mobile */
+  }
+  .word-page-break, hr.page-break {
+    margin: 24px -16px !important;
+  }
+  .word-paper-canvas {
+    padding: 16px 8px;
+  }
+}
+
 .word-paper-sheet table,
 .word-paper-page table,
 .word-paper-sheet div table,

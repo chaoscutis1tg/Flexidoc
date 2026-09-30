@@ -637,7 +637,7 @@ export const TemplatesPage = () => {
     return htmlStr.replace(/<(td|th)([^>]*)>/gi, (fullMatch, tagName, attrs) => {
       let attrString = attrs || '';
       let existingStyle = '';
-      
+
       const styleMatch = attrString.match(/style="([^"]*)"/i);
       if (styleMatch) {
         existingStyle = styleMatch[1];
@@ -735,8 +735,8 @@ export const TemplatesPage = () => {
           if (/style="[^"]*"/i.test(attrs)) {
             let newStyle = attrs.match(/style="([^"]*)"/i)[1];
             newStyle = newStyle.replace(/margin-left:\s*[^;]+;?/gi, '')
-                               .replace(/padding-left:\s*[^;]+;?/gi, '')
-                               .replace(/text-indent:\s*[^;]+;?/gi, '');
+              .replace(/padding-left:\s*[^;]+;?/gi, '')
+              .replace(/text-indent:\s*[^;]+;?/gi, '');
             return `<p${attrs.replace(/style="([^"]*)"/i, `style="margin: 2px 0; ${newStyle}"`)}>`;
           }
           return `<p style="margin: 2px 0;" ${attrs}>`;
@@ -829,14 +829,14 @@ export const TemplatesPage = () => {
       try {
         const formData = new FormData();
         formData.append('file', file);
-        
+
         const tempRes = await api.post('/templates/upload-temp', formData, {
           headers: { 'Content-Type': 'multipart/form-data' },
         });
 
         if (tempRes.data.success) {
           const { fileUrl, documentKey } = tempRes.data.data;
-          
+
           setOnlyofficeConfig({
             document: {
               fileType: 'docx',
@@ -1001,7 +1001,7 @@ export const TemplatesPage = () => {
         rawHtml = rawHtml.replace(/<(\/?)table[^>]*>|<(\/?)(p|h[1-6]|li)(\s[^>]*)?>/gi, (match, closeTable, closeTag, tag, attrs) => {
           if (match.startsWith('<table') || match.startsWith('<TABLE')) { inTableBlock++; return match; }
           if (match.startsWith('</table') || match.startsWith('</TABLE')) { inTableBlock = Math.max(0, inTableBlock - 1); return match; }
-          
+
           if (!tag) return match;
           const tagName = tag.toLowerCase();
 
@@ -1499,7 +1499,7 @@ export const TemplatesPage = () => {
                           boxShadow: '0 2px 8px rgba(0,0,0,0.1)', zIndex: 10,
                           fontFamily: 'var(--font-primary)'
                         }}>
-                          <div style={{ marginBottom: '4px', fontWeight: '800', fontSize: '11.5px' }}>📌 Ô nhập liệu đã tạo:</div>
+                          <div style={{ marginBottom: '4px', fontWeight: '800', fontSize: '11.5px' }}> Ô nhập liệu đã tạo:</div>
                           {fields.map(f => (
                             <div key={f.key} style={{ padding: '1px 0', display: 'flex', gap: '4px', alignItems: 'center' }}>
                               <span style={{ background: '#fef08a', padding: '1px 4px', borderRadius: '3px', border: '1px solid #fde047', fontFamily: 'monospace', fontSize: '10.5px' }}>
@@ -1917,8 +1917,8 @@ export const TemplatesPage = () => {
             </button>
           </div>
         ) : (
-          <div style={{ flex: 1, width: '100%', overflowY: 'auto' }}>
-            <table className="custom-table" style={{ width: '100%' }}>
+          <div style={{ flex: 1, width: '100%', overflowY: 'auto', overflowX: 'auto' }}>
+            <table className="custom-table" style={{ width: '100%', minWidth: '800px' }}>
               <thead>
                 <tr>
                   <th>Tên Mẫu Hợp Đồng</th>

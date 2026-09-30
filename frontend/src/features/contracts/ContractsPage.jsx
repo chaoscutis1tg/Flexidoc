@@ -975,7 +975,7 @@ export const ContractsPage = () => {
           </div>
         ) : (
           <div className="overflow-x-auto flex-1">
-            <table className="w-full text-left text-xs">
+            <table className="w-full text-left text-xs min-w-[1000px]">
               <thead className="bg-slate-50 border-b border-slate-200 text-[11px] font-bold text-slate-500 uppercase tracking-wider sticky top-0 z-10">
                 <tr>
                   <th className="py-3.5 px-4">Mã Hợp Đồng</th>

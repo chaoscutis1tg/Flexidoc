@@ -221,7 +221,8 @@ export const UsersPage = () => {
         ) : filteredUsers.length === 0 ? (
           <p style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '40px' }}>Không tìm thấy tài khoản nào.</p>
         ) : (
-          <table className="custom-table">
+        <div className="overflow-x-auto">
+          <table className="custom-table w-full min-w-[800px]">
             <thead>
               <tr>
                 <th>Họ Và Tên</th>
@@ -303,6 +304,7 @@ export const UsersPage = () => {
               ))}
             </tbody>
           </table>
+        </div>
         )}
       </div>
 

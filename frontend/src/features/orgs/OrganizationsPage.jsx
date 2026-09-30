@@ -1310,7 +1310,8 @@ export const OrganizationsPage = () => {
       ) : (
         /* Table Grid View */
         <div className="glass-panel" style={{ overflow: 'hidden', background: '#ffffff' }}>
-          <table className="custom-table">
+        <div className="overflow-x-auto">
+          <table className="custom-table w-full min-w-[800px]">
             <thead>
               <tr>
                 <th>Tên Tổ Chức & Mã</th>
@@ -1402,6 +1403,7 @@ export const OrganizationsPage = () => {
               )}
             </tbody>
           </table>
+        </div>
         </div>
       )}
 
