@@ -179,7 +179,7 @@ export const TemplatesPage = () => {
   const handlePreviewTemplate = async (id, name) => {
     try {
       setLoading(true);
-      const res = await api.get(`/templates/${id}/download-docx`, { responseType: 'blob' });
+      const res = await api.get(`/templates/${id}/original-file`, { responseType: 'blob' });
       setPreviewModal({
         show: true,
         templateId: id,
@@ -196,7 +196,7 @@ export const TemplatesPage = () => {
 
   const handleUnarchive = async (id) => {
     try {
-      await api.put(`/templates/${id}/status`, { status: 'DRAFT' });
+      await api.post(`/templates/${id}/unarchive`);
       fetchTemplates();
     } catch (error) {
       console.error(error);
