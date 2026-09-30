@@ -380,7 +380,8 @@ h1, h2, h3, h4, h5, h6 {
   text-align: left;
   position: relative;
   transition: transform 0.2s ease, width 0.2s ease;
-  overflow: hidden;
+  flex-shrink: 0;
+  white-space: pre-wrap;
 }
 
 /* Corner Crop Marks (Dấu Góc Trang A4 Chuẩn Word/WPS) */
@@ -611,17 +612,6 @@ h1, h2, h3, h4, h5, h6 {
   text-align: justify !important;
 }
 
-.word-paper-sheet .text-indent,
-.word-paper-page .text-indent,
-.word-paper-sheet p.text-indent,
-.word-paper-page p.text-indent,
-.word-paper-sheet .text-indent-justify,
-.word-paper-page .text-indent-justify,
-.word-paper-sheet p.text-indent-justify,
-.word-paper-page p.text-indent-justify {
-  text-indent: 1cm !important;
-  text-align: justify !important;
-}
 
 /* Ensure Word Underlines (<u>) and Decorative Lines display properly despite Tailwind Reset */
 .word-paper-sheet u,

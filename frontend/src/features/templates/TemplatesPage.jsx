@@ -395,15 +395,14 @@ export const TemplatesPage = () => {
     } catch { return {}; }
   };
 
-  // Parse <w:ind> attributes from an XML string fragment
   const parseIndFromXml = (xmlFragment) => {
     const m = xmlFragment.match(/<w:ind\s+([^/>]*)\/?\s*>/i);
     if (!m) return null;
     const a = m[1];
     return {
-      left: parseFloat((a.match(/w:left="(\d+)"/i) || a.match(/w:start="(\d+)"/i) || [0, 0])[1]),
-      firstLine: parseFloat((a.match(/w:firstLine="(\d+)"/i) || [0, 0])[1]),
-      hanging: parseFloat((a.match(/w:hanging="(\d+)"/i) || [0, 0])[1]),
+      left: parseFloat((a.match(/w:left="(-?\d+)"/i) || a.match(/w:start="(-?\d+)"/i) || [0, 0])[1]),
+      firstLine: parseFloat((a.match(/w:firstLine="(-?\d+)"/i) || [0, 0])[1]),
+      hanging: parseFloat((a.match(/w:hanging="(-?\d+)"/i) || [0, 0])[1]),
     };
   };
 
@@ -537,6 +536,14 @@ export const TemplatesPage = () => {
         }
       }
 
+      // Extract font size
+      let fontSize = null;
+      const szM = paraContent.match(/<w:sz\s+w:val="(\d+)"/i);
+      if (szM) {
+        fontSize = parseFloat(szM[1]) / 2;
+      }
+      indent.fontSize = fontSize;
+
       result.push(indent);
     }
     return result;
@@ -642,8 +649,7 @@ export const TemplatesPage = () => {
     cleaned = applyClassStyle(cleaned, 'text-center', 'text-align: center; text-indent: 0;');
     cleaned = applyClassStyle(cleaned, 'text-right', 'text-align: right; text-indent: 0;');
     cleaned = applyClassStyle(cleaned, 'text-justify', 'text-align: justify;');
-    cleaned = applyClassStyle(cleaned, 'text-indent', 'text-indent: 1cm; text-align: justify;');
-    cleaned = applyClassStyle(cleaned, 'text-indent-justify', 'text-indent: 1cm; text-align: justify;');
+
 
     // 3. Organization Names & Quốc Hiệu Formatting (Preserving original font weight from DOCX)
     cleaned = cleaned.replace(/(TRƯỜNG ĐẠI HỌC [^<\n]+|BỘ GIÁO DỤC [^<\n]+|SỞ GIÁO DỤC [^<\n]+)/gi, (m) => {
@@ -834,6 +840,7 @@ export const TemplatesPage = () => {
         } catch { /* fallback: empty indent data */ }
 
         const mammothOptions = {
+          ignoreEmptyParagraphs: false,
           styleMap: [
             "p[style-name='Centered'] => p.text-center:fresh",
             "p[style-name='RightAligned'] => p.text-right:fresh",
@@ -888,7 +895,6 @@ export const TemplatesPage = () => {
             inlineStyles.push(`margin-left: ${(effectiveLeft / 567).toFixed(2)}cm`);
           }
 
-          // First-line indent or hanging indent (skip for centered/right paragraphs)
           if (!isCentered && !isRightAligned) {
             if (indent.firstLine > 0) {
               inlineStyles.push(`text-indent: ${(indent.firstLine / 567).toFixed(2)}cm`);
@@ -897,6 +903,10 @@ export const TemplatesPage = () => {
               inlineStyles.push(`padding-left: ${(indent.hanging / 567).toFixed(2)}cm`);
               inlineStyles.push(`text-indent: -${(indent.hanging / 567).toFixed(2)}cm`);
             }
+          }
+
+          if (indent.fontSize) {
+            inlineStyles.push(`font-size: ${indent.fontSize}pt`);
           }
 
           if (inlineStyles.length === 0) return match;
