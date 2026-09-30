@@ -2,6 +2,7 @@ import { Organization } from '../models/organization.model.js';
 import { organizationRepository } from '../repositories/organization.repository.js';
 import { userRepository } from '../repositories/user.repository.js';
 import { PermissionGrant } from '../models/permission-grant.model.js';
+import { auditLogService } from './audit-log.service.js';
 import { AppError } from '../utils/app-error.js';
 import bcrypt from 'bcryptjs';
 
