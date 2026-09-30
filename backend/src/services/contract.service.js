@@ -461,12 +461,8 @@ export class ContractService {
     if (templateVersionObj && templateVersionObj.originalFileKey && fs.existsSync(templateVersionObj.originalFileKey)) {
       const fileBuffer = fs.readFileSync(templateVersionObj.originalFileKey);
       const zip = new PizZip(fileBuffer);
-      const doc = new Docxtemplater(zip, {
-        paragraphLoop: true,
-        linebreaks: true,
-        delimiters: { start: '{{', end: '}}' },
-      });
 
+      // Build formatted data with proper type formatting
       const formattedData = {};
       (templateVersionObj.fields || []).forEach(f => {
         let val = inputData[f.key] !== undefined ? inputData[f.key] : '';
@@ -481,23 +477,102 @@ export class ContractService {
         formattedData[f.key] = val;
       });
 
-      try {
-        doc.setData(formattedData);
-        doc.render();
-      } catch (renderErr) {
-        console.error('Docxtemplater render error:', renderErr);
-        // Log detailed errors if available
-        if (renderErr.properties && renderErr.properties.errors) {
-          renderErr.properties.errors.forEach(e => {
-            console.error('  Template tag error:', e.properties?.explanation || e.message);
-          });
+      // Direct XML replacement — handles Word splitting {{key}} across multiple runs
+      for (const fileName of Object.keys(zip.files)) {
+        if (!/^word\/(document|header\d*|footer\d*)\.xml$/.test(fileName)) continue;
+        if (zip.files[fileName].dir) continue;
+
+        let xml = zip.files[fileName].asText();
+
+        // Phase 1: Direct replacement for tags fully within a single <w:t> element
+        for (const [key, value] of Object.entries(formattedData)) {
+          const safeVal = this._escapeXml(String(value || ''));
+          xml = xml.replace(new RegExp(`\\{\\{${this._escapeRegex(key)}\\}\\}`, 'g'), safeVal);
         }
-        throw new AppError('Lỗi khi thay thế thông tin vào mẫu DOCX: ' + (renderErr.message || 'Kiểm tra lại các trường dữ liệu trong mẫu.'), 500);
+
+        // Phase 2: Handle tags split across multiple <w:t> elements by Word
+        const textOnly = xml.replace(/<[^>]+>/g, '');
+        const stillHasTags = Object.keys(formattedData).some(k => textOnly.includes(`{{${k}}}`));
+
+        if (stillHasTags) {
+          xml = this._fixSplitPlaceholders(xml, formattedData);
+        }
+
+        zip.file(fileName, xml);
       }
-      return doc.getZip().generate({ type: 'nodebuffer' });
+
+      return zip.generate({ type: 'nodebuffer' });
     }
 
     throw new AppError('Mẫu file DOCX gốc không tìm thấy để sinh file DOCX.', 404);
+  }
+
+  /**
+   * Fix {{key}} placeholders that Word split across multiple XML <w:t> elements.
+   * Word often stores "{{name}}" as separate runs: <w:t>{{</w:t> + <w:t>name}}</w:t>
+   * This merges the text within each paragraph, replaces tags, and rebuilds the XML.
+   */
+  _fixSplitPlaceholders(xml, data) {
+    return xml.replace(/<w:p[ >][\s\S]*?<\/w:p>/g, (para) => {
+      // Collect all <w:t> text pieces with their exact positions in the paragraph
+      const pieces = [];
+      const regex = /<w:t(?:[^>]*)>([^<]*)<\/w:t>/g;
+      let m;
+      while ((m = regex.exec(para)) !== null) {
+        pieces.push({
+          text: m[1],
+          fullMatch: m[0],
+          index: m.index,
+          length: m[0].length,
+        });
+      }
+
+      if (pieces.length < 2) return para;
+
+      // Concatenate all text from this paragraph
+      const fullText = pieces.map(p => p.text).join('');
+      const hasTag = Object.keys(data).some(k => fullText.includes(`{{${k}}}`));
+      if (!hasTag) return para;
+
+      // Replace tags in the concatenated text
+      let replaced = fullText;
+      for (const [key, value] of Object.entries(data)) {
+        const safeVal = this._escapeXml(String(value || ''));
+        replaced = replaced.replace(
+          new RegExp(`\\{\\{${this._escapeRegex(key)}\\}\\}`, 'g'),
+          safeVal
+        );
+      }
+
+      // Rebuild paragraph: put all replaced text in first <w:t>, empty others
+      // Process in reverse order to preserve character positions
+      let result = para;
+      for (let i = pieces.length - 1; i >= 0; i--) {
+        const p = pieces[i];
+        const newText = i === 0 ? replaced : '';
+        // Reconstruct the <w:t> element: keep tag attributes, replace content
+        const tagEnd = p.fullMatch.indexOf('>') + 1;
+        const closingStart = p.fullMatch.lastIndexOf('</');
+        const newMatch = p.fullMatch.substring(0, tagEnd) + newText + p.fullMatch.substring(closingStart);
+        result = result.substring(0, p.index) + newMatch + result.substring(p.index + p.length);
+      }
+
+      return result;
+    });
+  }
+
+  /** Escape special XML characters in replacement values */
+  _escapeXml(str) {
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  /** Escape special regex characters in field keys */
+  _escapeRegex(str) {
+    return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   }
 
   /**
