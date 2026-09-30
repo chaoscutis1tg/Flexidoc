@@ -456,10 +456,23 @@ export class ContractService {
     const versionData = details.currentVersionData;
     const inputData = versionData.inputData || {};
 
+    console.log('[DOCX-GEN] ========= Generating DOCX for contract:', contractId);
+    console.log('[DOCX-GEN] inputData keys:', Object.keys(inputData));
+    console.log('[DOCX-GEN] inputData:', JSON.stringify(inputData).substring(0, 500));
+
     const templateVersionObj = await templateRepository.findVersion(contract.templateId, contract.templateVersion);
+
+    console.log('[DOCX-GEN] templateId:', contract.templateId, 'templateVersion:', contract.templateVersion);
+    console.log('[DOCX-GEN] templateVersionObj exists:', !!templateVersionObj);
+    console.log('[DOCX-GEN] originalFileKey:', templateVersionObj?.originalFileKey);
+    console.log('[DOCX-GEN] file exists:', templateVersionObj?.originalFileKey ? fs.existsSync(templateVersionObj.originalFileKey) : 'N/A');
+    console.log('[DOCX-GEN] fields count:', templateVersionObj?.fields?.length);
+    console.log('[DOCX-GEN] field keys:', templateVersionObj?.fields?.map(f => f.key));
 
     if (templateVersionObj && templateVersionObj.originalFileKey && fs.existsSync(templateVersionObj.originalFileKey)) {
       const fileBuffer = fs.readFileSync(templateVersionObj.originalFileKey);
+      console.log('[DOCX-GEN] File read OK, size:', fileBuffer.length, 'bytes');
+
       const zip = new PizZip(fileBuffer);
 
       // Build formatted data with proper type formatting
@@ -477,33 +490,74 @@ export class ContractService {
         formattedData[f.key] = val;
       });
 
+      console.log('[DOCX-GEN] formattedData:', JSON.stringify(formattedData).substring(0, 500));
+
+      // List all files in the DOCX zip
+      const allZipFiles = Object.keys(zip.files);
+      console.log('[DOCX-GEN] ZIP files:', allZipFiles.filter(n => n.startsWith('word/')));
+
       // Direct XML replacement — handles Word splitting {{key}} across multiple runs
-      for (const fileName of Object.keys(zip.files)) {
+      for (const fileName of allZipFiles) {
         if (!/^word\/(document|header\d*|footer\d*)\.xml$/.test(fileName)) continue;
         if (zip.files[fileName].dir) continue;
 
         let xml = zip.files[fileName].asText();
 
+        // Extract text-only content for debugging
+        const rawTextBefore = xml.replace(/<[^>]+>/g, '');
+        // Find all {{...}} patterns in the raw text
+        const foundPlaceholders = rawTextBefore.match(/\{\{[^}]+\}\}/g) || [];
+        console.log(`[DOCX-GEN] ${fileName}: text length=${rawTextBefore.length}, found placeholders:`, foundPlaceholders);
+
+        // Show a sample of the raw text around {{ characters
+        const braceIdx = rawTextBefore.indexOf('{{');
+        if (braceIdx >= 0) {
+          console.log(`[DOCX-GEN] Text around first {{:`, JSON.stringify(rawTextBefore.substring(Math.max(0, braceIdx - 30), braceIdx + 80)));
+        } else {
+          console.log(`[DOCX-GEN] No {{ found in text-only content of ${fileName}`);
+          // Also check for single braces that might indicate split issues
+          const singleBrace = rawTextBefore.indexOf('{');
+          if (singleBrace >= 0) {
+            console.log(`[DOCX-GEN] First { at position ${singleBrace}:`, JSON.stringify(rawTextBefore.substring(Math.max(0, singleBrace - 10), singleBrace + 40)));
+          }
+        }
+
+        let replacementCount = 0;
+
         // Phase 1: Direct replacement for tags fully within a single <w:t> element
         for (const [key, value] of Object.entries(formattedData)) {
           const safeVal = this._escapeXml(String(value || ''));
-          xml = xml.replace(new RegExp(`\\{\\{${this._escapeRegex(key)}\\}\\}`, 'g'), safeVal);
+          const regex = new RegExp(`\\{\\{${this._escapeRegex(key)}\\}\\}`, 'g');
+          const matches = xml.match(regex);
+          if (matches) {
+            replacementCount += matches.length;
+            console.log(`[DOCX-GEN] Phase 1: Replacing {{${key}}} → "${String(value || '').substring(0, 50)}" (${matches.length} times)`);
+          }
+          xml = xml.replace(regex, safeVal);
         }
+
+        console.log(`[DOCX-GEN] Phase 1 total replacements: ${replacementCount}`);
 
         // Phase 2: Handle tags split across multiple <w:t> elements by Word
         const textOnly = xml.replace(/<[^>]+>/g, '');
         const stillHasTags = Object.keys(formattedData).some(k => textOnly.includes(`{{${k}}}`));
 
         if (stillHasTags) {
+          const unreplacedKeys = Object.keys(formattedData).filter(k => textOnly.includes(`{{${k}}}`));
+          console.log(`[DOCX-GEN] Phase 2: Still has unreplaced tags:`, unreplacedKeys);
           xml = this._fixSplitPlaceholders(xml, formattedData);
+        } else {
+          console.log(`[DOCX-GEN] Phase 2: No split tags remaining`);
         }
 
         zip.file(fileName, xml);
       }
 
+      console.log('[DOCX-GEN] ========= DOCX generation complete');
       return zip.generate({ type: 'nodebuffer' });
     }
 
+    console.log('[DOCX-GEN] ========= ERROR: Template DOCX file not found');
     throw new AppError('Mẫu file DOCX gốc không tìm thấy để sinh file DOCX.', 404);
   }
 
