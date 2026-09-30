@@ -989,41 +989,46 @@ export const TemplatesPage = () => {
           return `<${tag}${attrs}>`;
         };
 
-        // Pass 1: Inject styles on top-level paragraphs (outside tables)
-        // We need to skip <p> tags that are inside <table>...</table> blocks
+        // Single Pass: Inject styles on ALL paragraphs, avoiding <li><p> double counting desync
         let topIdx = 0;
-        let inTableBlock = 0; // nesting counter for <table>
-        rawHtml = rawHtml.replace(/<(\/?)table[^>]*>|<(p|h[1-6]|li)(\s[^>]*)?>|<\/(p|h[1-6]|li)>/gi, (match, closeSlash, openTag, openAttrs, closeTag) => {
-          // Track table nesting
-          if (match.startsWith('<table') || match.startsWith('<TABLE')) { inTableBlock++; return match; }
-          if (match.startsWith('</table') || match.startsWith('</TABLE')) { inTableBlock = Math.max(0, inTableBlock - 1); return match; }
-
-          // Only process opening tags of p/h/li
-          if (!openTag) return match;
-
-          // Skip paragraphs inside tables (they'll be handled separately)
-          if (inTableBlock > 0) return match;
-
-          if (topIdx >= topLevelIndents.length) return match;
-          const indent = topLevelIndents[topIdx++];
-          const styleStr = buildIndentStyle(indent, openAttrs);
-          return injectStyle(match, openTag, openAttrs, styleStr);
-        });
-
-        // Pass 2: Inject font-size on table-cell paragraphs
         let tblParaIdx = 0;
-        inTableBlock = 0;
-        rawHtml = rawHtml.replace(/<(\/?)table[^>]*>|<(p|h[1-6])(\s[^>]*)?>|<\/(p|h[1-6])>/gi, (match, closeSlash, openTag, openAttrs, closeTag) => {
+        let inTableBlock = 0;
+        let inLiBlock = 0;
+        rawHtml = rawHtml.replace(/<(\/?)table[^>]*>|<(\/?)(p|h[1-6]|li)(\s[^>]*)?>/gi, (match, closeTable, closeTag, tag, attrs) => {
           if (match.startsWith('<table') || match.startsWith('<TABLE')) { inTableBlock++; return match; }
           if (match.startsWith('</table') || match.startsWith('</TABLE')) { inTableBlock = Math.max(0, inTableBlock - 1); return match; }
-          if (!openTag) return match;
-          if (inTableBlock === 0) return match;
+          
+          if (!tag) return match;
+          const tagName = tag.toLowerCase();
 
-          if (tblParaIdx >= tableIndents.length) return match;
-          const indent = tableIndents[tblParaIdx++];
-          const styleStr = buildIndentStyle(indent, openAttrs);
-          return injectStyle(match, openTag, openAttrs, styleStr);
+          if (closeTag) {
+            if (tagName === 'li') inLiBlock = Math.max(0, inLiBlock - 1);
+            return match;
+          }
+
+          const isLi = (tagName === 'li');
+          const wasInLi = inLiBlock > 0;
+          if (isLi) inLiBlock++;
+
+          // Skip inner <p> or <hX> inside <li> to avoid double-consuming indents from Mammoth's <li><p>Text</p></li> output
+          if (!isLi && wasInLi) return match;
+
+          let indent;
+          if (inTableBlock > 0) {
+            if (tblParaIdx >= tableIndents.length) return match;
+            indent = tableIndents[tblParaIdx++];
+          } else {
+            if (topIdx >= topLevelIndents.length) return match;
+            indent = topLevelIndents[topIdx++];
+          }
+
+          const styleStr = buildIndentStyle(indent, attrs);
+          return injectStyle(match, tagName, attrs, styleStr);
         });
+
+        // Fix "Cách trắng dòng" (empty paragraphs having 0 height in HTML)
+        rawHtml = rawHtml.replace(/<p([^>]*)>\s*<\/p>/gi, '<p$1><br/></p>');
+        rawHtml = rawHtml.replace(/<p([^>]*)>&nbsp;<\/p>/gi, '<p$1><br/></p>');
 
         const richHtml = cleanWordHtml(rawHtml, tableBorderInfo);
         const cleanText = cleanRawText(rawTextResult.value || richHtml);
