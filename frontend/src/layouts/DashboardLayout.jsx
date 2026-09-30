@@ -23,7 +23,8 @@ import {
   Settings,
   Clock,
   Menu,
-  X
+  X,
+  KeyRound
 } from 'lucide-react';
 import { getRoleInfo } from '../utils/roleFormatter';
 
@@ -285,26 +286,10 @@ export const DashboardLayout = () => {
             >
               <Menu size={22} />
             </button>
-            <div style={{ display: 'flex', flexDirection: 'column' }}>
-              <span style={{
-                fontSize: '14.5px',
-                fontWeight: '800',
-                color: '#0f172a',
-                letterSpacing: '-0.01em',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px'
-              }}>
-                Hệ Thống Quản Lý & Số Hóa Hợp Đồng
-                <span style={{
-                  fontSize: '11px',
-                  fontWeight: '700',
-                  color: '#0284c7',
-                  background: '#e0f2fe',
-                  padding: '1.5px 7px',
-                  borderRadius: '6px',
-                  border: '1px solid #bae6fd'
-                }}>
+            <div className="flex flex-col">
+              <span className="text-[14.5px] font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
+                <span className="hidden sm:inline">Hệ Thống Quản Lý & Số Hóa Hợp Đồng</span>
+                <span className="text-[11px] font-bold text-sky-600 bg-sky-50 px-[7px] py-[1.5px] rounded-md border border-sky-200">
                   FlexiDoc
                 </span>
               </span>
@@ -312,7 +297,7 @@ export const DashboardLayout = () => {
           </div>
 
           {/* Right: Subscription Package Badge with Expiration & Gia Hạn Action */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+          <div className="flex items-center gap-2 lg:gap-4">
             {user?.role !== 'SUPER_ADMIN' && (
               <button
                 onClick={() => setShowRenewalModal(true)}
@@ -377,7 +362,7 @@ export const DashboardLayout = () => {
                 </div>
 
                 {/* Main Content */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '7px' }}>
+                <div className="hidden sm:flex items-center gap-[7px]">
                   <span style={{ fontSize: '12px', color: '#64748b', fontWeight: '500' }}>Gói:</span>
                   <span style={{
                     fontWeight: '800',

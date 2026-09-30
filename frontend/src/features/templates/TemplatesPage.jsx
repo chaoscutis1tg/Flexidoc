@@ -173,6 +173,36 @@ export const TemplatesPage = () => {
     setDialogConfig({ show: true, title, message, type });
   };
 
+  const [previewModal, setPreviewModal] = useState({ show: false, templateId: null, templateName: '', content: '' });
+
+  const handlePreviewTemplate = async (id, name) => {
+    try {
+      setLoading(true);
+      const res = await api.get(`/templates/${id}/download-docx`, { responseType: 'blob' });
+      setPreviewModal({
+        show: true,
+        templateId: id,
+        templateName: name,
+        content: res.data // Blob
+      });
+    } catch (error) {
+      console.error(error);
+      alert('Không thể tải bản xem trước file docx');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUnarchive = async (id) => {
+    try {
+      await api.put(`/templates/${id}/status`, { status: 'DRAFT' });
+      fetchTemplates();
+    } catch (error) {
+      console.error(error);
+      alert('Lỗi khi mở lại template');
+    }
+  };
+
   // Custom Variable Creation Modal State (Replaces native browser prompt)
   const [variableModal, setVariableModal] = useState({
     show: false,
@@ -1747,6 +1777,38 @@ export const TemplatesPage = () => {
     );
   };
 
+  const renderPreviewModal = () => {
+    if (!previewModal.show) return null;
+
+    return (
+      <div className="modal-overlay" style={{ zIndex: 10000 }}>
+        <div className="modal-content animate-fade-in" style={{ maxWidth: '900px', width: '90vw', padding: '0', borderRadius: '16px', display: 'flex', flexDirection: 'column', height: '90vh' }}>
+          <div style={{ padding: '16px 24px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <h3 style={{ fontSize: '18px', fontWeight: '800', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Eye size={20} color="#0284c7" /> Xem trước {previewModal.templateName}
+              </h3>
+            </div>
+            <button
+              onClick={() => setPreviewModal({ show: false, templateId: null, templateName: '', content: '' })}
+              className="btn-action btn-secondary"
+              style={{ padding: '6px', borderRadius: '8px', border: 'none', background: 'transparent' }}
+            >
+              <X size={20} />
+            </button>
+          </div>
+          <div style={{ flex: 1, overflow: 'hidden', background: '#f1f5f9' }}>
+            {previewModal.content ? (
+              <DocxPreviewRenderer blob={previewModal.content} />
+            ) : (
+              <div style={{ padding: '40px', textAlign: 'center', color: '#64748b' }}>Đang tải nội dung...</div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   /* Custom Beautiful Alert / Notification Dialog Component */
   const renderDialogModal = () => {
     if (!dialogConfig.show) return null;
@@ -1799,6 +1861,113 @@ export const TemplatesPage = () => {
       </div>
     );
   };
+
+  const renderedTemplatesTable = useMemo(() => {
+    return (
+      <table className="custom-table" style={{ width: '100%', minWidth: '800px' }}>
+        <thead>
+          <tr>
+            <th>Tên Mẫu Hợp Đồng</th>
+            <th>Phân Loại</th>
+            <th>Phiên Bản</th>
+            <th>Số Ô Nhập Liệu Thay Đổi</th>
+            <th>Trạng Thái Quản Lý</th>
+            <th>Ngày Tạo</th>
+            <th style={{ textAlign: 'right' }}>Thao Tác Duyệt</th>
+          </tr>
+        </thead>
+        <tbody>
+          {templates.map(tpl => {
+            const fieldsCount = tpl.currentVersionData?.fields?.length || 0;
+            return (
+              <tr key={tpl._id}>
+                <td>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <div style={{ width: '36px', height: '36px', borderRadius: '8px', background: '#e0f2fe', color: '#0284c7', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <FileText size={18} />
+                    </div>
+                    <div>
+                      <span style={{ fontWeight: '800', color: '#0f172a', fontSize: '14px' }}>{tpl.name}</span>
+                      <span style={{ fontSize: '11px', color: '#64748b', display: 'block' }}>{tpl.description || 'Mẫu hợp đồng số hóa'}</span>
+                    </div>
+                  </div>
+                </td>
+                <td><span className="badge badge-role">{tpl.category}</span></td>
+                <td><span className="badge badge-role">v{tpl.currentVersion}</span></td>
+                <td style={{ fontWeight: '700', color: '#0284c7' }}>{fieldsCount} ô nhập liệu</td>
+                <td>
+                  {tpl.isLocked ? (
+                    <span className="badge badge-archived" style={{ background: '#fee2e2', color: '#dc2626', border: '1px solid #fca5a5' }}>
+                      <Lock size={12} /> HẾT HẠN (Khóa)
+                    </span>
+                  ) : (
+                    <span className={`badge badge-${tpl.status === 'ACTIVE' ? 'active' : tpl.status === 'DRAFT' ? 'draft' : 'archived'}`}>
+                      {tpl.status === 'ACTIVE' ? 'ACTIVE (Đã duyệt)' : tpl.status === 'DRAFT' ? 'DRAFT (Nháp)' : 'ARCHIVED'}
+                    </span>
+                  )}
+                </td>
+                <td style={{ color: 'var(--text-muted)', fontSize: '13px' }}>{new Date(tpl.createdAt).toLocaleDateString('vi-VN')}</td>
+                <td style={{ textAlign: 'right' }}>
+                  <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                    {tpl.isLocked ? (
+                      <span style={{ fontSize: '12px', color: '#dc2626', fontWeight: '700' }}>Cần gia hạn gói</span>
+                    ) : (
+                      <>
+                        <button
+                          onClick={() => handlePreviewTemplate(tpl._id, tpl.name)}
+                          className="btn-action"
+                          style={{ padding: '5px 12px', fontSize: '12px', background: '#f8fafc', color: '#0f172a', border: '1px solid #cbd5e1', borderRadius: '8px' }}
+                          title="Xem trước nội dung mẫu"
+                        >
+                          <Eye size={14} /> Xem
+                        </button>
+                        {isAdmin && tpl.status === 'DRAFT' && (
+                          <button
+                            onClick={() => handlePublish(tpl._id)}
+                            className="btn-action btn-warning"
+                            style={{ padding: '5px 12px', fontSize: '12px' }}
+                          >
+                            <CheckCircle size={14} /> Duyệt & Publish
+                          </button>
+                        )}
+                        {isAdmin && tpl.status === 'ACTIVE' && (
+                          <button
+                            onClick={() => handleArchive(tpl._id)}
+                            className="btn-action btn-secondary"
+                            style={{ padding: '5px 12px', fontSize: '12px' }}
+                          >
+                            <Archive size={14} /> Lưu Trữ
+                          </button>
+                        )}
+                        {isAdmin && tpl.status === 'ARCHIVED' && (
+                          <button
+                            onClick={() => handleUnarchive(tpl._id)}
+                            className="btn-action"
+                            style={{ padding: '5px 12px', fontSize: '12px', background: '#0284c7', color: 'white', borderRadius: '8px' }}
+                          >
+                            <RefreshCw size={14} /> Mở Lại
+                          </button>
+                        )}
+                        <button
+                          onClick={() => handleDeleteTemplate(tpl._id, tpl.name)}
+                          className="btn-action btn-danger"
+                          style={{ padding: '5px 12px', fontSize: '12px' }}
+                          title="Xóa mẫu hợp đồng này khỏi hệ thống"
+                        >
+                          <Trash2 size={14} /> Xóa Mẫu
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    );
+  }, [templates, isAdmin]);
+
 
   return (
     <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '16px', height: 'calc(100vh - 120px)', maxHeight: 'calc(100vh - 120px)', overflow: 'hidden' }}>
@@ -1918,90 +2087,7 @@ export const TemplatesPage = () => {
           </div>
         ) : (
           <div style={{ flex: 1, width: '100%', overflowY: 'auto', overflowX: 'auto' }}>
-            <table className="custom-table" style={{ width: '100%', minWidth: '800px' }}>
-              <thead>
-                <tr>
-                  <th>Tên Mẫu Hợp Đồng</th>
-                  <th>Phân Loại</th>
-                  <th>Phiên Bản</th>
-                  <th>Số Ô Nhập Liệu Thay Đổi</th>
-                  <th>Trạng Thái Quản Lý</th>
-                  <th>Ngày Tạo</th>
-                  <th style={{ textAlign: 'right' }}>Thao Tác Duyệt</th>
-                </tr>
-              </thead>
-              <tbody>
-                {templates.map(tpl => {
-                  const fieldsCount = tpl.currentVersionData?.fields?.length || 0;
-                  return (
-                    <tr key={tpl._id}>
-                      <td>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                          <div style={{ width: '36px', height: '36px', borderRadius: '8px', background: '#e0f2fe', color: '#0284c7', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            <FileText size={18} />
-                          </div>
-                          <div>
-                            <span style={{ fontWeight: '800', color: '#0f172a', fontSize: '14px' }}>{tpl.name}</span>
-                            <span style={{ fontSize: '11px', color: '#64748b', display: 'block' }}>{tpl.description || 'Mẫu hợp đồng số hóa'}</span>
-                          </div>
-                        </div>
-                      </td>
-                      <td><span className="badge badge-role">{tpl.category}</span></td>
-                      <td><span className="badge badge-role">v{tpl.currentVersion}</span></td>
-                      <td style={{ fontWeight: '700', color: '#0284c7' }}>{fieldsCount} ô nhập liệu</td>
-                      <td>
-                        {tpl.isLocked ? (
-                          <span className="badge badge-archived" style={{ background: '#fee2e2', color: '#dc2626', border: '1px solid #fca5a5' }}>
-                            <Lock size={12} /> HẾT HẠN (Khóa)
-                          </span>
-                        ) : (
-                          <span className={`badge badge-${tpl.status === 'ACTIVE' ? 'active' : tpl.status === 'DRAFT' ? 'draft' : 'archived'}`}>
-                            {tpl.status === 'ACTIVE' ? 'ACTIVE (Đã duyệt)' : tpl.status === 'DRAFT' ? 'DRAFT (Nháp)' : 'ARCHIVED'}
-                          </span>
-                        )}
-                      </td>
-                      <td style={{ color: 'var(--text-muted)', fontSize: '13px' }}>{new Date(tpl.createdAt).toLocaleDateString('vi-VN')}</td>
-                      <td style={{ textAlign: 'right' }}>
-                        <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-                          {tpl.isLocked ? (
-                            <span style={{ fontSize: '12px', color: '#dc2626', fontWeight: '700' }}>Cần gia hạn gói</span>
-                          ) : (
-                            <>
-                              {isAdmin && tpl.status === 'DRAFT' && (
-                                <button
-                                  onClick={() => handlePublish(tpl._id)}
-                                  className="btn-action btn-warning"
-                                  style={{ padding: '5px 12px', fontSize: '12px' }}
-                                >
-                                  <CheckCircle size={14} /> Duyệt & Publish
-                                </button>
-                              )}
-                              {isAdmin && tpl.status === 'ACTIVE' && (
-                                <button
-                                  onClick={() => handleArchive(tpl._id)}
-                                  className="btn-action btn-secondary"
-                                  style={{ padding: '5px 12px', fontSize: '12px' }}
-                                >
-                                  <Archive size={14} /> Lưu Trữ
-                                </button>
-                              )}
-                              <button
-                                onClick={() => handleDeleteTemplate(tpl._id, tpl.name)}
-                                className="btn-action btn-danger"
-                                style={{ padding: '5px 12px', fontSize: '12px' }}
-                                title="Xóa mẫu hợp đồng này khỏi hệ thống"
-                              >
-                                <Trash2 size={14} /> Xóa Mẫu
-                              </button>
-                            </>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+            {renderedTemplatesTable}
           </div>
         )}
       </div>
@@ -2009,6 +2095,7 @@ export const TemplatesPage = () => {
       {/* RENDER MODALS VIA REACT PORTAL */}
       {showCreateModal && createPortal(renderModalContent(), document.body)}
       {variableModal.show && createPortal(renderVariableModal(), document.body)}
+      {previewModal.show && createPortal(renderPreviewModal(), document.body)}
       {dialogConfig.show && createPortal(renderDialogModal(), document.body)}
     </div>
   );

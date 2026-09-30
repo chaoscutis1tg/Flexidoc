@@ -123,6 +123,18 @@ export const archiveTemplate = async (req, res, next) => {
   }
 };
 
+export const unarchiveTemplate = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const template = await templateService.unarchiveTemplate(id, req.tenantContext);
+
+    await auditLogService.logAction(req, 'TEMPLATE_UNARCHIVED', 'template', id);
+    return sendSuccess(res, 200, 'Khôi phục Template thành công', template);
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const deleteTemplate = async (req, res, next) => {
   try {
     const { id } = req.params;

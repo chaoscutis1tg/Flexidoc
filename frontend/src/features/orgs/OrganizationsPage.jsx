@@ -908,9 +908,9 @@ export const OrganizationsPage = () => {
 
       {/* Page Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
-        <div>
-          <h1 style={{ fontSize: '24px', fontWeight: '800', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <FolderTree size={28} color="#0284c7" /> Quản Lý Sơ Đồ Tổ Chức Phân Cấp
+        <div className="flex-1 min-w-0">
+          <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 flex items-center gap-2.5 break-words">
+            <FolderTree size={28} className="text-sky-600 shrink-0" /> Quản Lý Sơ Đồ Tổ Chức Phân Cấp
           </h1>
           <p style={{ color: 'var(--text-muted)', fontSize: '14px', marginTop: '4px' }}>
             Mô hình đa tổ chức Multi-Tenant (Công ty Cha - Tập đoàn - Chi nhánh con)

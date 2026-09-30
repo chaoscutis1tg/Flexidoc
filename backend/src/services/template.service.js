@@ -236,6 +236,19 @@ export class TemplateService {
     return template;
   }
 
+  async unarchiveTemplate(templateId, tenantContext = null) {
+    await this._checkPlanLimits(tenantContext, 'EDIT');
+    const template = await templateRepository.findById(templateId, tenantContext);
+    if (!template) {
+      throw new AppError('Template không tồn tại.', 404);
+    }
+
+    // Restore back to ACTIVE status
+    template.status = 'ACTIVE';
+    await template.save();
+    return template;
+  }
+
   async deleteTemplate(templateId, tenantContext = null) {
     await this._checkPlanLimits(tenantContext, 'DELETE');
     const template = await templateRepository.findById(templateId, tenantContext);

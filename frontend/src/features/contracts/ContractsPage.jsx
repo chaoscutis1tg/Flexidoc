@@ -919,6 +919,91 @@ export const ContractsPage = () => {
     </div>
   );
 
+  const renderedContractsTable = useMemo(() => {
+    return (
+      <table className="w-full text-left text-xs min-w-[1000px]">
+        <thead className="bg-slate-50 border-b border-slate-200 text-[11px] font-bold text-slate-500 uppercase tracking-wider sticky top-0 z-10">
+          <tr>
+            <th className="py-3.5 px-4">Mã Hợp Đồng</th>
+            <th className="py-3.5 px-4">Tiêu Đề / Tên</th>
+            <th className="py-3.5 px-4">Tổ Chức</th>
+            <th className="py-3.5 px-4">Người Tạo</th>
+            <th className="py-3.5 px-4">Mẫu Số Hóa</th>
+            <th className="py-3.5 px-4">Phiên Bản</th>
+            <th className="py-3.5 px-4">Trạng Thái</th>
+            <th className="py-3.5 px-4">Ngày Tạo</th>
+            <th className="py-3.5 px-4 text-center">Thao Tác</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-slate-100">
+          {contracts.map(c => (
+            <tr key={c._id} className="hover:bg-slate-50/80 transition-colors">
+              <td className="py-3.5 px-4 font-mono font-bold text-sky-800">
+                {c.code}
+              </td>
+              <td className="py-3.5 px-4 font-bold text-slate-900">
+                {c.title}
+              </td>
+              <td className="py-3.5 px-4 font-bold text-sky-900">
+                {c.organizationId?.name ? (
+                  <span className="bg-sky-50 text-sky-700 px-2 py-0.5 rounded border border-sky-200 text-[11px]">
+                    {c.organizationId.name} ({c.organizationId.code || 'MAIN'})
+                  </span>
+                ) : (
+                  <span className="text-slate-400 font-normal">Hệ thống</span>
+                )}
+              </td>
+              <td className="py-3.5 px-4 font-extrabold text-slate-800">
+                {c.createdBy?.fullName || c.createdBy?.email || 'N/A'}
+              </td>
+              <td className="py-3.5 px-4 text-slate-600 font-medium">
+                {c.templateId?.name || 'Mẫu tiêu chuẩn'}
+              </td>
+              <td className="py-3.5 px-4">
+                <span className="px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700 font-mono text-[10px] font-bold border border-slate-200">
+                  v{c.templateVersion}
+                </span>
+              </td>
+              <td className="py-3.5 px-4">
+                <span className="px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 font-extrabold text-[10px] border border-emerald-200 inline-flex items-center gap-1">
+                  <CheckCircle2 size={12} /> Đã Khởi Tạo
+                </span>
+              </td>
+              <td className="py-3.5 px-4 text-slate-400 font-medium">
+                {new Date(c.createdAt).toLocaleDateString('vi-VN')}
+              </td>
+              <td className="py-3.5 px-4">
+                <div className="flex items-center justify-center gap-1.5">
+                  <button
+                    onClick={() => handleViewContract(c._id)}
+                    className="px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-[11px] transition-all cursor-pointer flex items-center gap-1"
+                    title="Xem chi tiết & in"
+                  >
+                    <Eye size={13} /> Xem
+                  </button>
+                  <button
+                    onClick={() => handleDownloadDocx(c._id, c.code)}
+                    className="px-2.5 py-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold text-[11px] transition-all cursor-pointer flex items-center gap-1 border border-blue-200"
+                    title="Tải file Word (.DOCX)"
+                  >
+                    <Download size={13} /> DOCX
+                  </button>
+                  <button
+                    onClick={() => handleDownloadPdf(c._id, c.code)}
+                    className="px-2.5 py-1.5 rounded-lg bg-sky-50 hover:bg-sky-100 text-sky-700 font-bold text-[11px] transition-all cursor-pointer flex items-center gap-1 border border-sky-200"
+                    title="Tải PDF"
+                  >
+                    <Download size={13} /> PDF
+                  </button>
+                </div>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    );
+  }, [contracts]);
+
   return (
     <div className="animate-fade-in flex-1 flex flex-col space-y-5 min-h-[calc(100vh-140px)]">
 
@@ -975,87 +1060,7 @@ export const ContractsPage = () => {
           </div>
         ) : (
           <div className="overflow-x-auto flex-1">
-            <table className="w-full text-left text-xs min-w-[1000px]">
-              <thead className="bg-slate-50 border-b border-slate-200 text-[11px] font-bold text-slate-500 uppercase tracking-wider sticky top-0 z-10">
-                <tr>
-                  <th className="py-3.5 px-4">Mã Hợp Đồng</th>
-                  <th className="py-3.5 px-4">Tiêu Đề / Tên</th>
-                  <th className="py-3.5 px-4">Tổ Chức</th>
-                  <th className="py-3.5 px-4">Người Tạo</th>
-                  <th className="py-3.5 px-4">Mẫu Số Hóa</th>
-                  <th className="py-3.5 px-4">Phiên Bản</th>
-                  <th className="py-3.5 px-4">Trạng Thái</th>
-                  <th className="py-3.5 px-4">Ngày Tạo</th>
-                  <th className="py-3.5 px-4 text-center">Thao Tác</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {contracts.map(c => (
-                  <tr key={c._id} className="hover:bg-slate-50/80 transition-colors">
-                    <td className="py-3.5 px-4 font-mono font-bold text-sky-800">
-                      {c.code}
-                    </td>
-                    <td className="py-3.5 px-4 font-bold text-slate-900">
-                      {c.title}
-                    </td>
-                    <td className="py-3.5 px-4 font-bold text-sky-900">
-                      {c.organizationId?.name ? (
-                        <span className="bg-sky-50 text-sky-700 px-2 py-0.5 rounded border border-sky-200 text-[11px]">
-                          {c.organizationId.name} ({c.organizationId.code || 'MAIN'})
-                        </span>
-                      ) : (
-                        <span className="text-slate-400 font-normal">Hệ thống</span>
-                      )}
-                    </td>
-                    <td className="py-3.5 px-4 font-extrabold text-slate-800">
-                      {c.createdBy?.fullName || c.createdBy?.email || 'N/A'}
-                    </td>
-                    <td className="py-3.5 px-4 text-slate-600 font-medium">
-                      {c.templateId?.name || 'Mẫu tiêu chuẩn'}
-                    </td>
-                    <td className="py-3.5 px-4">
-                      <span className="px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700 font-mono text-[10px] font-bold border border-slate-200">
-                        v{c.templateVersion}
-                      </span>
-                    </td>
-                    <td className="py-3.5 px-4">
-                      <span className="px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 font-extrabold text-[10px] border border-emerald-200 inline-flex items-center gap-1">
-                        <CheckCircle2 size={12} /> Đã Khởi Tạo
-                      </span>
-                    </td>
-                    <td className="py-3.5 px-4 text-slate-400 font-medium">
-                      {new Date(c.createdAt).toLocaleDateString('vi-VN')}
-                    </td>
-                    <td className="py-3.5 px-4">
-                      <div className="flex items-center justify-center gap-1.5">
-                        <button
-                          onClick={() => handleViewContract(c._id)}
-                          className="px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-[11px] transition-all cursor-pointer flex items-center gap-1"
-                          title="Xem chi tiết & in"
-                        >
-                          <Eye size={13} /> Xem
-                        </button>
-                        <button
-                          onClick={() => handleDownloadDocx(c._id, c.code)}
-                          className="px-2.5 py-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold text-[11px] transition-all cursor-pointer flex items-center gap-1 border border-blue-200"
-                          title="Tải file Word (.DOCX)"
-                        >
-                          <Download size={13} /> DOCX
-                        </button>
-                        <button
-                          onClick={() => handleDownloadPdf(c._id, c.code)}
-                          className="px-2.5 py-1.5 rounded-lg bg-sky-50 hover:bg-sky-100 text-sky-700 font-bold text-[11px] transition-all cursor-pointer flex items-center gap-1 border border-sky-200"
-                          title="Tải PDF"
-                        >
-                          <Download size={13} /> PDF
-                        </button>
-
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            {renderedContractsTable}
           </div>
         )}
       </div>

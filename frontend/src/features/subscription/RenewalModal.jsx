@@ -134,6 +134,19 @@ export const RenewalModal = ({ isOpen, onClose, targetOrg = null }) => {
   if (!isOpen) return null;
 
   const currentOrg = targetOrg || user?.organizationId || {};
+  const currentPlanCode = currentOrg.plan || 'FREE';
+  const planExpiry = currentOrg.planExpiresAt ? new Date(currentOrg.planExpiresAt) : null;
+  const now = new Date();
+  const daysLeft = planExpiry && planExpiry > now ? Math.ceil((planExpiry - now) / (1000 * 60 * 60 * 24)) : 0;
+
+  const planLevels = { 'FREE': 0, 'BASIC': 1, 'PRO': 2, 'VIP': 3 };
+  const currentLevel = planLevels[currentPlanCode] || 0;
+  const selectedLevel = planLevels[selectedPlan] || 0;
+  
+  const isDowngrading = selectedLevel < currentLevel;
+  const isUpgrading = selectedLevel > currentLevel;
+  const hasTimeLeft = daysLeft > 0;
+
   const currentPlanObj = plans.find((p) => p.code === selectedPlan) || plans[0];
   const unitPrice = currentPlanObj ? (currentPlanObj.price || 199000) : 199000;
 
@@ -272,11 +285,21 @@ export const RenewalModal = ({ isOpen, onClose, targetOrg = null }) => {
               <Crown className="text-purple-600 shrink-0" size={20} />
               <span>Nâng Cấp Gói Dịch Vụ Cho Tổ Chức</span>
             </h2>
-            <div className="flex items-center gap-2 mt-0.5 text-xs text-slate-500 font-medium">
+            <div className="flex flex-wrap items-center gap-2 mt-1 text-[11px] sm:text-xs text-slate-500 font-medium">
               <span>Đơn vị:</span>
-              <span className="font-extrabold text-sky-700 bg-sky-50 px-2.5 py-0.5 rounded-md border border-sky-200 flex items-center gap-1">
+              <span className="font-extrabold text-sky-700 bg-sky-50 px-2 py-0.5 rounded border border-sky-200 flex items-center gap-1">
                 <Building size={12} /> {currentOrg.name || 'Tổ chức của tôi'} ({currentOrg.code || 'MAIN'})
               </span>
+              <span className="ml-1 text-slate-400">|</span>
+              <span>Gói hiện tại:</span>
+              <span className="font-extrabold text-purple-700 bg-purple-50 px-2 py-0.5 rounded border border-purple-200 uppercase">
+                {currentPlanCode}
+              </span>
+              {hasTimeLeft && (
+                <span className="font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 flex items-center gap-1">
+                  <Clock size={12} /> Còn {daysLeft} ngày
+                </span>
+              )}
             </div>
           </div>
 
@@ -360,16 +383,29 @@ export const RenewalModal = ({ isOpen, onClose, targetOrg = null }) => {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3.5">
               {plans.map((p) => {
                 const isSelected = selectedPlan === p.code;
+                const pLevel = planLevels[p.code] || 0;
+                const isLowerTier = pLevel < currentLevel;
                 const theme = getPlanTheme(p.code);
                 const PlanIcon = theme.Icon;
 
                 return (
                   <div
                     key={p.code}
-                    onClick={() => setSelectedPlan(p.code)}
-                    className={`rounded-2xl p-3.5 cursor-pointer relative border transition-all duration-300 flex flex-col justify-between group ${isSelected ? theme.cardSelected : theme.cardUnselected
-                      }`}
+                    onClick={() => {
+                      if (!isLowerTier) setSelectedPlan(p.code);
+                    }}
+                    className={`rounded-2xl p-3.5 relative border transition-all duration-300 flex flex-col justify-between group 
+                      ${isLowerTier ? 'opacity-50 cursor-not-allowed bg-slate-50' : 'cursor-pointer'} 
+                      ${isSelected ? theme.cardSelected : isLowerTier ? 'border-slate-200 grayscale' : theme.cardUnselected}
+                    `}
                   >
+                    {isLowerTier && (
+                      <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/40 backdrop-blur-[1px] rounded-2xl">
+                        <span className="bg-slate-800 text-white text-[10px] font-bold px-2 py-1 rounded shadow">
+                          Không thể hạ cấp
+                        </span>
+                      </div>
+                    )}
                     {/* Top Accent Gradient Bar when Selected */}
                     {isSelected && (
                       <div className={`absolute top-0 left-0 right-0 h-1.5 rounded-t-2xl bg-gradient-to-r ${theme.topAccent}`} />
@@ -489,6 +525,16 @@ export const RenewalModal = ({ isOpen, onClose, targetOrg = null }) => {
                 </div>
               </div>
             </div>
+
+            {isUpgrading && hasTimeLeft && (
+              <div className="bg-amber-50 border border-amber-200 p-3 rounded-xl text-[11px] sm:text-xs text-amber-800 font-bold mb-3 flex items-start gap-2 shadow-sm animate-fade-in">
+                <AlertCircle size={16} className="shrink-0 text-amber-600 mt-0.5" />
+                <div>
+                  <span className="block mb-0.5 font-black text-amber-900">Lưu ý khi Nâng cấp gói cao hơn:</span>
+                  Bạn đang còn <span className="font-black text-emerald-700">{daysLeft} ngày</span> sử dụng của gói <span className="uppercase text-purple-700">{currentPlanCode}</span>. Thời gian này sẽ bị mất đi khi bạn nâng cấp sang gói mới cao hơn.
+                </div>
+              </div>
+            )}
 
             {/* Actions */}
             <div className="flex items-center justify-between pt-2.5 border-t border-slate-200">

@@ -604,10 +604,12 @@ export const AdminOrdersRevenuePage = () => {
             </span>
           </div>
 
-          <h1 className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2.5">
-            <DollarSign size={26} className="text-emerald-600" />
-            <span>Quản Lý Đơn Hàng & Doanh Thu Hệ Thống</span>
-          </h1>
+          <div className="flex-1 min-w-0">
+            <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2.5 break-words">
+              <DollarSign size={26} className="text-emerald-600 shrink-0" />
+              <span>Quản Lý Đơn Hàng & Doanh Thu Hệ Thống</span>
+            </h1>
+          </div>
           <p className="text-xs text-slate-500 mt-1">
             Theo dõi tất cả đơn hàng nâng cấp gói cước, duyệt đơn bằng tay hoặc tự động qua SePay Webhook.
           </p>

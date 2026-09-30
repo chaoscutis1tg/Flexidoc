@@ -243,10 +243,12 @@ export const AdminSettingsPage = () => {
               <Radio size={12} className="animate-pulse text-emerald-600" /> Webhook Live: {effectiveServerUrl}
             </span>
           </div>
-          <h1 className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2.5">
-            <Settings size={26} className="text-sky-600" />
-            <span>Cài Đặt Hệ Thống (System Settings)</span>
-          </h1>
+          <div className="flex-1 min-w-0">
+            <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2.5 break-words">
+              <Settings size={26} className="text-sky-600 shrink-0" />
+              <span>Cài Đặt Hệ Thống (System Settings)</span>
+            </h1>
+          </div>
           <p className="text-xs text-slate-500 mt-1">
             Cấu hình cổng thanh toán SePay, tài khoản MB Bank 5408092006, tên miền Backend / IP LAN linh hoạt và tùy chọn mã hóa Response API.
           </p>

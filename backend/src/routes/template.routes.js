@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import multer from 'multer';
-import { createTemplate, addFieldsToTemplate, publishTemplate, archiveTemplate, deleteTemplate, getTemplates, getTemplateDetails, parseDocx, updateTemplateDocument, getTemplateImage, getTemplateOriginalFile, previewDocxAsPdf, uploadTempDocx } from '../controllers/template.controller.js';
+import { createTemplate, addFieldsToTemplate, publishTemplate, archiveTemplate, unarchiveTemplate, deleteTemplate, getTemplates, getTemplateDetails, parseDocx, updateTemplateDocument, getTemplateImage, getTemplateOriginalFile, previewDocxAsPdf, uploadTempDocx } from '../controllers/template.controller.js';
 import { authMiddleware } from '../middlewares/auth.middleware.js';
 import { tenantContextMiddleware } from '../middlewares/tenant-context.middleware.js';
 import { rbacGuard } from '../middlewares/rbac-guard.js';
@@ -23,6 +23,7 @@ router.get('/:templateId/images/:versionId/:imageName', getTemplateImage);
 router.post('/:id/fields', rbacGuard(['SUPER_ADMIN', 'ORGANIZATION_ADMIN', 'STAFF']), addFieldsToTemplate);
 router.post('/:id/publish', rbacGuard(['SUPER_ADMIN', 'ORGANIZATION_ADMIN']), publishTemplate);
 router.post('/:id/archive', rbacGuard(['SUPER_ADMIN', 'ORGANIZATION_ADMIN']), archiveTemplate);
+router.post('/:id/unarchive', rbacGuard(['SUPER_ADMIN', 'ORGANIZATION_ADMIN']), unarchiveTemplate);
 router.delete('/:id', rbacGuard(['SUPER_ADMIN', 'ORGANIZATION_ADMIN', 'STAFF']), deleteTemplate);
 
 export default router;
