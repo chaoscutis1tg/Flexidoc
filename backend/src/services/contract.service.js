@@ -461,7 +461,11 @@ export class ContractService {
     if (templateVersionObj && templateVersionObj.originalFileKey && fs.existsSync(templateVersionObj.originalFileKey)) {
       const fileBuffer = fs.readFileSync(templateVersionObj.originalFileKey);
       const zip = new PizZip(fileBuffer);
-      const doc = new Docxtemplater(zip, { paragraphLoop: true, linebreaks: true });
+      const doc = new Docxtemplater(zip, {
+        paragraphLoop: true,
+        linebreaks: true,
+        delimiters: { start: '{{', end: '}}' },
+      });
 
       const formattedData = {};
       (templateVersionObj.fields || []).forEach(f => {
@@ -477,8 +481,19 @@ export class ContractService {
         formattedData[f.key] = val;
       });
 
-      doc.setData(formattedData);
-      doc.render();
+      try {
+        doc.setData(formattedData);
+        doc.render();
+      } catch (renderErr) {
+        console.error('Docxtemplater render error:', renderErr);
+        // Log detailed errors if available
+        if (renderErr.properties && renderErr.properties.errors) {
+          renderErr.properties.errors.forEach(e => {
+            console.error('  Template tag error:', e.properties?.explanation || e.message);
+          });
+        }
+        throw new AppError('Lỗi khi thay thế thông tin vào mẫu DOCX: ' + (renderErr.message || 'Kiểm tra lại các trường dữ liệu trong mẫu.'), 500);
+      }
       return doc.getZip().generate({ type: 'nodebuffer' });
     }
 

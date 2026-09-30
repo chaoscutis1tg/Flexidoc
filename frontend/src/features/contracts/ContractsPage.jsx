@@ -216,6 +216,7 @@ export const ContractsPage = () => {
 
   const handleViewContract = async (contractId) => {
     try {
+      setDocxPreviewBlob(null); // Clear previous preview to avoid showing stale data
       const res = await api.get(`/contracts/${contractId}`);
       setViewingContract(res.data);
 
@@ -235,41 +236,39 @@ export const ContractsPage = () => {
     }
   };
 
-  const handlePrintContract = (contractDetails) => {
+  const handlePrintContract = async (contractDetails) => {
     const details = contractDetails || viewingContract;
-    if (!details || !details.currentVersionData) return;
-    const contentHtml = details.currentVersionData.renderedContent || '';
+    if (!details) return;
+    const contractId = details.contract?._id;
+    if (!contractId) return;
 
-    const printWindow = window.open('', '_blank', 'width=900,height=900');
-    if (!printWindow) {
-      alert('Vui lòng cho phép trình duyệt bật Cửa sổ Popup để in Hợp Đồng!');
-      return;
+    try {
+      // Download the LibreOffice-generated PDF (pixel-perfect format)
+      const res = await api.get(`/contracts/${contractId}/download-pdf`, { responseType: 'blob' });
+      const blob = res instanceof Blob ? res : new Blob([res], { type: 'application/pdf' });
+      const url = window.URL.createObjectURL(blob);
+
+      // Open PDF in new tab and trigger print
+      const printWindow = window.open(url, '_blank');
+      if (!printWindow) {
+        // If popup blocked, fall back to download
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute('download', `HD_${details.contract?.code || contractId}.pdf`);
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        alert('Vui lòng cho phép trình duyệt bật Popup để in trực tiếp. File PDF đã được tải về.');
+      } else {
+        printWindow.onload = () => {
+          printWindow.focus();
+          printWindow.print();
+        };
+      }
+    } catch (err) {
+      console.error('Print error:', err);
+      alert('Lỗi khi tạo bản in: ' + err.message);
     }
-
-    printWindow.document.write(`
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>In Hợp Đồng - MT-CTMS</title>
-          <style>
-            @page { size: A4; margin: 20mm; }
-            body { font-family: 'Times New Roman', Times, serif; font-size: 13pt; line-height: 1.5; color: #000; margin: 0; padding: 0; }
-            p { margin: 6px 0; text-indent: 24pt; text-align: justify; }
-            table { width: 100%; border-collapse: collapse; margin: 12px 0; }
-          </style>
-        </head>
-        <body>
-          <div>${contentHtml}</div>
-          <script>
-            window.onload = function() {
-              window.print();
-              setTimeout(function() { window.close(); }, 500);
-            }
-          </script>
-        </body>
-      </html>
-    `);
-    printWindow.document.close();
   };
 
   const handleCreateContract = async () => {
