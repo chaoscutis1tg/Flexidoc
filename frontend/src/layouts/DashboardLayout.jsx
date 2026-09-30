@@ -300,7 +300,7 @@ export const DashboardLayout = () => {
           <div className="flex items-center gap-2 lg:gap-4">
             {user?.role !== 'SUPER_ADMIN' && (
               <button
-                onClick={() => setRenewalModalOpen(true)}
+                onClick={() => setShowRenewalModal(true)}
                 className="hidden md:flex items-center gap-2 transition-all cursor-pointer hover:shadow-md hover:scale-[1.02]"
                 style={{
                   background: isExpired ? '#fff1f2' : plan === 'FREE' ? '#f0f9ff' : 'linear-gradient(to right, #ffffff, #faf5ff)',
