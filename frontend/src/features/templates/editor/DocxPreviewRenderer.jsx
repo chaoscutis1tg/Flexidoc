@@ -103,10 +103,18 @@ export const DocxPreviewRenderer = ({ file, fileUrl, zoom = 1, onRenderComplete,
             xml = xml.replace(/<w14:checked w14:val="0"\/>/g, '<w:t>☐</w:t>');
             xml = xml.replace(/<w14:checked w14:val="1"\/>/g, '<w:t>☑</w:t>');
             
-            // Remove continuous section breaks (only <w:sectPr> inside <w:pPr>)
-            xml = xml.replace(/<w:pPr>[^]*?<w:sectPr>[^]*?<\/w:sectPr>[^]*?<\/w:pPr>/g, (match) => {
-                return match.replace(/<w:sectPr>[^]*?<\/w:sectPr>/g, '');
-            });
+            // Remove all <w:sectPr> except the LAST ONE
+            // This prevents docx-preview from splitting the page, while preserving the document's page size/margins.
+            const sectPrRegex = /<w:sectPr[^>]*>.*?<\/w:sectPr>/gs;
+            const matches = xml.match(sectPrRegex);
+            if (matches && matches.length > 1) {
+                let count = 0;
+                xml = xml.replace(sectPrRegex, (match) => {
+                    count++;
+                    if (count < matches.length) return '';
+                    return match;
+                });
+            }
             
             zip.file("word/document.xml", xml);
             buffer = await zip.generateAsync({ type: "arraybuffer" });
@@ -134,30 +142,7 @@ export const DocxPreviewRenderer = ({ file, fileUrl, zoom = 1, onRenderComplete,
           if (isMounted && containerRef.current) {
             fixWingdingsSymbols(containerRef.current);
             
-            // Fix Quốc hiệu / Layout tables wrapping issues
-            const tables = containerRef.current.querySelectorAll('table');
-            tables.forEach(table => {
-              const text = table.textContent || '';
-              if (text.includes('CỘNG HÒA') || text.includes('Độc lập') || text.includes('TRƯỜNG') || text.includes('VICTORIA')) {
-                table.style.setProperty('table-layout', 'auto', 'important');
-                table.style.setProperty('width', '100%', 'important');
-                
-                table.querySelectorAll('p').forEach(p => {
-                  p.style.setProperty('margin-left', '0', 'important');
-                  p.style.setProperty('padding-left', '0', 'important');
-                  p.style.setProperty('text-indent', '0', 'important');
-                  
-                  const pText = p.textContent || '';
-                  if (pText.includes('CỘNG HÒA') || pText.includes('Độc lập') || pText.includes('VIỆT NAM')) {
-                    p.style.setProperty('white-space', 'nowrap', 'important');
-                  }
-                });
-                
-                table.querySelectorAll('td, th').forEach(cell => {
-                  cell.style.setProperty('width', 'auto', 'important');
-                });
-              }
-            });
+
 
             setLoading(false);
             if (onRenderComplete) onRenderComplete();
