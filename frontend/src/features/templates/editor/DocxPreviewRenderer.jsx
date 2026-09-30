@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { renderAsync } from 'docx-preview';
 import JSZip from 'jszip';
+import Mark from 'mark.js';
 
 /**
  * Minimal post-processor: ONLY fixes Wingdings/Symbol font glyphs.
@@ -58,7 +59,7 @@ const fixWingdingsSymbols = (container) => {
   });
 };
 
-export const DocxPreviewRenderer = ({ file, fileUrl, zoom = 1, onRenderComplete, onError }) => {
+export const DocxPreviewRenderer = ({ file, fileUrl, zoom = 1, fields = [], onRenderComplete, onError }) => {
   const containerRef = useRef(null);
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState('');
@@ -169,6 +170,49 @@ export const DocxPreviewRenderer = ({ file, fileUrl, zoom = 1, onRenderComplete,
     renderDocx();
     return () => { isMounted = false; };
   }, [file, fileUrl]);
+
+  // Effect to highlight variables whenever fields or loading changes
+  useEffect(() => {
+    if (loading || !containerRef.current) return;
+    
+    const container = containerRef.current;
+    const instance = new Mark(container);
+    
+    // First, unmark everything
+    instance.unmark({
+      done: () => {
+        if (!fields || fields.length === 0) return;
+        
+        // Mark each field's original text
+        fields.forEach(field => {
+          if (field.originalText) {
+            instance.mark(field.originalText, {
+              acrossElements: true,
+              separateWordSearch: false,
+              className: 'field-highlight',
+              each: (element) => {
+                element.style.backgroundColor = '#fef08a';
+                element.style.color = '#854d0e';
+                element.style.padding = '2px 4px';
+                element.style.borderRadius = '4px';
+                element.style.fontWeight = 'bold';
+                element.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)';
+                element.title = `Biến: {{${field.key}}} (${field.label})`;
+                
+                // Also, optionally, we could replace the text content with {{key}}, 
+                // but highlighting the original text is safer and preserves the visual flow exactly as the user selected it.
+              }
+            });
+          }
+        });
+      }
+    });
+    
+    return () => {
+      // Cleanup unmark on unmount if needed, but not strictly necessary since the DOM will be destroyed.
+      instance.unmark();
+    };
+  }, [fields, loading]);
 
   return (
     <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative' }}>

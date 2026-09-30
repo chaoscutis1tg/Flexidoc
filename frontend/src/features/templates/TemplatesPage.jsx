@@ -1482,12 +1482,12 @@ export const TemplatesPage = () => {
                         height="800px"
                       />
                     ) : (
-                      <DocxPreviewRenderer file={uploadedFile} zoom={zoomScale} />
+                      <DocxPreviewRenderer file={uploadedFile} zoom={zoomScale} fields={fields} />
                     )
                   ) : activeTab === 'editor' && uploadedFile && uploadedFile.name && uploadedFile.name.endsWith('.docx') ? (
                     /* Giấy Số Hóa: Use docx-preview for faithful Word rendering + text selection */
                     <div style={{ position: 'relative', width: '100%' }}>
-                      <DocxPreviewRenderer file={uploadedFile} zoom={zoomScale} />
+                      <DocxPreviewRenderer file={uploadedFile} zoom={zoomScale} fields={fields} />
                       {/* Variable tags overlay */}
                       {fields.length > 0 && (
                         <div style={{
