@@ -103,6 +103,10 @@ export const DocxPreviewRenderer = ({ file, fileUrl, zoom = 1, onRenderComplete,
             xml = xml.replace(/<w14:checked w14:val="0"\/>/g, '<w:t>☐</w:t>');
             xml = xml.replace(/<w14:checked w14:val="1"\/>/g, '<w:t>☑</w:t>');
             
+            // Fix table indentation: docx-preview ignores w:w on w:tblInd, but supports w:left.
+            // Copy w:w value into w:left so tables with negative indents (like Quốc hiệu) shift correctly.
+            xml = xml.replace(/<w:tblInd([^>]*?)w:w="(-?[0-9]+)"([^>]*?)\/>/g, '<w:tblInd$1w:w="$2" w:left="$2"$3/>');
+            
             // Remove all <w:sectPr> except the LAST ONE
             // This prevents docx-preview from splitting the page, while preserving the document's page size/margins.
             const sectPrRegex = /<w:sectPr[^>]*>.*?<\/w:sectPr>/gs;
