@@ -1131,6 +1131,7 @@ export const TemplatesPage = () => {
           id: `f_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
           key: varKey,
           label: label.trim(),
+          originalText: selectedText, // <-- Cực kỳ quan trọng: lưu lại từ khoá gốc để backend replace
           type,
           required: true,
         }

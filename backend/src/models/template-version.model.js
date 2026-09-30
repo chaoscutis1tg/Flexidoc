@@ -15,6 +15,10 @@ const fieldSchema = new mongoose.Schema({
     required: [true, 'Field label là bắt buộc'],
     trim: true,
   },
+  originalText: {
+    type: String,
+    default: '',
+  },
   type: {
     type: String,
     enum: ['TEXT', 'TEXTAREA', 'NUMBER', 'CURRENCY', 'DATE', 'DATETIME', 'EMAIL', 'PHONE', 'ADDRESS', 'SELECT', 'RADIO', 'CHECKBOX', 'BOOLEAN'],

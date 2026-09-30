@@ -525,27 +525,49 @@ export class ContractService {
         let replacementCount = 0;
 
         // Phase 1: Direct replacement for tags fully within a single <w:t> element
-        for (const [key, value] of Object.entries(formattedData)) {
+        for (const f of (templateVersionObj.fields || [])) {
+          const key = f.key;
+          const value = formattedData[key];
           const safeVal = this._escapeXml(String(value || ''));
-          const regex = new RegExp(`\\{\\{${this._escapeRegex(key)}\\}\\}`, 'g');
-          const matches = xml.match(regex);
-          if (matches) {
-            replacementCount += matches.length;
-            console.log(`[DOCX-GEN] Phase 1: Replacing {{${key}}} → "${String(value || '').substring(0, 50)}" (${matches.length} times)`);
+
+          // 1. Thay thế {{key}}
+          const regex1 = new RegExp(`\\{\\{${this._escapeRegex(key)}\\}\\}`, 'g');
+          const matches1 = xml.match(regex1);
+          if (matches1) {
+            replacementCount += matches1.length;
+            console.log(`[DOCX-GEN] Phase 1: Replacing {{${key}}} → "${String(value || '').substring(0, 50)}" (${matches1.length} times)`);
           }
-          xml = xml.replace(regex, safeVal);
+          xml = xml.replace(regex1, safeVal);
+
+          // 2. Thay thế originalText (từ vựng gốc được bôi đen trên web)
+          if (f.originalText && f.originalText.trim()) {
+            const regex2 = new RegExp(this._escapeRegex(f.originalText.trim()), 'g');
+            const matches2 = xml.match(regex2);
+            if (matches2) {
+              replacementCount += matches2.length;
+              console.log(`[DOCX-GEN] Phase 1: Replacing originalText "${f.originalText}" → "${String(value || '').substring(0, 50)}" (${matches2.length} times)`);
+            }
+            xml = xml.replace(regex2, safeVal);
+          }
         }
 
         console.log(`[DOCX-GEN] Phase 1 total replacements: ${replacementCount}`);
 
-        // Phase 2: Handle tags split across multiple <w:t> elements by Word
+        // Phase 2: Handle tags or original texts split across multiple <w:t> elements by Word
         const textOnly = xml.replace(/<[^>]+>/g, '');
-        const stillHasTags = Object.keys(formattedData).some(k => textOnly.includes(`{{${k}}}`));
+        
+        const stillHasTags = (templateVersionObj.fields || []).some(f => {
+          if (textOnly.includes(`{{${f.key}}}`)) return true;
+          if (f.originalText && f.originalText.trim() && textOnly.includes(f.originalText.trim())) return true;
+          return false;
+        });
 
         if (stillHasTags) {
-          const unreplacedKeys = Object.keys(formattedData).filter(k => textOnly.includes(`{{${k}}}`));
-          console.log(`[DOCX-GEN] Phase 2: Still has unreplaced tags:`, unreplacedKeys);
-          xml = this._fixSplitPlaceholders(xml, formattedData);
+          const unreplacedKeys = (templateVersionObj.fields || []).filter(f => {
+             return textOnly.includes(`{{${f.key}}}`) || (f.originalText && f.originalText.trim() && textOnly.includes(f.originalText.trim()));
+          }).map(f => f.key);
+          console.log(`[DOCX-GEN] Phase 2: Still has unreplaced tags/text for:`, unreplacedKeys);
+          xml = this._fixSplitPlaceholders(xml, formattedData, templateVersionObj.fields);
         } else {
           console.log(`[DOCX-GEN] Phase 2: No split tags remaining`);
         }
@@ -562,11 +584,9 @@ export class ContractService {
   }
 
   /**
-   * Fix {{key}} placeholders that Word split across multiple XML <w:t> elements.
-   * Word often stores "{{name}}" as separate runs: <w:t>{{</w:t> + <w:t>name}}</w:t>
-   * This merges the text within each paragraph, replaces tags, and rebuilds the XML.
+   * Fix {{key}} or original text placeholders that Word split across multiple XML <w:t> elements.
    */
-  _fixSplitPlaceholders(xml, data) {
+  _fixSplitPlaceholders(xml, data, fields = []) {
     return xml.replace(/<w:p[ >][\s\S]*?<\/w:p>/g, (para) => {
       // Collect all <w:t> text pieces with their exact positions in the paragraph
       const pieces = [];
@@ -585,26 +605,42 @@ export class ContractService {
 
       // Concatenate all text from this paragraph
       const fullText = pieces.map(p => p.text).join('');
-      const hasTag = Object.keys(data).some(k => fullText.includes(`{{${k}}}`));
+      
+      const hasTag = fields.some(f => {
+        if (fullText.includes(`{{${f.key}}}`)) return true;
+        if (f.originalText && f.originalText.trim() && fullText.includes(f.originalText.trim())) return true;
+        return false;
+      });
+      
       if (!hasTag) return para;
 
-      // Replace tags in the concatenated text
+      // Replace tags and originalText in the concatenated text
       let replaced = fullText;
-      for (const [key, value] of Object.entries(data)) {
+      for (const f of fields) {
+        const key = f.key;
+        const value = data[key];
         const safeVal = this._escapeXml(String(value || ''));
+        
+        // 1. Replace {{key}}
         replaced = replaced.replace(
           new RegExp(`\\{\\{${this._escapeRegex(key)}\\}\\}`, 'g'),
           safeVal
         );
+        
+        // 2. Replace originalText
+        if (f.originalText && f.originalText.trim()) {
+          replaced = replaced.replace(
+            new RegExp(this._escapeRegex(f.originalText.trim()), 'g'),
+            safeVal
+          );
+        }
       }
 
       // Rebuild paragraph: put all replaced text in first <w:t>, empty others
-      // Process in reverse order to preserve character positions
       let result = para;
       for (let i = pieces.length - 1; i >= 0; i--) {
         const p = pieces[i];
         const newText = i === 0 ? replaced : '';
-        // Reconstruct the <w:t> element: keep tag attributes, replace content
         const tagEnd = p.fullMatch.indexOf('>') + 1;
         const closingStart = p.fullMatch.lastIndexOf('</');
         const newMatch = p.fullMatch.substring(0, tagEnd) + newText + p.fullMatch.substring(closingStart);
