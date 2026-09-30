@@ -35,6 +35,7 @@ const fixWingdingsSymbols = (container) => {
       if (replacement) {
         span.textContent = replacement;
         span.style.fontFamily = "'Segoe UI Symbol', sans-serif";
+        span.className = (span.className || '') + ' symbol-font-fixed';
       }
     }
   });
@@ -51,6 +52,9 @@ const fixWingdingsSymbols = (container) => {
       .replace(/[\uF0FC]/g, '✓')
       .replace(/[\uF0B7\uF0A7]/g, '•')
       .replace(/[\uF000-\uF0FF]/g, '');
+      
+    el.className = (el.className || '') + ' symbol-font-fixed';
+    el.style.fontFamily = "'Segoe UI Symbol', sans-serif";
   });
 };
 
@@ -168,6 +172,11 @@ export const DocxPreviewRenderer = ({ file, fileUrl, zoom = 1, onRenderComplete,
 
   return (
     <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative' }}>
+      <style>{`
+        .docx-preview-paper *:not(.symbol-font-fixed) {
+          font-family: "Times New Roman", Times, serif !important;
+        }
+      `}</style>
       {loading && (
         <div style={{ padding: '40px', textAlign: 'center', color: '#64748b', fontSize: '14px', fontWeight: 600 }}>
           ⏳ Đang đọc và dựng bản in Word gốc...
