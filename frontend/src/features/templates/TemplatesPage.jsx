@@ -1436,6 +1436,7 @@ export const TemplatesPage = () => {
                             borderRadius: '4px',
                             border: 'none',
                             color: zoomScale === scale ? '#ffffff' : '#475569',
+                            background: zoomScale === scale ? '#0284c7' : 'transparent',
                             cursor: 'pointer',
                             transition: 'all 0.15s ease'
                           }}
