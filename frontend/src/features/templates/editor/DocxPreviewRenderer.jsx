@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { renderAsync } from 'docx-preview';
+import JSZip from 'jszip';
 
 /**
  * Minimal post-processor: ONLY fixes Wingdings/Symbol font glyphs.
@@ -83,6 +84,27 @@ export const DocxPreviewRenderer = ({ file, fileUrl, zoom = 1, onRenderComplete,
         if (!buffer) {
           setLoading(false);
           return;
+        }
+
+        // --- PRE-PROCESS DOCX BUFFER ---
+        // docx-preview drops <w:sdt> elements, which causes checkboxes inside tables to vanish.
+        // We use JSZip to strip the <w:sdt> envelope and convert w14:checkbox to plain text.
+        try {
+          const zip = await JSZip.loadAsync(buffer);
+          const docXmlFile = zip.file("word/document.xml");
+          if (docXmlFile) {
+            let xml = await docXmlFile.async("string");
+            // Strip <w:sdt> envelope around <w:tc>
+            xml = xml.replace(/<w:sdt>.*?<w:sdtContent>\s*(<w:tc(\s|>)[^]*?<\/w:tc>)\s*<\/w:sdtContent>\s*<\/w:sdt>/g, '$1');
+            // Convert w14:checkbox to unicode characters so they render natively
+            xml = xml.replace(/<w14:checked w14:val="0"\/>/g, '<w:t>☐</w:t>');
+            xml = xml.replace(/<w14:checked w14:val="1"\/>/g, '<w:t>☑</w:t>');
+            zip.file("word/document.xml", xml);
+            buffer = await zip.generateAsync({ type: "arraybuffer" });
+          }
+        } catch (zipErr) {
+          console.warn("Lỗi khi tiền xử lý DOCX bằng JSZip:", zipErr);
+          // If it fails, continue with original buffer
         }
 
         if (isMounted && containerRef.current) {
