@@ -1021,11 +1021,8 @@ export const TemplatesPage = () => {
 
           if (tblParaIdx >= tableIndents.length) return match;
           const indent = tableIndents[tblParaIdx++];
-          if (indent && indent.fontSize && indent.fontSize !== 13) {
-            const styleStr = `font-size: ${indent.fontSize}pt`;
-            return injectStyle(match, openTag, openAttrs, styleStr);
-          }
-          return match;
+          const styleStr = buildIndentStyle(indent, openAttrs);
+          return injectStyle(match, openTag, openAttrs, styleStr);
         });
 
         const richHtml = cleanWordHtml(rawHtml, tableBorderInfo);
@@ -1275,8 +1272,8 @@ export const TemplatesPage = () => {
     const hasHtmlTags = /<[a-z][\s\S]*>/i.test(createForm.templateContentText || '');
 
     return (
-      <div className="modal-overlay" style={{ padding: '16px' }}>
-        <div className="modal-content animate-fade-in" style={{ maxWidth: '1440px', width: '95vw', height: '92vh', maxHeight: '92vh', padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: '12px', borderRadius: '16px', boxShadow: '0 25px 60px rgba(15, 23, 42, 0.28)' }}>
+      <div className="modal-overlay" style={{ padding: '0' }}>
+        <div className="modal-content animate-fade-in" style={{ maxWidth: '100vw', width: '100vw', height: '100vh', maxHeight: '100vh', padding: '24px 32px', display: 'flex', flexDirection: 'column', gap: '12px', borderRadius: '0', boxShadow: 'none' }}>
 
           {/* Modal Header */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e2e8f0', paddingBottom: '10px', flexShrink: 0 }}>
