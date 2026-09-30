@@ -31,7 +31,8 @@ import {
   Lightbulb,
   Trash2,
   AlertTriangle,
-  Lock
+  Lock,
+  RefreshCw
 } from 'lucide-react';
 
 
