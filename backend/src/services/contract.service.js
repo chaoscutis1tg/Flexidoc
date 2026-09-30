@@ -3,6 +3,9 @@ import Docxtemplater from 'docxtemplater';
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import puppeteer from 'puppeteer';
 import fs from 'fs';
+import path from 'path';
+import os from 'os';
+import { execSync } from 'child_process';
 import { contractRepository } from '../repositories/contract.repository.js';
 import { templateRepository } from '../repositories/template.repository.js';
 import { organizationRepository } from '../repositories/organization.repository.js';
@@ -480,6 +483,55 @@ export class ContractService {
     }
 
     throw new AppError('Mẫu file DOCX gốc không tìm thấy để sinh file DOCX.', 404);
+  }
+
+  /**
+   * Generate PDF from original DOCX template using LibreOffice conversion.
+   * This produces pixel-perfect output matching the Word format exactly.
+   * Falls back to Puppeteer HTML-based PDF if LibreOffice is not available.
+   */
+  async generatePdfFromDocx(contractId, tenantContext = null) {
+    try {
+      // Generate the filled DOCX buffer first
+      const docxBuffer = await this.generateDocxBuffer(contractId, tenantContext);
+
+      // Write to temp file
+      const tmpDir = os.tmpdir();
+      const tmpDocx = path.join(tmpDir, `contract_${contractId}_${Date.now()}.docx`);
+      const tmpPdf = tmpDocx.replace('.docx', '.pdf');
+
+      fs.writeFileSync(tmpDocx, docxBuffer);
+
+      try {
+        // Convert DOCX to PDF using LibreOffice
+        execSync(
+          `libreoffice --headless --convert-to pdf --outdir "${tmpDir}" "${tmpDocx}"`,
+          { timeout: 30000, stdio: 'pipe' }
+        );
+
+        if (fs.existsSync(tmpPdf)) {
+          const pdfBuffer = fs.readFileSync(tmpPdf);
+          // Cleanup temp files
+          try { fs.unlinkSync(tmpDocx); } catch {}
+          try { fs.unlinkSync(tmpPdf); } catch {}
+          return pdfBuffer;
+        }
+      } catch (libreErr) {
+        console.warn('LibreOffice conversion failed, falling back to Puppeteer:', libreErr.message);
+      }
+
+      // Cleanup docx temp
+      try { fs.unlinkSync(tmpDocx); } catch {}
+
+      // Fallback: use Puppeteer with renderedContent
+      const details = await this.getContractDetails(contractId, tenantContext);
+      return this.generatePdfBuffer(details.currentVersionData?.renderedContent || '');
+    } catch (err) {
+      console.error('generatePdfFromDocx failed:', err);
+      // Ultimate fallback
+      const details = await this.getContractDetails(contractId, tenantContext);
+      return this.generatePdfBuffer(details.currentVersionData?.renderedContent || '');
+    }
   }
 }
 

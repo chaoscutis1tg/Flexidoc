@@ -48,7 +48,9 @@ export const downloadContractPdf = async (req, res, next) => {
   try {
     const { id } = req.params;
     const details = await contractService.getContractDetails(id, req.tenantContext);
-    const pdfBuffer = await contractService.generatePdfBuffer(details.currentVersionData.renderedContent);
+    
+    // Use LibreOffice DOCX→PDF conversion for pixel-perfect format preservation
+    const pdfBuffer = await contractService.generatePdfFromDocx(id, req.tenantContext);
 
     await auditLogService.logAction(req, 'CONTRACT_DOWNLOADED_PDF', 'contract', id);
 

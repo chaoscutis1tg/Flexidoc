@@ -1,7 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import api from '../../services/api';
+import { DocxPreviewRenderer } from '../templates/editor/DocxPreviewRenderer.jsx';
 import {
   FileText,
   FilePlus,
@@ -47,6 +48,7 @@ export const ContractsPage = () => {
   const [showModal, setShowModal] = useState(false);
   const [wizardStep, setWizardStep] = useState(1);
   const [viewingContract, setViewingContract] = useState(null);
+  const [docxPreviewBlob, setDocxPreviewBlob] = useState(null);
   const [modalError, setModalError] = useState('');
 
   const [selectedTemplate, setSelectedTemplate] = useState(null);
@@ -216,6 +218,18 @@ export const ContractsPage = () => {
     try {
       const res = await api.get(`/contracts/${contractId}`);
       setViewingContract(res.data);
+
+      // Fetch filled DOCX blob for high-fidelity preview
+      try {
+        const docxRes = await api.get(`/contracts/${contractId}/download-docx`, { responseType: 'blob' });
+        if (docxRes && !(docxRes instanceof Blob && docxRes.type.includes('json'))) {
+          const blob = docxRes instanceof Blob ? docxRes : new Blob([docxRes], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+          setDocxPreviewBlob(blob);
+        }
+      } catch (docxErr) {
+        console.warn('Could not fetch DOCX for preview, falling back to HTML:', docxErr.message);
+        setDocxPreviewBlob(null);
+      }
     } catch (err) {
       alert('Lỗi lấy chi tiết hợp đồng: ' + err.message);
     }
@@ -364,11 +378,15 @@ export const ContractsPage = () => {
             </button>
           </div>
 
-          {/* Authentic Word A4 Document Paper Sheet Render Canvas */}
-          <div className="word-paper-canvas">
-            <div className="word-paper-sheet">
-              <div dangerouslySetInnerHTML={{ __html: currentVersionData?.renderedContent || '' }} />
-            </div>
+          {/* Word A4 Document Preview - Uses docx-preview for pixel-perfect rendering */}
+          <div className="word-paper-canvas" style={{ flex: 1, minHeight: '400px', maxHeight: '65vh', overflowY: 'auto' }}>
+            {docxPreviewBlob ? (
+              <DocxPreviewRenderer file={docxPreviewBlob} zoom={1} />
+            ) : (
+              <div className="word-paper-sheet">
+                <div dangerouslySetInnerHTML={{ __html: currentVersionData?.renderedContent || '' }} />
+              </div>
+            )}
           </div>
 
           {/* Modal Footer */}

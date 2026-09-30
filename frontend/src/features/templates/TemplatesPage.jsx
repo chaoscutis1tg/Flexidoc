@@ -486,13 +486,47 @@ export const TemplatesPage = () => {
   };
 
   // Parse ALL paragraph indents from word/document.xml using style + numbering maps
+  // Returns array of { left, firstLine, hanging, fontSize, inTable } for each <w:p>
+  // "inTable" flag is critical: Mammoth renders table-cell paragraphs inside <td>, not as top-level <p>.
+  // We need this to correctly sync the paraIdx counter during HTML injection.
   const parseAllParaIndents = (docXml, styleMap, numMap) => {
     if (!docXml) return [];
     const result = [];
+
+    // First, find all table ranges so we can mark paragraphs as inTable
+    const tableRanges = [];
+    const tblRegex = /<w:tbl\b/gi;
+    let tblM;
+    while ((tblM = tblRegex.exec(docXml)) !== null) {
+      const start = tblM.index;
+      // Find matching </w:tbl> - handle nesting by counting
+      let depth = 1;
+      let pos = start + tblM[0].length;
+      while (depth > 0 && pos < docXml.length) {
+        const nextOpen = docXml.indexOf('<w:tbl', pos);
+        const nextClose = docXml.indexOf('</w:tbl>', pos);
+        if (nextClose === -1) break;
+        if (nextOpen !== -1 && nextOpen < nextClose) {
+          depth++;
+          pos = nextOpen + 6;
+        } else {
+          depth--;
+          if (depth === 0) {
+            tableRanges.push({ start, end: nextClose + 8 });
+          }
+          pos = nextClose + 8;
+        }
+      }
+    }
+
+    const isInsideTable = (idx) => tableRanges.some(r => idx >= r.start && idx < r.end);
+
     const paraRegex = /<w:p\b[^>]*>([\s\S]*?)<\/w:p>/gi;
     let m;
     while ((m = paraRegex.exec(docXml)) !== null) {
       const paraContent = m[1];
+      const paraOffset = m.index;
+      const inTable = isInsideTable(paraOffset);
       let indent = { left: 0, firstLine: 0, hanging: 0 };
 
       const pPrM = paraContent.match(/<w:pPr>([\s\S]*?)<\/w:pPr>/i);
@@ -518,7 +552,6 @@ export const TemplatesPage = () => {
           if (numIdM) {
             const lvl = ilvlM ? ilvlM[1] : '0';
             numInd = numMap[`${numIdM[1]}:${lvl}`];
-            // Fallback: estimate from level if numbering XML didn't have indent
             if (!numInd) {
               const level = parseInt(lvl);
               numInd = { left: level * 720 + 360, firstLine: 0, hanging: 360 };
@@ -536,13 +569,35 @@ export const TemplatesPage = () => {
         }
       }
 
-      // Extract font size
+      // Extract the dominant font size from ALL runs in this paragraph
+      // Word stores font size in half-points in <w:sz w:val="XX"/>
       let fontSize = null;
-      const szM = paraContent.match(/<w:sz\s+w:val="(\d+)"/i);
-      if (szM) {
-        fontSize = parseFloat(szM[1]) / 2;
+      const runSizes = [];
+      const szRegex = /<w:sz\s+w:val="(\d+)"/gi;
+      let szM;
+      while ((szM = szRegex.exec(paraContent)) !== null) {
+        runSizes.push(parseFloat(szM[1]) / 2);
       }
+      if (runSizes.length > 0) {
+        // Use the most frequent font size (mode) as the paragraph's dominant size
+        const freq = {};
+        runSizes.forEach(s => { freq[s] = (freq[s] || 0) + 1; });
+        let maxCount = 0;
+        for (const [size, count] of Object.entries(freq)) {
+          if (count > maxCount) { maxCount = count; fontSize = parseFloat(size); }
+        }
+      }
+
+      // Extract alignment from <w:jc w:val="..."/>
+      let alignment = null;
+      if (pPrM) {
+        const jcM = pPrM[1].match(/<w:jc\s+w:val="([^"]*)"/i);
+        if (jcM) alignment = jcM[1].toLowerCase();
+      }
+
       indent.fontSize = fontSize;
+      indent.alignment = alignment;
+      indent.inTable = inTable;
 
       result.push(indent);
     }
@@ -875,19 +930,30 @@ export const TemplatesPage = () => {
         const rawTextResult = await mammoth.extractRawText({ arrayBuffer });
 
         // Inject exact indent values from docx XML as inline styles on each paragraph/heading/list element
-        // The paragraphIndents array is built from XML <w:p> elements in document order (same as Mammoth output)
+        // Split indents into top-level (non-table) and table paragraphs for correct sync
         let rawHtml = htmlResult.value || '';
-        let paraIdx = 0;
-        rawHtml = rawHtml.replace(/<(p|h[1-6]|li)(\s[^>]*)?>/gi, (match, tag, attrs) => {
-          if (paraIdx >= paragraphIndents.length) return match;
-          const indent = paragraphIndents[paraIdx++];
-          if (!indent) return match;
+        const topLevelIndents = paragraphIndents.filter(p => !p.inTable);
+        const tableIndents = paragraphIndents.filter(p => p.inTable);
 
-          // Skip text-indent injection for centered/right-aligned paragraphs
-          const isCentered = attrs && /class="[^"]*\btext-center\b/i.test(attrs);
-          const isRightAligned = attrs && /class="[^"]*\btext-right\b/i.test(attrs);
+        // Helper to build inline style string from an indent object
+        const buildIndentStyle = (indent, attrs) => {
+          if (!indent) return null;
+          const hasClassCenter = attrs && /class="[^"]*\btext-center\b/i.test(attrs);
+          const hasClassRight = attrs && /class="[^"]*\btext-right\b/i.test(attrs);
+          const isCentered = hasClassCenter || indent.alignment === 'center';
+          const isRightAligned = hasClassRight || indent.alignment === 'right';
+          const isJustified = indent.alignment === 'both' || indent.alignment === 'justify';
 
           const inlineStyles = [];
+
+          // Inject alignment from XML if Mammoth didn't apply the class
+          if (indent.alignment === 'center' && !hasClassCenter) {
+            inlineStyles.push('text-align: center');
+          } else if (indent.alignment === 'right' && !hasClassRight) {
+            inlineStyles.push('text-align: right');
+          } else if (isJustified) {
+            inlineStyles.push('text-align: justify');
+          }
 
           // Left margin from docx indent.left (handle hanging: effective left = left - hanging)
           const effectiveLeft = indent.hanging > 0 ? Math.max(0, indent.left - indent.hanging) : indent.left;
@@ -899,19 +965,21 @@ export const TemplatesPage = () => {
             if (indent.firstLine > 0) {
               inlineStyles.push(`text-indent: ${(indent.firstLine / 567).toFixed(2)}cm`);
             } else if (indent.hanging > 0) {
-              // Hanging indent: text-indent negative but padding covers the "gutter" for number
               inlineStyles.push(`padding-left: ${(indent.hanging / 567).toFixed(2)}cm`);
               inlineStyles.push(`text-indent: -${(indent.hanging / 567).toFixed(2)}cm`);
             }
           }
 
-          if (indent.fontSize) {
+          if (indent.fontSize && indent.fontSize !== 13) {
             inlineStyles.push(`font-size: ${indent.fontSize}pt`);
           }
 
-          if (inlineStyles.length === 0) return match;
+          return inlineStyles.length > 0 ? inlineStyles.join('; ') : null;
+        };
 
-          const styleStr = inlineStyles.join('; ');
+        // Helper to inject style string into a tag's attributes
+        const injectStyle = (match, tag, attrs, styleStr) => {
+          if (!styleStr) return match;
           attrs = attrs || '';
           if (attrs.includes('style="')) {
             attrs = attrs.replace(/style="([^"]*)"/i, (m, s) => `style="${styleStr}; ${s}"`);
@@ -919,6 +987,45 @@ export const TemplatesPage = () => {
             attrs = ` style="${styleStr}"${attrs}`;
           }
           return `<${tag}${attrs}>`;
+        };
+
+        // Pass 1: Inject styles on top-level paragraphs (outside tables)
+        // We need to skip <p> tags that are inside <table>...</table> blocks
+        let topIdx = 0;
+        let inTableBlock = 0; // nesting counter for <table>
+        rawHtml = rawHtml.replace(/<(\/?)table[^>]*>|<(p|h[1-6]|li)(\s[^>]*)?>|<\/(p|h[1-6]|li)>/gi, (match, closeSlash, openTag, openAttrs, closeTag) => {
+          // Track table nesting
+          if (match.startsWith('<table') || match.startsWith('<TABLE')) { inTableBlock++; return match; }
+          if (match.startsWith('</table') || match.startsWith('</TABLE')) { inTableBlock = Math.max(0, inTableBlock - 1); return match; }
+
+          // Only process opening tags of p/h/li
+          if (!openTag) return match;
+
+          // Skip paragraphs inside tables (they'll be handled separately)
+          if (inTableBlock > 0) return match;
+
+          if (topIdx >= topLevelIndents.length) return match;
+          const indent = topLevelIndents[topIdx++];
+          const styleStr = buildIndentStyle(indent, openAttrs);
+          return injectStyle(match, openTag, openAttrs, styleStr);
+        });
+
+        // Pass 2: Inject font-size on table-cell paragraphs
+        let tblParaIdx = 0;
+        inTableBlock = 0;
+        rawHtml = rawHtml.replace(/<(\/?)table[^>]*>|<(p|h[1-6])(\s[^>]*)?>|<\/(p|h[1-6])>/gi, (match, closeSlash, openTag, openAttrs, closeTag) => {
+          if (match.startsWith('<table') || match.startsWith('<TABLE')) { inTableBlock++; return match; }
+          if (match.startsWith('</table') || match.startsWith('</TABLE')) { inTableBlock = Math.max(0, inTableBlock - 1); return match; }
+          if (!openTag) return match;
+          if (inTableBlock === 0) return match;
+
+          if (tblParaIdx >= tableIndents.length) return match;
+          const indent = tableIndents[tblParaIdx++];
+          if (indent && indent.fontSize && indent.fontSize !== 13) {
+            const styleStr = `font-size: ${indent.fontSize}pt`;
+            return injectStyle(match, openTag, openAttrs, styleStr);
+          }
+          return match;
         });
 
         const richHtml = cleanWordHtml(rawHtml, tableBorderInfo);
@@ -1321,7 +1428,6 @@ export const TemplatesPage = () => {
                             fontWeight: '700',
                             borderRadius: '4px',
                             border: 'none',
-                            background: zoomScale === scale ? '#0284c7' : 'transparent',
                             color: zoomScale === scale ? '#ffffff' : '#475569',
                             cursor: 'pointer',
                             transition: 'all 0.15s ease'
@@ -1357,7 +1463,7 @@ export const TemplatesPage = () => {
                   </div>
                 </div>
 
-                {/* Authentic Word A4 Document Paper Sheet Preview Canvas */}
+                {/* Word A4 Document Paper Sheet Preview Canvas */}
                 <div ref={canvasRef} className="word-paper-canvas" style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
                   {activeTab === 'preview' && uploadedFile ? (
                     onlyofficeConfig ? (
@@ -1371,6 +1477,32 @@ export const TemplatesPage = () => {
                     ) : (
                       <DocxPreviewRenderer file={uploadedFile} zoom={zoomScale} />
                     )
+                  ) : activeTab === 'editor' && uploadedFile && uploadedFile.name && uploadedFile.name.endsWith('.docx') ? (
+                    /* Giấy Số Hóa: Use docx-preview for faithful Word rendering + text selection */
+                    <div style={{ position: 'relative', width: '100%' }}>
+                      <DocxPreviewRenderer file={uploadedFile} zoom={zoomScale} />
+                      {/* Variable tags overlay */}
+                      {fields.length > 0 && (
+                        <div style={{
+                          position: 'absolute', top: '8px', right: '8px',
+                          background: 'rgba(254, 240, 138, 0.95)', border: '1px solid #fde047',
+                          borderRadius: '8px', padding: '6px 10px', fontSize: '11px',
+                          color: '#854d0e', fontWeight: '700', maxWidth: '260px',
+                          boxShadow: '0 2px 8px rgba(0,0,0,0.1)', zIndex: 10,
+                          fontFamily: 'var(--font-primary)'
+                        }}>
+                          <div style={{ marginBottom: '4px', fontWeight: '800', fontSize: '11.5px' }}>📌 Ô nhập liệu đã tạo:</div>
+                          {fields.map(f => (
+                            <div key={f.key} style={{ padding: '1px 0', display: 'flex', gap: '4px', alignItems: 'center' }}>
+                              <span style={{ background: '#fef08a', padding: '1px 4px', borderRadius: '3px', border: '1px solid #fde047', fontFamily: 'monospace', fontSize: '10.5px' }}>
+                                {`{{${f.key}}}`}
+                              </span>
+                              <span style={{ color: '#92400e', fontSize: '10.5px' }}>= {f.label}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   ) : documentModel && activeTab === 'document' ? (
                     <DocumentRenderer documentModel={documentModel} fields={fields} onFieldsChange={setFields} readOnly={false} />
                   ) : (
@@ -1398,7 +1530,7 @@ export const TemplatesPage = () => {
                             transform: zoomScale !== 1 ? `scale(${zoomScale})` : 'none',
                             transformOrigin: 'top center',
                             marginBottom: zoomScale !== 1 ? `-${(1 - zoomScale) * 450}px` : '0',
-                            minHeight: '1122px', // Minimum A4 height
+                            minHeight: '1122px',
                           }}
                         >
                           <div
