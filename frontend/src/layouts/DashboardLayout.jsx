@@ -325,7 +325,7 @@ export const DashboardLayout = () => {
                 title={`Quản lý / nâng cấp gói dịch vụ cho tổ chức '${user?.organizationId?.name || 'hiện tại'}'`}
               >
                 {/* Plan Info */}
-                <div className="hidden sm:flex items-center gap-2">
+                <div className="flex items-center gap-2">
                   <div style={{
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     background: isExpired ? '#ffe4e6' : plan === 'FREE' ? '#e0f2fe' : '#f3e8ff',
@@ -391,7 +391,7 @@ export const DashboardLayout = () => {
         </header>
 
         {/* Dynamic Page Content */}
-        <main className="p-4 lg:p-7 flex-1 flex flex-col min-w-0">
+        <main className="p-4 lg:p-7 flex-1 flex flex-col min-w-0 w-full overflow-x-hidden">
           <PendingInvitationsBanner onStatusChange={refreshUser} />
 
           {/* Sticky Expiration Banner */}

@@ -56,11 +56,15 @@ export class OrderService {
     });
 
     const paymentConfig = await systemSettingService.getPaymentConfig();
+    const transferContent = `${paymentConfig.orderPrefix} ${orderCode}`;
+    const qrUrl = `https://img.vietqr.io/image/${paymentConfig.bankCode || 'MB'}-${paymentConfig.accountNumber || '5408092006'}-compact2.png?amount=${amount}&addInfo=${encodeURIComponent(transferContent)}&accountName=${encodeURIComponent(paymentConfig.accountName || 'DO VAN KHOA')}`;
+    
+    paymentConfig.qrUrl = qrUrl;
 
     return {
       order,
       paymentConfig,
-      transferContent: `${paymentConfig.orderPrefix} ${orderCode}`,
+      transferContent,
     };
   }
 

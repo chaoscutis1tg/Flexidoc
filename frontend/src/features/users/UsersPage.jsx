@@ -313,14 +313,14 @@ export const UsersPage = () => {
         <div className="fixed inset-0 z-[99999] bg-slate-950/70 backdrop-blur-sm p-4 flex items-center justify-center animate-backdrop">
           <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto custom-scrollbar p-6 sm:p-8 space-y-6 animate-modal-pop">
             {/* Modal Header */}
-            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-sky-50 text-sky-600 flex items-center justify-center shadow-xs">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-4 gap-2">
+              <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+                <div className="w-10 h-10 rounded-2xl bg-sky-50 text-sky-600 flex items-center justify-center shadow-xs shrink-0">
                   <UserPlus size={22} />
                 </div>
-                <div>
-                  <h2 className="text-lg font-black text-slate-900 tracking-tight">Thêm Tài Khoản Nhân Sự Mới</h2>
-                  <p className="text-xs font-semibold text-slate-500">Tạo tài khoản và phân quyền truy cập hệ thống</p>
+                <div className="min-w-0">
+                  <h2 className="text-base sm:text-lg font-black text-slate-900 tracking-tight truncate">Thêm Tài Khoản Nhân Sự Mới</h2>
+                  <p className="text-[11px] sm:text-xs font-semibold text-slate-500 truncate">Tạo tài khoản và phân quyền truy cập hệ thống</p>
                 </div>
               </div>
               <button 

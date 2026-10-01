@@ -19,7 +19,8 @@ import {
   Clock,
   Sparkles,
   Briefcase,
-  Star
+  Star,
+  Info
 } from 'lucide-react';
 
 export const RenewalModal = ({ isOpen, onClose, targetOrg = null }) => {
@@ -42,6 +43,7 @@ export const RenewalModal = ({ isOpen, onClose, targetOrg = null }) => {
   });
 
   const [loading, setLoading] = useState(false);
+  const [qrLoading, setQrLoading] = useState(false);
   const [copiedCode, setCopiedCode] = useState(false);
   const [copiedAcc, setCopiedAcc] = useState(false);
   const [successMsg, setSuccessMsg] = useState('');
@@ -274,16 +276,16 @@ export const RenewalModal = ({ isOpen, onClose, targetOrg = null }) => {
         className="bg-white sm:rounded-2xl w-full h-full sm:h-auto max-w-[1000px] sm:max-h-[95vh] flex flex-col shadow-xl border-0 sm:border sm:border-slate-100 text-slate-900 relative overflow-hidden"
       >
         {/* Header - Fixed at top */}
-        <div className="flex-none p-4 sm:p-5 pb-3 sm:pb-4 flex items-center justify-between border-b border-slate-100 bg-white z-20">
-          <div>
-            <h2 className="text-lg sm:text-xl font-bold text-slate-800 flex items-center gap-2">
+        <div className="flex-none p-4 sm:p-5 pb-3 sm:pb-4 flex items-center justify-between border-b border-slate-100 bg-white z-20 gap-2">
+          <div className="min-w-0 flex-1">
+            <h2 className="text-lg sm:text-xl font-bold text-slate-800 flex items-center gap-2 min-w-0">
               <Crown className="text-blue-600 shrink-0" size={20} />
-              Nâng Cấp Gói Dịch Vụ
+              <span className="truncate break-words whitespace-normal">Nâng Cấp Gói Dịch Vụ</span>
             </h2>
-            <div className="flex flex-wrap items-center gap-2 mt-1.5 text-xs text-slate-500 font-medium">
-              <span className="flex items-center gap-1">
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-1.5 text-xs text-slate-500 font-medium min-w-0">
+              <span className="flex items-center gap-1 min-w-0">
                 <Building size={13} className="text-slate-400 shrink-0" />
-                <span className="font-semibold text-slate-700">{currentOrg.name || 'Tổ chức của tôi'}</span>
+                <span className="font-semibold text-slate-700 truncate max-w-[150px] sm:max-w-none">{currentOrg.name || 'Tổ chức của tôi'}</span>
               </span>
               <span className="text-slate-300 hidden sm:inline">•</span>
               <span>Gói hiện tại:</span>
@@ -560,7 +562,7 @@ export const RenewalModal = ({ isOpen, onClose, targetOrg = null }) => {
                   ) : (
                     <div className="w-full aspect-square bg-white rounded-lg p-2 border border-slate-200 shadow-sm relative group overflow-hidden">
                       <img
-                        src={paymentConfig.qrUrl}
+                        src={paymentConfig.qrUrl || vietQrUrl}
                         alt="VietQR"
                         className="w-full h-full object-contain"
                       />

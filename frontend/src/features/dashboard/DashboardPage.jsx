@@ -527,7 +527,7 @@ export const DashboardPage = () => {
   // VIEW 2: TENANT ORGANIZATION DASHBOARD (FOR ORG ADMIN & STAFF)
   // =========================================================================
   return (
-    <div className="space-y-6 animate-fade-in max-w-7xl mx-auto pb-10">
+    <div className="space-y-6 animate-fade-in max-w-7xl mx-auto pb-10 w-full min-w-0">
       
       {/* 1. Header Banner */}
       <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
