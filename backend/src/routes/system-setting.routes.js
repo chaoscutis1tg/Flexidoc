@@ -7,7 +7,8 @@ import {
   getPricingConfig,
   updatePricingConfig,
   getAllSettings,
-  triggerMongoBackup
+  triggerMongoBackup,
+  cleanupDeletedData
 } from '../controllers/system-setting.controller.js';
 import { authMiddleware } from '../middlewares/auth.middleware.js';
 import { rbacGuard } from '../middlewares/rbac-guard.js';
@@ -26,8 +27,8 @@ router.put('/pricing', authMiddleware, rbacGuard(['SUPER_ADMIN']), updatePricing
 
 router.get('/system', authMiddleware, rbacGuard(['SUPER_ADMIN']), getSystemConfig);
 router.put('/system', authMiddleware, rbacGuard(['SUPER_ADMIN']), updateSystemConfig);
-
 router.post('/trigger-backup', authMiddleware, rbacGuard(['SUPER_ADMIN']), triggerMongoBackup);
+router.delete('/cleanup', authMiddleware, rbacGuard(['SUPER_ADMIN']), cleanupDeletedData);
 
 export default router;
 

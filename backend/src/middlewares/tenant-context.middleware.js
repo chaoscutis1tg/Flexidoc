@@ -9,7 +9,14 @@ export const tenantContextMiddleware = async (req, res, next) => {
       return next();
     }
 
-    const activeOrgId = req.headers['x-organization-id'] || (user.organizationId ? (user.organizationId._id || user.organizationId) : null);
+    let activeOrgId = req.headers['x-organization-id'];
+    if (!activeOrgId && user.role !== 'SUPER_ADMIN') {
+      activeOrgId = user.organizationId ? (user.organizationId._id || user.organizationId) : null;
+    }
+    
+    if (activeOrgId === "" || activeOrgId === "null" || activeOrgId === "undefined") {
+      activeOrgId = null;
+    }
 
     const tenantContext = {
       userId: user._id,

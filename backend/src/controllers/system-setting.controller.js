@@ -76,3 +76,12 @@ export const triggerMongoBackup = async (req, res, next) => {
     next(error);
   }
 };
+
+export const cleanupDeletedData = async (req, res, next) => {
+  try {
+    const result = await systemSettingService.cleanupDeletedData();
+    return sendSuccess(res, 200, 'Dọn dẹp dữ liệu rác thành công!', result);
+  } catch (error) {
+    next(error);
+  }
+};

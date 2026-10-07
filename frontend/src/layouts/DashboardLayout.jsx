@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../app/AuthContext';
+import api from '../services/api';
 import { RenewalModal } from '../features/subscription/RenewalModal';
 import { PendingInvitationsBanner } from '../components/PendingInvitationsBanner';
 import { ChangePasswordModal } from '../components/ChangePasswordModal';
@@ -37,9 +38,23 @@ export const DashboardLayout = () => {
   const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
   const [copiedCode, setCopiedCode] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [rejectedCount, setRejectedCount] = useState(0);
 
   useEffect(() => {
     refreshUser();
+    
+    // Fetch rejected count
+    const fetchRejectedCount = async () => {
+      try {
+        const res = await api.get('/organizations/rejected-count');
+        setRejectedCount(res.data.count || 0);
+      } catch (err) {
+        console.error('Lỗi khi đếm số tổ chức bị từ chối:', err);
+      }
+    };
+    if (user?.role === 'SUPER_ADMIN' || user?.role === 'ORGANIZATION_ADMIN') {
+      fetchRejectedCount();
+    }
   }, []);
 
   const handleLogout = () => {
@@ -77,7 +92,7 @@ export const DashboardLayout = () => {
       title: 'QUẢN TRỊ HỆ THỐNG',
       items: [
         { label: 'Tổng Quan Hệ Thống', path: '/dashboard', icon: LayoutDashboard },
-        { label: 'Cây Tổ Chức Phân Cấp', path: '/organizations', icon: Building2 },
+        { label: 'Cây Tổ Chức Phân Cấp', path: '/organizations', icon: Building2, badge: rejectedCount > 0 },
         { label: 'Quản Lý Nhân Sự & Quyền', path: '/users', icon: Users },
         { label: 'Đơn Hàng & Doanh Thu', path: '/admin/orders', icon: History },
         { label: 'Cài Đặt Hệ Thống', path: '/admin/settings', icon: Settings },
@@ -97,7 +112,7 @@ export const DashboardLayout = () => {
       items: [
         { label: 'Quản Lý Master Data', path: '/master-data', icon: Database, roles: ['ORGANIZATION_ADMIN', 'STAFF'] },
         { label: 'Quản Lý Mẫu Hợp Đồng', path: '/templates', icon: FilePlus, roles: ['ORGANIZATION_ADMIN', 'STAFF'] },
-        { label: 'Sơ Đồ Tổ Chức', path: '/organizations', icon: Building2, roles: ['ORGANIZATION_ADMIN'] },
+        { label: 'Sơ Đồ Tổ Chức', path: '/organizations', icon: Building2, roles: ['ORGANIZATION_ADMIN'], badge: rejectedCount > 0 },
         { label: 'Quản Lý Nhân Sự Tổ Chức', path: '/users', icon: Users, roles: ['ORGANIZATION_ADMIN'] },
         { label: 'Nhật Ký Thao Tác', path: '/audit-logs', icon: History, roles: ['ORGANIZATION_ADMIN'] },
       ]
@@ -201,7 +216,12 @@ export const DashboardLayout = () => {
                         }}
                       >
                         <Icon size={18} color={active ? '#0284c7' : '#64748b'} />
-                        <span>{item.label}</span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1 }}>
+                          <span>{item.label}</span>
+                          {item.badge && (
+                            <span className="w-2.5 h-2.5 rounded-full bg-red-500 shadow-[0_0_0_2px_white] animate-pulse ml-auto" title="Có cập nhật/yêu cầu mới"></span>
+                          )}
+                        </div>
                       </Link>
                     );
                   })}

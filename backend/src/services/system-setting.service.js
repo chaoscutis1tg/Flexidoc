@@ -1,5 +1,12 @@
 import { systemSettingRepository } from '../repositories/system-setting.repository.js';
 import { auditLogService } from './audit-log.service.js';
+import { Organization } from '../models/organization.model.js';
+import { User } from '../models/user.model.js';
+import { Contract } from '../models/contract.model.js';
+import { Template } from '../models/template.model.js';
+import { MasterData } from '../models/master-data.model.js';
+import { ContractVersion } from '../models/contract-version.model.js';
+import { TemplateVersion } from '../models/template-version.model.js';
 
 export const DEFAULT_PAYMENT_CONFIG = {
   bankName: 'MB BANK',
@@ -155,6 +162,21 @@ export class SystemSettingService {
       system,
       pricing,
     };
+  }
+
+  async cleanupDeletedData() {
+    const filter = { deletedAt: { $ne: null } };
+    const results = {};
+
+    results.organizations = (await Organization.deleteMany(filter)).deletedCount || 0;
+    results.users = (await User.deleteMany(filter)).deletedCount || 0;
+    results.contracts = (await Contract.deleteMany(filter)).deletedCount || 0;
+    results.templates = (await Template.deleteMany(filter)).deletedCount || 0;
+    results.masterData = (await MasterData.deleteMany(filter)).deletedCount || 0;
+    results.contractVersions = (await ContractVersion.deleteMany(filter)).deletedCount || 0;
+    results.templateVersions = (await TemplateVersion.deleteMany(filter)).deletedCount || 0;
+
+    return results;
   }
 }
 

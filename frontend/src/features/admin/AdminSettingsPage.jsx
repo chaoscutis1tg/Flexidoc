@@ -21,8 +21,10 @@ import {
   Info,
   RefreshCw,
   DollarSign,
-  Tag
+  Tag,
+  Trash2
 } from 'lucide-react';
+import { useConfirm } from '../../app/ConfirmContext';
 
 export const VIETNAM_BANKS = [
   { code: 'MB', name: 'MB BANK', fullName: 'MB BANK (Ngân hàng Quân Đội)' },
@@ -101,10 +103,21 @@ export const AdminSettingsPage = () => {
   const [savingSecurity, setSavingSecurity] = useState(false);
   const [savingPricing, setSavingPricing] = useState(false);
   const [backingUp, setBackingUp] = useState(false);
+  const [cleaningUp, setCleaningUp] = useState(false);
   const [copiedWebhook, setCopiedWebhook] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
+  const confirm = useConfirm();
 
   const handleTriggerBackup = async () => {
+    const isConfirm = await confirm({
+      title: 'Xác Nhận Sao Lưu MongoDB',
+      message: 'Bạn có chắc chắn muốn thực thi mongodump thủ công ngay bây giờ không? Tiến trình này có thể gây trễ hệ thống nhẹ.',
+      confirmText: 'Đồng Ý & Sao Lưu',
+      cancelText: 'Hủy Bỏ',
+      variant: 'warning'
+    });
+    if (!isConfirm) return;
+
     setBackingUp(true);
     setMessage({ type: '', text: '' });
     try {
@@ -116,6 +129,40 @@ export const AdminSettingsPage = () => {
       setMessage({ type: 'error', text: err.message || 'Sao lưu MongoDB thất bại.' });
     } finally {
       setBackingUp(false);
+    }
+  };
+
+  const handleTriggerCleanup = async () => {
+    const isConfirm = await confirm({
+      title: 'Xác Nhận Dọn Dẹp Dữ Liệu Rác (Hard Delete)',
+      message: 'Hành động này sẽ xóa vĩnh viễn toàn bộ các bản ghi đã được đánh dấu xóa (Soft Delete) khỏi Database.',
+      subMessage: 'Bao gồm Tổ chức, Người dùng, Hợp đồng, Mẫu hợp đồng,... Dữ liệu không thể khôi phục lại. Bạn có chắc chắn không?',
+      confirmText: 'Xóa Vĩnh Viễn',
+      cancelText: 'Hủy Bỏ',
+      variant: 'danger'
+    });
+    if (!isConfirm) return;
+
+    setCleaningUp(true);
+    setMessage({ type: '', text: '' });
+    try {
+      const res = await api.delete('/system-settings/cleanup');
+      if (res.success) {
+        const details = res.data;
+        const msg = `Dọn dẹp thành công!
+Đã xóa: ${details.organizations || 0} tổ chức, ${details.users || 0} người dùng, ${details.contracts || 0} hợp đồng, ${details.templates || 0} mẫu...`;
+        await confirm({
+          title: 'Kết Quả Dọn Dẹp',
+          message: msg,
+          variant: 'success',
+          hideCancel: true,
+          confirmText: 'Đóng'
+        });
+      }
+    } catch (err) {
+      setMessage({ type: 'error', text: err.message || 'Lỗi khi dọn dẹp dữ liệu.' });
+    } finally {
+      setCleaningUp(false);
     }
   };
 
@@ -724,6 +771,29 @@ export const AdminSettingsPage = () => {
                 >
                   {backingUp ? <Loader2 size={15} className="animate-spin text-sky-400" /> : <RefreshCw size={15} className="text-amber-400" />}
                   Thực Hiện Sao Lưu & Xoay Vòng
+                </button>
+              </div>
+            </div>
+
+            {/* Hard Delete / Cleanup Panel */}
+            <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200 space-y-3 mt-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <h4 className="text-sm font-black text-slate-900 flex items-center gap-2">
+                    <Trash2 size={18} className="text-red-600" /> Dọn Dẹp Dữ Liệu Rác (Hard Delete)
+                  </h4>
+                  <p className="text-xs text-slate-600 mt-1 leading-relaxed">
+                    Hệ thống sẽ <strong>xóa vĩnh viễn</strong> toàn bộ các bản ghi (Tổ chức, Người dùng, Hợp đồng...) đã được đánh dấu xóa (Soft Delete) trước đó khỏi Database. Hành động này không thể khôi phục.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  disabled={cleaningUp}
+                  onClick={handleTriggerCleanup}
+                  className="px-5 py-2.5 rounded-xl bg-red-600 text-white font-extrabold text-xs flex items-center gap-2 hover:bg-red-700 transition-all shadow-sm shrink-0 cursor-pointer hover:scale-105"
+                >
+                  {cleaningUp ? <Loader2 size={15} className="animate-spin" /> : <Trash2 size={15} />}
+                  Thực Hiện Dọn Dẹp
                 </button>
               </div>
             </div>

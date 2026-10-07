@@ -540,7 +540,13 @@ export const AdminOrdersRevenuePage = () => {
         fetchOrdersAndStats();
       }
     } catch (err) {
-      alert(err.message || 'Lỗi khi duyệt đơn');
+      confirm({
+        title: 'Lỗi',
+        message: err.message || 'Lỗi khi duyệt đơn',
+        hideCancel: true,
+        confirmText: 'Đóng',
+        variant: 'danger'
+      });
     } finally {
       setProcessingOrderId(null);
     }
@@ -568,7 +574,13 @@ export const AdminOrdersRevenuePage = () => {
         fetchOrdersAndStats();
       }
     } catch (err) {
-      alert(err.message || 'Lỗi khi từ chối đơn');
+      confirm({
+        title: 'Lỗi',
+        message: err.message || 'Lỗi khi từ chối đơn',
+        hideCancel: true,
+        confirmText: 'Đóng',
+        variant: 'danger'
+      });
     } finally {
       setProcessingOrderId(null);
     }

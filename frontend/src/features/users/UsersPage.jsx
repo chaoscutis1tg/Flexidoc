@@ -152,7 +152,13 @@ export const UsersPage = () => {
     if (u.role === 'ORGANIZATION_ADMIN') {
       const activeAdmins = users.filter(usr => usr.role === 'ORGANIZATION_ADMIN' && usr.status === 'ACTIVE');
       if (activeAdmins.length <= 1) {
-        alert('Không thể xóa: Tổ chức phải có ít nhất 1 Quản trị viên (ORGANIZATION_ADMIN). Vui lòng thăng cấp thành viên khác thành Admin trước!');
+        confirm({
+          title: 'Lỗi',
+          message: 'Không thể xóa: Tổ chức phải có ít nhất 1 Quản trị viên (ORGANIZATION_ADMIN). Vui lòng thăng cấp thành viên khác thành Admin trước!',
+          hideCancel: true,
+          confirmText: 'Đóng',
+          variant: 'danger'
+        });
         return;
       }
     }
@@ -170,7 +176,13 @@ export const UsersPage = () => {
       await api.delete(`/users/${u._id}`);
       fetchUsersAndOrgs();
     } catch (err) {
-      alert('Không thể xóa: ' + (err.message || 'Lỗi hệ thống'));
+      confirm({
+        title: 'Lỗi',
+        message: 'Không thể xóa: ' + (err.message || 'Lỗi hệ thống'),
+        hideCancel: true,
+        confirmText: 'Đóng',
+        variant: 'danger'
+      });
     }
   };
 

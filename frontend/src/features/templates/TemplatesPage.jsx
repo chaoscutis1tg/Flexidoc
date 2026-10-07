@@ -188,7 +188,13 @@ export const TemplatesPage = () => {
       });
     } catch (error) {
       console.error(error);
-      alert('Không thể tải bản xem trước file docx');
+      confirm({
+        title: 'Lỗi',
+        message: 'Không thể tải bản xem trước file docx',
+        hideCancel: true,
+        confirmText: 'Đóng',
+        variant: 'danger'
+      });
     } finally {
       setLoading(false);
     }
@@ -200,7 +206,13 @@ export const TemplatesPage = () => {
       fetchTemplates();
     } catch (error) {
       console.error(error);
-      alert('Lỗi khi mở lại template');
+      confirm({
+        title: 'Lỗi',
+        message: 'Lỗi khi mở lại template',
+        hideCancel: true,
+        confirmText: 'Đóng',
+        variant: 'danger'
+      });
     }
   };
 

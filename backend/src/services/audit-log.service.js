@@ -5,9 +5,12 @@ export class AuditLogService {
     try {
       const userId = req.user ? (req.user._id || req.user) : null;
       let organizationId = req.tenantContext ? req.tenantContext.organizationId : null;
+      if (organizationId === "" || organizationId === "null" || organizationId === "undefined") organizationId = null;
       if (organizationId && typeof organizationId === 'object' && organizationId._id) {
         organizationId = organizationId._id;
       }
+      
+      if (targetOrganizationId === "" || targetOrganizationId === "null" || targetOrganizationId === "undefined") targetOrganizationId = null;
       if (targetOrganizationId && typeof targetOrganizationId === 'object' && targetOrganizationId._id) {
         targetOrganizationId = targetOrganizationId._id;
       }

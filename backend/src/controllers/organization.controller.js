@@ -28,6 +28,15 @@ export const getMyPendingInvitations = async (req, res, next) => {
   }
 };
 
+export const getRejectedCount = async (req, res, next) => {
+  try {
+    const count = await organizationService.getRejectedCount(req.tenantContext);
+    return sendSuccess(res, 200, 'Lấy số lượng chi nhánh bị từ chối thành công', { count });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const approveOrganization = async (req, res, next) => {
   try {
     const { id } = req.params;

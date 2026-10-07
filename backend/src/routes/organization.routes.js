@@ -14,7 +14,8 @@ import {
   grantCustomPlan,
   toggleBanOrganization,
   getPaginatedRootOrganizations,
-  getOrganizationChildren
+  getOrganizationChildren,
+  getRejectedCount
 } from '../controllers/organization.controller.js';
 import { authMiddleware } from '../middlewares/auth.middleware.js';
 import { tenantContextMiddleware } from '../middlewares/tenant-context.middleware.js';
@@ -27,6 +28,7 @@ router.get('/plans', getSubscriptionPlans);
 router.use(authMiddleware);
 router.use(tenantContextMiddleware);
 
+router.get('/rejected-count', getRejectedCount);
 router.get('/my-pending-invitations', getMyPendingInvitations);
 router.get('/tree', getOrganizationTree);
 router.get('/paginated-roots', getPaginatedRootOrganizations);

@@ -24,6 +24,7 @@ export const ConfirmProvider = ({ children }) => {
         confirmText: options.confirmText || 'Xác Nhận',
         cancelText: options.cancelText || 'Hủy Bỏ',
         variant,
+        hideCancel: options.hideCancel || false,
         resolve,
       });
     });
@@ -137,13 +138,15 @@ export const ConfirmProvider = ({ children }) => {
 
                 {/* Footer Actions */}
                 <div className="px-6 py-4 bg-slate-50/80 border-t border-slate-100 flex items-center justify-end gap-3">
-                  <button
-                    type="button"
-                    onClick={() => handleClose(false)}
-                    className="px-4 py-2.5 rounded-xl bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 font-extrabold text-xs transition-all cursor-pointer"
-                  >
-                    {confirmState.cancelText}
-                  </button>
+                  {!confirmState.hideCancel && (
+                    <button
+                      type="button"
+                      onClick={() => handleClose(false)}
+                      className="px-4 py-2.5 rounded-xl bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 font-extrabold text-xs transition-all cursor-pointer"
+                    >
+                      {confirmState.cancelText}
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={() => handleClose(true)}

@@ -204,7 +204,13 @@ export const MasterDataPage = () => {
       fetchMasterData();
       fetchCounts();
     } catch (err) {
-      alert('Lỗi xóa bản ghi: ' + err.message);
+      confirm({
+        title: 'Lỗi',
+        message: 'Lỗi xóa bản ghi: ' + err.message,
+        hideCancel: true,
+        confirmText: 'Đóng',
+        variant: 'danger'
+      });
     }
   };
 

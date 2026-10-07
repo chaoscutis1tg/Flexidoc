@@ -137,6 +137,35 @@ export class OrganizationService {
     return await organizationRepository.create(data, tenantContext);
   }
 
+  async getRejectedCount(tenantContext) {
+    let filter = { status: 'REJECTED_BY_MANAGER', deletedAt: null };
+    
+    // Apply tenant scoping (similar to repository find logic)
+    if (tenantContext && tenantContext.role !== 'SUPER_ADMIN') {
+      if (tenantContext.organizationId) {
+        // Can see its own or its children's rejections
+        filter.$or = [
+          { ancestors: tenantContext.organizationId },
+          { parentOrganizationId: tenantContext.organizationId }
+        ];
+      } else if (tenantContext.allowedOrgIds && tenantContext.allowedOrgIds.length > 0) {
+        filter.$or = [
+          { _id: { $in: tenantContext.allowedOrgIds } },
+          { ancestors: { $in: tenantContext.allowedOrgIds } },
+          { parentOrganizationId: { $in: tenantContext.allowedOrgIds } }
+        ];
+      } else {
+        // If no org and no allowed, no access
+        return 0;
+      }
+    } else if (tenantContext && tenantContext.role === 'SUPER_ADMIN') {
+      // Global access, so no filter except status
+    }
+
+    const count = await Organization.countDocuments(filter);
+    return count;
+  }
+
   async approveOrganization(orgId, currentUser = null) {
     const org = await Organization.findById(orgId);
     if (!org || org.deletedAt) {
@@ -479,24 +508,12 @@ export class OrganizationService {
     );
 
     // 2. Soft-delete templates and template versions
-    await Template.updateMany(
-      { organizationId: { $in: allOrgIds } },
-      { $set: { deletedAt: now, status: 'ARCHIVED' } }
-    );
-    await TemplateVersion.updateMany(
-      { organizationId: { $in: allOrgIds } },
-      { $set: { deletedAt: now } }
-    );
+    await Template.deleteMany({ organizationId: { $in: allOrgIds } });
+    await TemplateVersion.deleteMany({ organizationId: { $in: allOrgIds } });
 
     // 3. Soft-delete contracts and contract versions
-    await Contract.updateMany(
-      { organizationId: { $in: allOrgIds } },
-      { $set: { deletedAt: now, status: 'TERMINATED' } }
-    );
-    await ContractVersion.updateMany(
-      { organizationId: { $in: allOrgIds } },
-      { $set: { deletedAt: now } }
-    );
+    await Contract.deleteMany({ organizationId: { $in: allOrgIds } });
+    await ContractVersion.deleteMany({ organizationId: { $in: allOrgIds } });
 
     // 4. Delete permission grants involving these orgs
     await PermissionGrant.deleteMany({
@@ -507,16 +524,10 @@ export class OrganizationService {
     });
 
     // 5. Soft-delete MasterData
-    await MasterData.updateMany(
-      { organizationId: { $in: allOrgIds } },
-      { $set: { deletedAt: now } }
-    );
+    await MasterData.deleteMany({ organizationId: { $in: allOrgIds } });
 
     // 6. Soft-delete all organizations in subtree
-    await Organization.updateMany(
-      { _id: { $in: allOrgIds } },
-      { $set: { deletedAt: now, status: 'TERMINATED' } }
-    );
+    await Organization.deleteMany({ _id: { $in: allOrgIds } });
 
     return true;
   }

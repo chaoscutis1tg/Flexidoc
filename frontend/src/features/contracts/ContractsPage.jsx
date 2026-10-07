@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import api from '../../services/api';
+import { useConfirm } from '../../app/ConfirmContext';
 import { DocxPreviewRenderer } from '../templates/editor/DocxPreviewRenderer.jsx';
 import {
   FileText,
@@ -37,6 +38,7 @@ import {
 } from 'lucide-react';
 
 export const ContractsPage = () => {
+  const { confirm } = useConfirm();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const [contracts, setContracts] = useState([]);
@@ -232,7 +234,13 @@ export const ContractsPage = () => {
         setDocxPreviewBlob(null);
       }
     } catch (err) {
-      alert('Lỗi lấy chi tiết hợp đồng: ' + err.message);
+      confirm({
+        title: 'Lỗi',
+        message: 'Lỗi lấy chi tiết hợp đồng: ' + err.message,
+        hideCancel: true,
+        confirmText: 'Đóng',
+        variant: 'danger'
+      });
     }
   };
 
@@ -258,7 +266,13 @@ export const ContractsPage = () => {
         document.body.appendChild(link);
         link.click();
         link.remove();
-        alert('Vui lòng cho phép trình duyệt bật Popup để in trực tiếp. File PDF đã được tải về.');
+        confirm({
+          title: 'Thông báo',
+          message: 'Vui lòng cho phép trình duyệt bật Popup để in trực tiếp. File PDF đã được tải về.',
+          hideCancel: true,
+          confirmText: 'Đóng',
+          variant: 'warning'
+        });
       } else {
         printWindow.onload = () => {
           printWindow.focus();
@@ -267,7 +281,13 @@ export const ContractsPage = () => {
       }
     } catch (err) {
       console.error('Print error:', err);
-      alert('Lỗi khi tạo bản in: ' + err.message);
+      confirm({
+        title: 'Lỗi',
+        message: 'Lỗi khi tạo bản in: ' + err.message,
+        hideCancel: true,
+        confirmText: 'Đóng',
+        variant: 'danger'
+      });
     }
   };
 
@@ -323,7 +343,13 @@ export const ContractsPage = () => {
       link.remove();
       window.URL.revokeObjectURL(url);
     } catch (err) {
-      alert('Không thể tải PDF: ' + err.message);
+      confirm({
+        title: 'Lỗi',
+        message: 'Không thể tải PDF: ' + err.message,
+        hideCancel: true,
+        confirmText: 'Đóng',
+        variant: 'danger'
+      });
     }
   };
 
@@ -351,7 +377,13 @@ export const ContractsPage = () => {
       link.remove();
       window.URL.revokeObjectURL(url);
     } catch (err) {
-      alert('Không thể tải DOCX: ' + err.message);
+      confirm({
+        title: 'Lỗi',
+        message: 'Không thể tải DOCX: ' + err.message,
+        hideCancel: true,
+        confirmText: 'Đóng',
+        variant: 'danger'
+      });
     }
   };
 

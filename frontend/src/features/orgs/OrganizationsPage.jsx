@@ -42,6 +42,7 @@ export const OrganizationsPage = () => {
   const [allOrgsList, setAllOrgsList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [viewMode, setViewMode] = useState('tree'); // 'tree' | 'table'
   const [expandedNodes, setExpandedNodes] = useState({});
   const [availablePlans, setAvailablePlans] = useState(DEFAULT_PLANS_DATA);
@@ -96,13 +97,21 @@ export const OrganizationsPage = () => {
       .toLowerCase();
   };
 
-  // Debounce manager search input (300ms)
+  // Debounce manager search input (500ms)
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedManagerQuery(managerQuery);
-    }, 300);
+    }, 500);
     return () => clearTimeout(timer);
   }, [managerQuery]);
+
+  // Debounce main search input (500ms)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [search]);
 
   // Load all candidates strictly from real System Users in organization (excluding Master Data)
   const loadAllCandidates = async (searchKeyword = '', overrideOrgId = null) => {
@@ -259,7 +268,7 @@ export const OrganizationsPage = () => {
       setLoadingRoots(true);
     }
     try {
-      const res = await api.get(`/organizations/paginated-roots?page=${pageNum}&limit=20&search=${encodeURIComponent(search)}`);
+      const res = await api.get(`/organizations/paginated-roots?page=${pageNum}&limit=20&search=${encodeURIComponent(debouncedSearch)}`);
       const { roots = [], totalRoots = 0, hasMore = false } = res.data || {};
 
       if (append) {
@@ -295,7 +304,7 @@ export const OrganizationsPage = () => {
 
   useEffect(() => {
     fetchRootOrgs(1, false);
-  }, [search]);
+  }, [debouncedSearch]);
 
   const fetchMoreRoots = () => {
     if (hasMoreRoots && !loadingRoots && !loadingMore) {
@@ -420,9 +429,21 @@ export const OrganizationsPage = () => {
       await api.post(`/organizations/${node._id}/approve`);
       await refreshUser();
       fetchTree();
-      alert(`Đã xác nhận chấp nhận quyền quản lý & kích hoạt chi nhánh '${node.name}' thành công! Role của bạn đã được nâng cấp lên Quản Lý Tổ Chức.`);
+      confirm({
+        title: 'Thông báo',
+        message: `Đã xác nhận chấp nhận quyền quản lý & kích hoạt chi nhánh '${node.name}' thành công! Role của bạn đã được nâng cấp lên Quản Lý Tổ Chức.`,
+        hideCancel: true,
+        confirmText: 'Đóng',
+        variant: 'success'
+      });
     } catch (err) {
-      alert('Kích hoạt chi nhánh thất bại: ' + (err.message || 'Lỗi hệ thống'));
+      confirm({
+        title: 'Lỗi',
+        message: 'Kích hoạt chi nhánh thất bại: ' + (err.message || 'Lỗi hệ thống'),
+        hideCancel: true,
+        confirmText: 'Đóng',
+        variant: 'danger'
+      });
     }
   };
 
@@ -436,9 +457,21 @@ export const OrganizationsPage = () => {
     try {
       await api.post(`/organizations/${node._id}/reject`, { reason });
       fetchTree();
-      alert(`Đã phản hồi TỪ CHỐI nhận quyền quản lý chi nhánh '${node.name}'. Thông báo đã được gửi tới người tạo chi nhánh để chỉ định quản lý mới.`);
+      confirm({
+        title: 'Thông báo',
+        message: `Đã phản hồi TỪ CHỐI nhận quyền quản lý chi nhánh '${node.name}'. Thông báo đã được gửi tới người tạo chi nhánh để chỉ định quản lý mới.`,
+        hideCancel: true,
+        confirmText: 'Đóng',
+        variant: 'info'
+      });
     } catch (err) {
-      alert('Từ chối thất bại: ' + (err.message || 'Lỗi hệ thống'));
+      confirm({
+        title: 'Lỗi',
+        message: 'Từ chối thất bại: ' + (err.message || 'Lỗi hệ thống'),
+        hideCancel: true,
+        confirmText: 'Đóng',
+        variant: 'danger'
+      });
     }
   };
 
@@ -457,9 +490,21 @@ export const OrganizationsPage = () => {
       });
       setShowChildRenewalModal(false);
       fetchTree();
-      alert(`Đã gia hạn/nâng cấp gói ${childPlan} thành công cho chi nhánh '${selectedChildForRenewal.name}'!`);
+      confirm({
+        title: 'Thông báo',
+        message: `Đã gia hạn/nâng cấp gói ${childPlan} thành công cho chi nhánh '${selectedChildForRenewal.name}'!`,
+        hideCancel: true,
+        confirmText: 'Đóng',
+        variant: 'success'
+      });
     } catch (err) {
-      alert('Gia hạn gói cước cho chi nhánh con thất bại: ' + (err.message || 'Lỗi hệ thống'));
+      confirm({
+        title: 'Lỗi',
+        message: 'Gia hạn gói cước cho chi nhánh con thất bại: ' + (err.message || 'Lỗi hệ thống'),
+        hideCancel: true,
+        confirmText: 'Đóng',
+        variant: 'danger'
+      });
     }
   };
 
@@ -478,9 +523,21 @@ export const OrganizationsPage = () => {
         reason
       });
       fetchTree();
-      alert(`Đã ${isBanned ? 'mở khóa (ACTIVE)' : 'khóa (BAN/SUSPENDED)'} tổ chức "${node.name}" thành công!`);
+      confirm({
+        title: 'Thông báo',
+        message: `Đã ${isBanned ? 'mở khóa (ACTIVE)' : 'khóa (BAN/SUSPENDED)'} tổ chức "${node.name}" thành công!`,
+        hideCancel: true,
+        confirmText: 'Đóng',
+        variant: 'success'
+      });
     } catch (err) {
-      alert('Thay đổi trạng thái thất bại: ' + (err.message || 'Lỗi hệ thống'));
+      confirm({
+        title: 'Lỗi',
+        message: 'Thay đổi trạng thái thất bại: ' + (err.message || 'Lỗi hệ thống'),
+        hideCancel: true,
+        confirmText: 'Đóng',
+        variant: 'danger'
+      });
     }
   };
 
@@ -506,9 +563,21 @@ export const OrganizationsPage = () => {
       });
       setShowGrantPlanModal(false);
       fetchTree();
-      alert(`Super Admin đã cấp thành công gói ${grantPlanName} (${grantDurationMonths} tháng) cho tổ chức "${selectedOrgForGrant.name}"!`);
+      confirm({
+        title: 'Thông báo',
+        message: `Super Admin đã cấp thành công gói ${grantPlanName} (${grantDurationMonths} tháng) cho tổ chức "${selectedOrgForGrant.name}"!`,
+        hideCancel: true,
+        confirmText: 'Đóng',
+        variant: 'success'
+      });
     } catch (err) {
-      alert('Cấp gói cước thất bại: ' + (err.message || 'Lỗi hệ thống'));
+      confirm({
+        title: 'Lỗi',
+        message: 'Cấp gói cước thất bại: ' + (err.message || 'Lỗi hệ thống'),
+        hideCancel: true,
+        confirmText: 'Đóng',
+        variant: 'danger'
+      });
     }
   };
 
@@ -534,9 +603,21 @@ export const OrganizationsPage = () => {
         status: 'PENDING_APPROVAL'
       });
       await fetchTree();
-      alert(`✓ Đã gửi lại lời mời nhận quyền quản lý chi nhánh '${node.name}' tới email ${node.managerEmail} thành công!`);
+      confirm({
+        title: 'Thông báo',
+        message: `Đã gửi lại lời mời nhận quyền quản lý chi nhánh '${node.name}' tới email ${node.managerEmail} thành công!`,
+        hideCancel: true,
+        confirmText: 'Đóng',
+        variant: 'success'
+      });
     } catch (err) {
-      alert('Gửi lại lời mời thất bại: ' + (err.message || 'Lỗi hệ thống'));
+      confirm({
+        title: 'Lỗi',
+        message: 'Gửi lại lời mời thất bại: ' + (err.message || 'Lỗi hệ thống'),
+        hideCancel: true,
+        confirmText: 'Đóng',
+        variant: 'danger'
+      });
     } finally {
       setResendingOrgId(null);
     }
@@ -615,7 +696,13 @@ export const OrganizationsPage = () => {
       await api.delete(`/organizations/${node._id}`);
       fetchTree();
     } catch (err) {
-      alert('Không thể xóa: ' + (err.message || 'Lỗi hệ thống'));
+      confirm({
+        title: 'Lỗi',
+        message: 'Không thể xóa: ' + (err.message || 'Lỗi hệ thống'),
+        hideCancel: true,
+        confirmText: 'Đóng',
+        variant: 'danger'
+      });
     }
   };
 
