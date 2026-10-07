@@ -40,3 +40,16 @@ uploads/
 temp/
 **/temp/
 *.tmp
+
+# Python Scripts & Virtual Environments
+venv/
+*.py
+__pycache__/
+
+# Generated Reports & Temp Files
+*.md
+Bao_Cao_*.docx
+Bao_Cao_*.doc
+temp.zip
+temp_doc_text.txt
+temp_docx/
