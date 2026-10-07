@@ -36,7 +36,7 @@ import {
   UserCheck,
   Sparkles
 } from 'lucide-react';
-import { VIETNAM_BANKS } from './AdminSettingsPage';
+import { VIETNAM_BANKS } from '../../utils/banks';
 
 export const AdminOrdersRevenuePage = () => {
   const { confirm } = useConfirm();
