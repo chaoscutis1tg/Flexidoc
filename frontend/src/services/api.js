@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const SECRET_KEY_STR = 'mt_ctms_super_secret_jwt_key_2026_change_in_production';
+const SECRET_KEY_STR = import.meta.env.VITE_JWT_SECRET || 'mt_ctms_super_secret_jwt_key_2026_change_in_production';
 
 async function decryptPayloadBrowser(encryptedStr) {
   try {

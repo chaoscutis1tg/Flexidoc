@@ -13,14 +13,14 @@ services:
       - NODE_ENV=production
       - PORT=5000
       - CORS_ORIGIN=https://flexidoc.io.vn,http://flexidoc.io.vn,https://www.flexidoc.io.vn,http://www.flexidoc.io.vn,http://localhost:5000
-      - MONGODB_URI=mongodb://webhopdong_mongodb:27017/flexidoc
-      - JWT_SECRET=flexidoc_super_sddecret_jwt_key026_change_in_production
+      - MONGODB_URI=${MONGODB_URI:-mongodb://webhopdong_mongodb:27017/flexidoc}
+      - JWT_SECRET=${JWT_SECRET:-flexidwt_key_2021326_changezcz@_in_production}
       - JWT_EXPIRES_IN=1d
       - SERVER_BASE_URL=https://flexidoc.io.vn
       - SEPAY_WEBHOOK_PATH=/api/v1/payments/sepay-webhook
       - ONLYOFFICE_URL=http://onlyoffice_docs:80
       - ONLYOFFICE_PUBLIC_URL=https://office.flexidoc.io.vn
-      - ONLYOFFICE_JWT_SECRET=flexidoc_onlyoffice_secret_2026
+      - ONLYOFFICE_JWT_SECRET=${ONLYOFFICE_JWT_SECRET:-flexidoc_onlyoffice_secret_2026}
     depends_on:
       - webhopdong_mongodb
       - onlyoffice_docs
@@ -37,7 +37,7 @@ services:
       - "8080:80"
     environment:
       - JWT_ENABLED=true
-      - JWT_SECRET=flexidoc_onlyoffice_secret_2026
+      - JWT_SECRET=${ONLYOFFICE_JWT_SECRET:-flexidoc_onlyoffice_secret_2026}
       - JWT_HEADER=Authorization
       - JWT_IN_BODY=true
     volumes:
