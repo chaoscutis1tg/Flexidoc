@@ -106,7 +106,7 @@ export const AdminSettingsPage = () => {
   const [cleaningUp, setCleaningUp] = useState(false);
   const [copiedWebhook, setCopiedWebhook] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
-  const confirm = useConfirm();
+  const { confirm } = useConfirm();
 
   const handleTriggerBackup = async () => {
     const isConfirm = await confirm({
