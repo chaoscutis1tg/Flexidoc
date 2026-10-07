@@ -83,7 +83,6 @@ const orderSchema = new mongoose.Schema({
   timestamps: true,
 });
 
-orderSchema.index({ orderCode: 1 }, { unique: true });
 orderSchema.index({ organizationId: 1, createdAt: -1 });
 orderSchema.index({ status: 1 });
 

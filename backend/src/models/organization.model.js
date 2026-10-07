@@ -68,7 +68,6 @@ const organizationSchema = new mongoose.Schema({
   timestamps: true,
 });
 
-organizationSchema.index({ code: 1 }, { unique: true });
 organizationSchema.index({ parentOrganizationId: 1 });
 organizationSchema.index({ ancestors: 1 });
 organizationSchema.index({ status: 1, deletedAt: 1 });

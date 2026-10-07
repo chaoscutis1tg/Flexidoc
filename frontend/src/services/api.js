@@ -7,6 +7,12 @@ async function decryptPayloadBrowser(encryptedStr) {
     if (!encryptedStr || typeof encryptedStr !== 'string' || !encryptedStr.includes(':')) {
       return null;
     }
+    
+    if (!window.crypto || !window.crypto.subtle) {
+      alert("Lỗi: Trình duyệt đã chặn giải mã (Crypto API bị vô hiệu hóa).\nVui lòng truy cập bằng 'localhost' hoặc 'https://...' thay vì dùng địa chỉ IP nội bộ (HTTP).");
+      return null;
+    }
+
     const [ivB64, encB64] = encryptedStr.split(':');
     const encoder = new TextEncoder();
     const keyData = await window.crypto.subtle.digest('SHA-256', encoder.encode(SECRET_KEY_STR));

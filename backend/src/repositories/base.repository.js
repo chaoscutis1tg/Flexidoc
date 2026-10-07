@@ -81,13 +81,18 @@ export class BaseRepository {
     return await this.model.findOneAndUpdate(scopeFilter, { deletedAt: new Date() }, { new: true });
   }
 
+  async updateMany(filter = {}, data, tenantContext = null) {
+    const scopeFilter = this._buildScopeFilter(filter, tenantContext);
+    return await this.model.updateMany(scopeFilter, data);
+  }
+
+  async deleteMany(filter = {}, tenantContext = null) {
+    const scopeFilter = this._buildScopeFilter(filter, tenantContext);
+    return await this.model.deleteMany(scopeFilter);
+  }
+
   async deleteById(id, tenantContext = null) {
     const scopeFilter = this._buildScopeFilter({ _id: id }, tenantContext);
     return await this.model.findOneAndDelete(scopeFilter);
-  }
-
-  async count(filter = {}, tenantContext = null) {
-    const scopeFilter = this._buildScopeFilter(filter, tenantContext);
-    return await this.model.countDocuments(scopeFilter);
   }
 }
