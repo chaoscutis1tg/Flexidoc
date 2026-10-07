@@ -26,7 +26,7 @@ import {
 } from 'lucide-react';
 import { useConfirm } from '../../app/ConfirmContext';
 
-export const VIETNAM_BANKS = [
+const VIETNAM_BANKS = [
   { code: 'MB', name: 'MB BANK', fullName: 'MB BANK (Ngân hàng Quân Đội)' },
   { code: 'VCB', name: 'Vietcombank', fullName: 'Vietcombank (Ngân hàng Ngoại Thương)' },
   { code: 'CTG', name: 'VietinBank', fullName: 'VietinBank (Ngân hàng Công Thương)' },
