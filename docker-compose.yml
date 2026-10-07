@@ -14,7 +14,7 @@ services:
       - PORT=5000
       - CORS_ORIGIN=https://flexidoc.io.vn,http://flexidoc.io.vn,https://www.flexidoc.io.vn,http://www.flexidoc.io.vn,http://localhost:5000
       - MONGODB_URI=mongodb://webhopdong_mongodb:27017/flexidoc
-      - JWT_SECRET=flexidoc_super_secret_jwt_key_2026_change_in_production
+      - JWT_SECRET=flexidoc_super_sddecret_jwt_key026_change_in_production
       - JWT_EXPIRES_IN=1d
       - SERVER_BASE_URL=https://flexidoc.io.vn
       - SEPAY_WEBHOOK_PATH=/api/v1/payments/sepay-webhook
